@@ -5,6 +5,7 @@ import logging
 
 # Discord libs
 import discord
+from discord.ext.commands import Bot
 
 # Load environment variables
 load_dotenv()
@@ -12,21 +13,22 @@ TOKEN = os.getenv('TOKEN')[1:-1]
 # GUILD = os.getenv('GUILD')[1:-1]
 
 # Init
-client = discord.Client()
+intents = discord.Intents.all()
+bot = Bot(intents=intents, command_prefix='$')
 
 # Bot commands
-@client.event
+@bot.event
 async def on_ready():
-    print(f'{client.user.name} has connected to the Discord!')
+    print(f'{bot.user.name} has connected to the Discord!')
 
 
-@client.event
-async def on_message(message):
-    if message.author == client.user:
-        return
+@bot.command(name='server')
+async def fetchserverinfo(context):
+    guild = context.guild
 
-    if message.content.startswith('$hello'):
-        await message.channel.send('Hello!')
+    await context.send(f'Server name: {guild.name}')
+    await context.send(f'Server size: {len(guild.members)}')
+    await context.send(f'Server owner: {guild.owner.display_name}')
 
 # Run
-client.run(TOKEN)
+bot.run(TOKEN)
