@@ -40,6 +40,12 @@ async def on_ready():
     logging.info(f'{bot.user.name} has connected to the Discord!')
 
 
+# Log logoff
+@bot.event
+async def on_disconnect():
+    logging.info(f'{bot.user.name} has disconnected from the Discord!')
+
+
 # Simple ping command
 @bot.command(name='ping')
 async def ping(ctx):
@@ -70,6 +76,7 @@ async def fetchbotinfo(ctx):
 @bot.event
 async def on_command_error(ctx, error):
     logging.error(error)
+
 
 # main
 if __name__ == '__main__':
