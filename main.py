@@ -1,8 +1,9 @@
-# Python imports
+# Python libs
 import os
 from dotenv import load_dotenv
+import logging
 
-# Discord imports
+# Discord libs
 import discord
 
 # Load environment variables
@@ -13,7 +14,7 @@ TOKEN = os.getenv('TOKEN')[1:-1]
 # Init
 client = discord.Client()
 
-
+# Bot commands
 @client.event
 async def on_ready():
     print(f'{client.user.name} has connected to the Discord!')
