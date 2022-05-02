@@ -8,6 +8,7 @@ __doc__ = """Main file of the CEN Discord Bot"""
 
 # Python imports
 import os
+import sys
 from dotenv import load_dotenv
 import logging
 from numpy import round
@@ -21,7 +22,13 @@ load_dotenv()
 TOKEN = os.getenv('TOKEN')[1:-1]
 
 # Init logging
-logging.basicConfig(filename='LOGGING.log', encoding='UTF-8', level=logging.INFO)
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s %(levelname)-8s %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S',
+    handlers=[logging.FileHandler(filename='LOGGING.log', encoding='UTF-8'), logging.StreamHandler(sys.stdout)]
+)
+
 
 # Init bot
 intents = discord.Intents.all()
@@ -32,7 +39,7 @@ bot = Bot(intents=intents, activity=activity, command_prefix='$', description='T
 # Verify login
 @bot.event
 async def on_ready():
-    print(f'{bot.user.name} has connected to the Discord!')
+    logging.info(f'{bot.user.name} has connected to the Discord!')
 
 
 # Simple ping command
@@ -61,5 +68,7 @@ async def fetchbotinfo(ctx):
     await ctx.send(file=icon, embed=embed)
 
 
-# Run
-bot.run(TOKEN)
+# main
+if __name__ == '__main__':
+    bot.load_extension('cogs.rolemgmt')
+    bot.run(TOKEN)

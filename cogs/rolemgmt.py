@@ -7,11 +7,11 @@ __status__ = 'Indev'
 __doc__ = """Role management functions"""
 
 # Imports
-import discord
-from discord.ext.commands import Cog
+import logging
+from discord.ext import commands
 
 
-class RoleMGMT(Cog):
+class RoleMGMT(commands.Cog):
     """
     Role management functions
     """
@@ -20,9 +20,9 @@ class RoleMGMT(Cog):
         self.bot = bot
 
     # Check if loaded
-    @Cog.listener()
-    async def on_ready():
-        print('Role Managment Cog loaded')
+    @commands.Cog.listener()
+    async def on_ready(self):
+        logging.info('Role Management Cog loaded')
 
 
 # Add to bot
