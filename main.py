@@ -10,6 +10,7 @@ __doc__ = """Main file of the CEN Discord Bot"""
 import os
 from dotenv import load_dotenv
 import logging
+from numpy import round
 
 # Discord imports
 import discord
@@ -25,13 +26,22 @@ logging.basicConfig(filename='LOGGING.log', encoding='UTF-8', level=logging.INFO
 # Init bot
 intents = discord.Intents.all()
 activity = discord.Activity(type=discord.ActivityType.watching, name='for $<command>')
-bot = Bot(intents=intents, activity=activity, command_prefix='$')
+bot = Bot(intents=intents, activity=activity, command_prefix='$', description='This is the in-house developed CEN Bot!')
 
 
 # Verify login
 @bot.event
 async def on_ready():
     print(f'{bot.user.name} has connected to the Discord!')
+
+
+# Simple ping command
+@bot.command(name='ping')
+async def ping(ctx):
+    """
+    Replies with Pong! (and the bots ping)
+    """
+    await ctx.send(f'Pong! ({round(bot.latency * 1000, 4)} ms)')
 
 
 # Embed current bot info
