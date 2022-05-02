@@ -7,19 +7,18 @@ __status__ = 'Indev'
 __doc__ = """Main file of the CEN Discord Bot"""
 
 # Python imports
-import os
 import sys
-from dotenv import load_dotenv
 import logging
-from numpy import round
+import json
 
 # Discord imports
 import discord
 from discord.ext.commands import Bot
 
 # Load environment variables
-load_dotenv()
-TOKEN = os.getenv('TOKEN')[1:-1]
+with open('environment.json') as f:
+    data = json.load(f)
+    TOKEN = data['TOKEN']
 
 # Init logging
 logging.basicConfig(
@@ -28,7 +27,6 @@ logging.basicConfig(
     datefmt='%Y-%m-%d %H:%M:%S',
     handlers=[logging.FileHandler(filename='LOGGING.log', encoding='UTF-8'), logging.StreamHandler(sys.stdout)]
 )
-
 
 # Init bot
 intents = discord.Intents.all()
@@ -62,13 +60,19 @@ async def fetchbotinfo(ctx):
     embed.set_author(name='CEN Bot', icon_url='attachment://L1.png')
     embed.add_field(name="Bot Version", value=__version__)
     embed.add_field(name='Written By', value='Justin Panchula and Zach Lesniewski')
-    embed.add_field(name='Server Information', value=f'This bot is in {len(bot.guilds)} servers watching over {len(set(bot.get_all_members()))} members.', inline=False)
+    embed.add_field(name='Server Information', value=f'This bot is in {len(bot.guilds)} servers watching over {len(set(bot.get_all_members()))-1} members.', inline=False)
     embed.set_footer(text=f'Information requested by: {ctx.author.display_name}')
 
     await ctx.send(file=icon, embed=embed)
 
 
+# Simple error handling
+@bot.event
+async def on_command_error(ctx, error):
+    logging.error(error)
+
 # main
 if __name__ == '__main__':
     bot.load_extension('cogs.rolemgmt')
+    bot.load_extension('cogs.music')
     bot.run(TOKEN)

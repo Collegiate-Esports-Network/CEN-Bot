@@ -11,7 +11,7 @@ import logging
 from discord.ext import commands
 
 
-class rolemgmt(commands.Cog):
+class music(commands.Cog):
     """
     Role management functions
     """
@@ -22,9 +22,9 @@ class rolemgmt(commands.Cog):
     # Check if loaded
     @commands.Cog.listener()
     async def on_ready(self):
-        logging.info('Role Management Cog loaded')
+        logging.info('Music Cog loaded')
 
 
 # Add to bot
 def setup(bot) -> None:
-    bot.add_cog(rolemgmt(bot))
+    bot.add_cog(music(bot))
