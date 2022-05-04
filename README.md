@@ -1,5 +1,4 @@
 # **Welcome to the CEN Bot Github Repository!** <img id="CEN Logo" src="L1.png" alt="CEN Logo" style="height: 24pt">
----
 ### **Contributions**
 |Creditor|Credit|
 |---|---|
