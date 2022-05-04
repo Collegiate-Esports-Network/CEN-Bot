@@ -9,16 +9,17 @@ __doc__ = """Main file of the CEN Discord Bot"""
 # Python imports
 import sys
 import logging
-import json
+from pathlib import Path
+
+# Custom imports
+from json_interacts import read_json, write_json
 
 # Discord imports
 import discord
 from discord.ext.commands import Bot
 
 # Load environment variables
-with open('environment.json') as f:
-    data = json.load(f)
-    TOKEN = data['TOKEN']
+TOKEN = read_json(Path.cwd().joinpath('environment.json'))['TOKEN']
 
 # Init logging
 logging.basicConfig(
@@ -32,6 +33,7 @@ logging.basicConfig(
 intents = discord.Intents.all()
 activity = discord.Activity(type=discord.ActivityType.watching, name='for $<command>')
 bot = Bot(intents=intents, activity=activity, command_prefix='$', description='This is the in-house developed CEN Bot!')
+bot.version = '0.1.1'
 
 
 # Verify login
@@ -64,9 +66,11 @@ async def fetchbotinfo(ctx):
     embed = discord.Embed(title='Bot Info', description='Here is the most up-to-date information on the bot', color=0x2374a5)
     icon = discord.File('L1.png', filename='L1.png')
     embed.set_author(name='CEN Bot', icon_url='attachment://L1.png')
-    embed.add_field(name="Bot Version", value=__version__)
-    embed.add_field(name='Written By', value='Justin Panchula and Zach Lesniewski')
-    embed.add_field(name='Server Information', value=f'This bot is in {len(bot.guilds)} servers watching over {len(set(bot.get_all_members()))-1} members.', inline=False)
+    embed.add_field(name="Bot Version:", value=bot.version)
+    embed.add_field(name="Python Version:", value='3.10.4')
+    embed.add_field(name="Discord.py Version:", value=discord.__version__)
+    embed.add_field(name='Written By:', value='Justin Panchula and Zach Lesniewski', inline=False)
+    embed.add_field(name='Server Information:', value=f'This bot is in {len(bot.guilds)} servers watching over {len(set(bot.get_all_members()))-1} members.', inline=False)
     embed.set_footer(text=f'Information requested by: {ctx.author.display_name}')
 
     await ctx.send(file=icon, embed=embed)
@@ -77,6 +81,13 @@ async def fetchbotinfo(ctx):
 async def on_command_error(ctx, error):
     logging.error(error)
 
+
+# Reload cogs
+@bot.command(name='reload', hidden=True)
+async def reload(ctx, cog):
+    bot.reload_extension(f'cogs.{cog}')
+    logging.info(f'{cog} was reloaded')
+    await ctx.send(f'{cog} was reloaded')
 
 # main
 if __name__ == '__main__':
