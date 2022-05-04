@@ -2,7 +2,7 @@
 Welcome to the CEN Bot Github Repository!
 #########################################
 
-.. image:: https://discord.com/api/guilds/764980314745208863/widget.json
+.. image:: https://img.shields.io/discord/764980314745208863
    :target: https://collegiateesportsnetwork.org/discord
    :alt: Discord server invite
 .. image:: https://img.shields.io/pypi/v/discord.py.svg
