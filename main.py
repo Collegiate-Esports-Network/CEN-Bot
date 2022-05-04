@@ -12,7 +12,7 @@ import logging
 from pathlib import Path
 
 # Custom imports
-from json_interacts import read_json, write_json
+from json_interacts import read_json
 
 # Discord imports
 import discord
