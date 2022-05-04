@@ -31,6 +31,6 @@ def write_json(path: Path, data: Any) -> None:
         filename (str): The name of the file to write to
         data (Any): The data to be written
     """
-    with open(path, 'a') as f:
+    with open(path, 'w') as f:
         json.dump(data, f, indent=4)
     return

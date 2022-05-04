@@ -47,17 +47,17 @@ class rolemgmt(commands.Cog):
         # Read in data already present
         roles = read_json(path)
 
-        # Define check function
+        # Check if command user is giving input
         def check(user):
             return user.author == ctx.author and user.channel == ctx.channel
 
         # Prompts for user entry
-        Qs = ['Role Category?', 'Role Name?', 'Role Emoji?']
+        Qs = ['Role Category', 'Role Name', 'Role Emoji']
         newrole = {}
 
         # Ask questions and get answers
         for Q in Qs:
-            await ctx.send(Q)
+            await ctx.send(Q + '?')
 
             try:
                 msg = await self.bot.wait_for('message', timeout=30.0, check=check)
@@ -67,11 +67,11 @@ class rolemgmt(commands.Cog):
             else:
                 newrole[Q] = msg.content
 
-        # Format for storage
-        newrole = {newrole[Qs[1]]: {Qs[0]: newrole[Qs[0]], Qs[2]: newrole[Qs[2]]}}
+        # Append
+        roles[newrole[Qs[1]]] = {Qs[0]: newrole[Qs[0]], Qs[2]: newrole[Qs[2]]}
 
         # Dump into roles.json
-        write_json(path, newrole)
+        write_json(path, roles)
 
 
 # Add to bot
