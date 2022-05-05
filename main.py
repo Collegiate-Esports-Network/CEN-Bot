@@ -89,6 +89,7 @@ async def reload(ctx, cog):
     logging.info(f'{cog} was reloaded')
     await ctx.send(f'{cog} was reloaded')
 
+
 # main
 if __name__ == '__main__':
     bot.load_extension('cogs.rolemgmt')

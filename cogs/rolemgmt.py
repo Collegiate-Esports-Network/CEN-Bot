@@ -40,6 +40,9 @@ class rolemgmt(commands.Cog):
     # Add reactions to file
     @commands.command(name='reactadd')
     async def reactadd(self, ctx):
+        """
+        Adds reaction roles to the bot
+        """
         # Init
         path = Path.cwd()
 

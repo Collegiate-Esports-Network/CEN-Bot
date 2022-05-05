@@ -4,7 +4,7 @@ from pathlib import Path
 import json
 
 # Typing
-from typing import Any
+from typing import Dict
 from aiohttp import JsonPayload
 
 
@@ -24,7 +24,7 @@ def read_json(path: Path) -> JsonPayload:
             return json.load(f)
 
 
-def write_json(path: Path, data: Any) -> None:
+def write_json(path: Path, data: Dict) -> None:
     """Appends to a json file
 
     Args:
