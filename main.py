@@ -60,6 +60,7 @@ async def on_command_error(ctx, error):
 # main
 if __name__ == '__main__':
     bot.load_extension('cogs.utility')
+    bot.load_extension('cogs.activitylog')
     bot.load_extension('cogs.rolereactions')
     bot.load_extension('cogs.music')
     bot.run(TOKEN)

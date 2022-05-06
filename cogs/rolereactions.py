@@ -204,9 +204,13 @@ class rolereactions(commands.Cog):
             return
 
         # Get reaction channel
-        react_channel = read_json(Path('cogs/json files/rolereactionchannel.json'))['Channel']
-        react_channel = get_id(react_channel)
-        react_channel = self.bot.get_channel(react_channel)
+        try:
+            react_channel = read_json(Path('cogs/json files/rolereactionchannel.json'))['Channel']
+        except FileNotFoundError:
+            return
+        else:
+            react_channel = get_id(react_channel)
+            react_channel = self.bot.get_channel(react_channel)
 
         # Get reaction roles
         react_roles = read_json(Path('cogs/json files/reactionroles.json'))
@@ -241,9 +245,13 @@ class rolereactions(commands.Cog):
             return
 
         # Get reaction channel
-        react_channel = read_json(Path('cogs/json files/rolereactionchannel.json'))['Channel']
-        react_channel = get_id(react_channel)
-        react_channel = self.bot.get_channel(react_channel)
+        try:
+            react_channel = read_json(Path('cogs/json files/rolereactionchannel.json'))['Channel']
+        except FileNotFoundError:
+            return
+        else:
+            react_channel = get_id(react_channel)
+            react_channel = self.bot.get_channel(react_channel)
 
         # Get reaction roles
         react_roles = read_json(Path('cogs/json files/reactionroles.json'))

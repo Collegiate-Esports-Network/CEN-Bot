@@ -1,0 +1,109 @@
+__author__ = 'Justin Panchula'
+__copyright__ = 'Copyright 2022'
+__credits__ = 'Justin Panchula'
+__license__ = 'MIT License'
+__version__ = '1.0.0'
+__status__ = 'Production'
+__doc__ = """Logs messages and edits in discord servers"""
+
+# Python imports
+from pathlib import Path
+import logging
+
+# Discord imports
+import discord
+from discord.ext import commands
+
+# Custom imports
+from utils import JsonInteracts
+from utils import get_id
+
+# Redef
+read_json = JsonInteracts.read_json
+write_json = JsonInteracts.write_json
+
+
+class activitylog(commands.Cog):
+    # Init
+    def __init__(self, bot) -> None:
+        self.bot = bot
+
+    # Check if loaded
+    @commands.Cog.listener()
+    async def on_ready(self):
+        logging.info('Logging Cog loaded')
+
+    # Choose log channel
+    @commands.command(
+        name='setlogchannel',
+        brief='Chooses a channel to log information to',
+        help='Chooses a channel to log information to'
+    )
+    async def setlogchannel(self, ctx):
+        # Init
+        path = Path('cogs/json files/loggingchannel.json')
+
+        # Check if file exits, else create
+        if path.is_file():
+            channel = read_json(path)
+        else:
+            path.touch()
+            channel = dict()
+
+        # Check if command user is giving input
+        def checkuser(user):
+            return user.author == ctx.author and user.channel == ctx.channel
+
+        # Set new channel
+        await ctx.send('What is the channel for message logging?')
+        msg = await self.bot.wait_for('message', timeout=30.0, check=checkuser)
+        channel['Channel'] = msg.content
+
+        # Write to file
+        write_json(path, channel)
+
+    # Log message edits
+    @commands.Cog.listener()
+    async def on_message_edit(self, ctx_before, ctx_after):
+        # Get logging channel
+        try:
+            channel = read_json(Path('cogs/json files/loggingchannel.json'))['Channel']
+        except FileNotFoundError:
+            return
+        else:
+            channel = get_id(channel)
+            channel = self.bot.get_channel(channel)
+
+        # Edited message embed
+        embed = discord.Embed(title='Message Alert: Edit', description=f'A message by {ctx_before.author.display_name} was edited in {ctx_before.channel}')
+        embed.add_field(name='Before:', value=ctx_before.content)
+        embed.add_field(name='After:', value=ctx_after.content)
+        embed.set_footer(text='Automated logging courtesy of the CEN Bot')
+
+        # Send to channel
+        await channel.send(embed=embed)
+
+    # Log message deletion
+    @commands.Cog.listener()
+    async def on_message_delete(self, ctx):
+        # Get logging channel
+        try:
+            channel = read_json(Path('cogs/json files/loggingchannel.json'))['Channel']
+        except FileNotFoundError:
+            return
+        else:
+            channel = get_id(channel)
+            channel = self.bot.get_channel(channel)
+
+        # Edited message embed
+        embed = discord.Embed(title='Message Alert: Deletion', description=f'A message by {ctx.author.display_name} ({ctx.author}) was deleted in #{ctx.channel}')
+        embed.add_field(name='Content', value=ctx.content)
+        embed.set_footer(text='Automated logging courtesy of the CEN Bot')
+
+        # Send to channel
+        await channel.send(embed=embed)
+
+
+# Add to bot
+def setup(bot) -> None:
+    bot.add_cog(activitylog(bot))
