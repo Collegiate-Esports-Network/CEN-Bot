@@ -1,9 +1,9 @@
 __author__ = 'Justin Panchula'
 __copyright__ = 'Copyright 2022'
-__credits__ = 'Justin Panchula, Zach Lesniewski'
+__credits__ = 'Justin Panchula'
 __license__ = 'MIT License'
-__version__ = '0.1.0'
-__status__ = 'Indev'
+__version__ = '1.0.0'
+__status__ = 'Production'
 __doc__ = """Role management functions"""
 
 # Python imports
@@ -24,7 +24,7 @@ read_json = JsonInteracts.read_json
 write_json = JsonInteracts.write_json
 
 
-class rolereact(commands.Cog):
+class rolereactions(commands.Cog):
     # Init
     def __init__(self, bot) -> None:
         self.bot = bot
@@ -44,7 +44,7 @@ class rolereact(commands.Cog):
     @commands.has_role('Bot Manager')
     async def reactchannel(self, ctx):
         # Init
-        path = Path('cogs/rolereactionchannel.json')
+        path = Path('cogs/json files/rolereactionchannel.json')
 
         # Check if file exits, else create
         if path.is_file():
@@ -75,7 +75,7 @@ class rolereact(commands.Cog):
     async def reactupdate(self, ctx):
         # Try to open react channel file, pass error if not
         try:
-            react_channel = read_json(Path('cogs/rolereactionchannel.json'))['Channel']
+            react_channel = read_json(Path('cogs/json files/rolereactionchannel.json'))['Channel']
         except FileNotFoundError:
             await ctx.send('Reaction channel not set')
             return
@@ -88,7 +88,7 @@ class rolereact(commands.Cog):
 
         # Try to open reaction roles file, pass error if not
         try:
-            react_roles = read_json(Path('cogs/reactionroles.json'))
+            react_roles = read_json(Path('cogs/json files/reactionroles.json'))
         except FileNotFoundError:
             await ctx.send('Reaction roles not created')
             return
@@ -120,7 +120,7 @@ class rolereact(commands.Cog):
     @commands.has_role('Bot Manager')
     async def reactadd(self, ctx):
         # Init
-        path = Path('cogs/reactionroles.json')
+        path = Path('cogs/json files/reactionroles.json')
 
         # Check if file exits, else create
         if path.is_file():
@@ -204,12 +204,12 @@ class rolereact(commands.Cog):
             return
 
         # Get reaction channel
-        react_channel = read_json(Path('cogs/rolereactionchannel.json'))['Channel']
+        react_channel = read_json(Path('cogs/json files/rolereactionchannel.json'))['Channel']
         react_channel = get_id(react_channel)
         react_channel = self.bot.get_channel(react_channel)
 
         # Get reaction roles
-        react_roles = read_json(Path('cogs/reactionroles.json'))
+        react_roles = read_json(Path('cogs/json files/reactionroles.json'))
 
         # Get reactions and their roles
         emojirole = dict()
@@ -241,12 +241,12 @@ class rolereact(commands.Cog):
             return
 
         # Get reaction channel
-        react_channel = read_json(Path('cogs/rolereactionchannel.json'))['Channel']
+        react_channel = read_json(Path('cogs/json files/rolereactionchannel.json'))['Channel']
         react_channel = get_id(react_channel)
         react_channel = self.bot.get_channel(react_channel)
 
         # Get reaction roles
-        react_roles = read_json(Path('cogs/reactionroles.json'))
+        react_roles = read_json(Path('cogs/json files/reactionroles.json'))
 
         # Get reactions and their roles
         emojirole = dict()
@@ -273,4 +273,4 @@ class rolereact(commands.Cog):
 
 # Add to bot
 def setup(bot) -> None:
-    bot.add_cog(rolereact(bot))
+    bot.add_cog(rolereactions(bot))
