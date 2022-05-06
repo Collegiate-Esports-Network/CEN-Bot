@@ -26,7 +26,7 @@ write_json = JsonInteracts.write_json
 
 class rolereactions(commands.Cog):
     """
-    Role Reaction functions
+    These are all functions available for role reaction managment.
     """
     # Init
     def __init__(self, bot) -> None:

@@ -25,7 +25,7 @@ read_json = JsonInteracts.read_json
 
 class music(commands.Cog):
     """
-    Musicbot functions
+    These are all functions related to the musicbot.
     """
     # Init
     def __init__(self, bot) -> None:
@@ -35,7 +35,6 @@ class music(commands.Cog):
         # Populate dict object
         for guild in self.bot.guilds:
             self.song_queue[guild.id] = []
-            print(self.song_queue)
 
         # pafy request
         pafy.set_api_key(read_json(Path('environment.json'))['GOOGLE API'])

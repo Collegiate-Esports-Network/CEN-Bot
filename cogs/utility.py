@@ -27,7 +27,7 @@ def getcogs():
 
 class utility(commands.Cog):
     """
-    Utility functions
+    These are all functions that act as utility to the bot.
     """
     # Init
     def __init__(self, bot) -> None:
@@ -44,11 +44,18 @@ class utility(commands.Cog):
         brief='Reloads cogs',
         help=f'Reloads one of the following cogs:\n{getcogs()}.'
     )
-    @commands.has_role('Bot Manager')
+    @commands.is_owner()
     async def reload(self, ctx, cog):
-        self.bot.reload_extension(f'cogs.{cog}')
-        logging.info(f'{cog} was reloaded')
-        await ctx.send(f'{cog} was reloaded')
+        if cog == 'all':
+            allCogs = getcogs()
+            for cog in allCogs:
+                self.bot.reload_extension(f'cogs.{cog}')
+            logging.info('All cogs were reloaded')
+            await ctx.send('All cogs were reloaded')
+        else:
+            self.bot.reload_extension(f'cogs.{cog}')
+            logging.info(f'{cog} was reloaded')
+            await ctx.send(f'{cog} was reloaded')
 
     # Simple ping command
     @commands.command(
