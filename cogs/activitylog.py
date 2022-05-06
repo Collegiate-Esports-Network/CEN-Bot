@@ -16,21 +16,20 @@ import discord
 from discord.ext import commands
 
 # Custom imports
-from utils import JsonInteracts
-from utils import get_id
+from utils import JsonInteracts, get_id
 
 # Redef
-read_json = JsonInteracts.read_json
-write_json = JsonInteracts.write_json
+read_json = JsonInteracts.Standard.read_json
+write_json = JsonInteracts.Standard.write_json
 
 
 class activitylog(commands.Cog):
-    """
-    These are all functions related to the activity log.
+    """These are all functions related to the activity log.
     """
     # Init
     def __init__(self, bot) -> None:
         self.bot = bot
+        self.path = Path('cogs/json files/loggingchannels.json')
 
     # Check if loaded
     @commands.Cog.listener()
@@ -43,39 +42,37 @@ class activitylog(commands.Cog):
         brief='Chooses a channel to log information to',
         help='Chooses a channel to log information to'
     )
+    @commands.has_role('Bot Manager')
     async def setlogchannel(self, ctx):
-        # Init
-        path = Path('cogs/json files/loggingchannel.json')
-
-        # Check if file exits, else create
-        if path.is_file():
-            channel = read_json(path)
+        # Check if file exists, else create
+        if self.path.is_file():
+            channels = read_json()
         else:
-            path.touch()
+            self.path.touch()
+            channels = dict()
 
         # Check if command user is giving input
-        def checkuser(user):
-            return user.author == ctx.author and user.channel == ctx.channel
+        def checkuser(msg):
+            return msg.author == ctx.author and msg.channel == ctx.channel
 
         # Set new channel
         await ctx.send('What is the channel for message logging?')
         msg = await self.bot.wait_for('message', timeout=30.0, check=checkuser)
-        channel = msg.content
+        channels[f'{ctx.guild.id}'] = msg
 
         # Write to file
-        write_json(path, channel, ctx.guild.id)
+        write_json(self.path, channels)
 
     # Log message edits
     @commands.Cog.listener()
     async def on_message_edit(self, ctx_bef, ctx_aft):
         # Get logging channel
         try:
-            channel = read_json(Path('cogs/json files/loggingchannel.json'), ctx_bef.guild.id)
+            channel = read_json(self.path)[f'{ctx_bef.guild.id}']
         except FileNotFoundError:
             return
         else:
-            channel = get_id(channel)
-            channel = self.bot.get_channel(channel)
+            channel = self.bot.get_channel(get_id(channel))
 
         # Edited message embed
         embed = discord.Embed(colour=discord.Colour.gold())
@@ -88,17 +85,16 @@ class activitylog(commands.Cog):
         # Send to channel
         await channel.send(embed=embed)
 
-    # Log message deletion
+    # Log message deletions
     @commands.Cog.listener()
     async def on_message_delete(self, ctx):
         # Get logging channel
         try:
-            channel = read_json(Path('cogs/json files/loggingchannel.json'), ctx.guild.id)
+            channel = read_json(self.path)[f'{ctx.guild.id}']
         except FileNotFoundError:
             return
         else:
-            channel = get_id(channel)
-            channel = self.bot.get_channel(channel)
+            channel = self.bot.get_channel(get_id(channel))
 
         # Deleted message embed
         embed = discord.Embed(colour=discord.Colour.red())

@@ -26,8 +26,7 @@ def getcogs():
 
 
 class utility(commands.Cog):
-    """
-    These are all functions that act as utility to the bot.
+    """These are all functions that act as utility to the bot.
     """
     # Init
     def __init__(self, bot) -> None:
