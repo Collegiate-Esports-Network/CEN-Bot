@@ -25,6 +25,9 @@ write_json = JsonInteracts.write_json
 
 
 class activitylog(commands.Cog):
+    """
+    Activity Log functions
+    """
     # Init
     def __init__(self, bot) -> None:
         self.bot = bot

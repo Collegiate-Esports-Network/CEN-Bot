@@ -8,13 +8,27 @@ __doc__ = """Utility Functions"""
 
 # Python imports
 import logging
+from pathlib import Path
 
 # Discord imports
 import discord
 from discord.ext import commands
 
 
+# Get all available cogs
+def getcogs():
+    allcogs = []
+    dir = Path('cogs')
+    for entry in dir.iterdir():
+        if entry.is_file():
+            allcogs.append(entry.stem)
+    return allcogs
+
+
 class utility(commands.Cog):
+    """
+    Utility functions
+    """
     # Init
     def __init__(self, bot) -> None:
         self.bot = bot
@@ -27,7 +41,8 @@ class utility(commands.Cog):
     # Reload cogs
     @commands.command(
         name='reload',
-        hidden=True
+        brief='Reloads cogs',
+        help=f'Reloads one of the following cogs:\n{getcogs()}.'
     )
     @commands.has_role('Bot Manager')
     async def reload(self, ctx, cog):
