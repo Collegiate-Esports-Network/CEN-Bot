@@ -196,6 +196,7 @@ class rolereact(commands.Cog):
 
         self.bot.get_command('reactupdate')(ctx)  # FIXME: Not calling "$reactupdate"
 
+    # Add role on reaction
     @commands.Cog.listener()
     async def on_reaction_add(self, reaction, user):
         # Ignore if bot reacted
@@ -221,12 +222,49 @@ class rolereact(commands.Cog):
 
         # Check if reaction occured in reaction channel, else return
         if reaction.message.channel == react_channel:
-            # Check if valid reaction, else return
+            # Check if valid reaction and add role, else return
             if reaction.emoji in emojiList:
                 roleID = emojirole[reaction.emoji]
                 role = discord.utils.get(user.guild.roles, id=roleID)
                 await user.add_roles(role)
-                logging.info(f'{user.display_name} has been given {role}')
+                logging.info(f'{role} has been given {user.display_name} in {user.guild}')
+            else:
+                return
+        else:
+            return
+
+    # Remove role on de-reaction
+    @commands.Cog.listener()
+    async def on_reaction_remove(self, reaction, user):
+        # Ignore if bot reacted
+        if user == self.bot.user:
+            return
+
+        # Get reaction channel
+        react_channel = read_json(Path('cogs/rolereactionchannel.json'))['Channel']
+        react_channel = get_id(react_channel)
+        react_channel = self.bot.get_channel(react_channel)
+
+        # Get reaction roles
+        react_roles = read_json(Path('cogs/reactionroles.json'))
+
+        # Get reactions and their roles
+        emojirole = dict()
+        emojiList = []
+        for category in react_roles:
+            for role in react_roles[category]['Roles']:
+                emoji = react_roles[category]['Roles'][role]['Emoji']
+                emojiList.append(emoji)
+                emojirole[emoji] = get_id(role)
+
+        # Check if de-reaction occured in reaction channel, else return
+        if reaction.message.channel == react_channel:
+            # Check if valid de-reaction and remove, else return
+            if reaction.emoji in emojiList:
+                roleID = emojirole[reaction.emoji]
+                role = discord.utils.get(user.guild.roles, id=roleID)
+                await user.remove_roles(role)
+                logging.info(f'{role} has been given to {user.display_name} in {user.guild}')
             else:
                 return
         else:
