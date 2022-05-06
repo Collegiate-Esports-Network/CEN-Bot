@@ -2,8 +2,8 @@ __author__ = 'Justin Panchula'
 __copyright__ = 'Copyright 2022'
 __credits__ = 'Justin Panchula, Zach Lesniewski'
 __license__ = 'MIT License'
-__version__ = '0.1.0'
-__status__ = 'Indev'
+__version__ = '1.0.0'
+__status__ = 'Production'
 __doc__ = """Main file of the CEN Discord Bot"""
 
 # Python imports
@@ -33,7 +33,7 @@ logging.basicConfig(
 intents = discord.Intents.all()
 activity = discord.Activity(type=discord.ActivityType.watching, name='for $<command>')
 bot = Bot(intents=intents, activity=activity, command_prefix='$', description='This is the in-house developed CEN Bot!')
-bot.version = '0.1.1'
+bot.version = '0.3.1'
 
 
 # Verify login
@@ -70,7 +70,7 @@ async def fetchbotinfo(ctx):
     embed.add_field(name="Python Version:", value='3.10.4')
     embed.add_field(name="Discord.py Version:", value=discord.__version__)
     embed.add_field(name='Written By:', value='Justin Panchula and Zach Lesniewski', inline=False)
-    embed.add_field(name='Server Information:', value=f'This bot is in {len(bot.guilds)} servers watching over {len(set(bot.get_all_members()))-1} members.', inline=False)
+    embed.add_field(name='Server Information:', value=f'This bot is in {len(bot.guilds)} servers watching over {len(set(bot.get_all_members()))-len(bot.guilds)} members.', inline=False)
     embed.set_footer(text=f'Information requested by: {ctx.author.display_name}')
 
     await ctx.send(file=icon, embed=embed)
@@ -92,6 +92,6 @@ async def reload(ctx, cog):
 
 # main
 if __name__ == '__main__':
-    bot.load_extension('cogs.rolemgmt')
+    bot.load_extension('cogs.rolereactions')
     bot.load_extension('cogs.music')
     bot.run(TOKEN)
