@@ -52,7 +52,6 @@ class activitylog(commands.Cog):
             channel = read_json(path)
         else:
             path.touch()
-            channel = dict()
 
         # Check if command user is giving input
         def checkuser(user):
@@ -61,17 +60,17 @@ class activitylog(commands.Cog):
         # Set new channel
         await ctx.send('What is the channel for message logging?')
         msg = await self.bot.wait_for('message', timeout=30.0, check=checkuser)
-        channel['Channel'] = msg.content
+        channel = msg.content
 
         # Write to file
-        write_json(path, channel)
+        write_json(path, channel, ctx.guild.id)
 
     # Log message edits
     @commands.Cog.listener()
     async def on_message_edit(self, ctx_bef, ctx_aft):
         # Get logging channel
         try:
-            channel = read_json(Path('cogs/json files/loggingchannel.json'))['Channel']
+            channel = read_json(Path('cogs/json files/loggingchannel.json'), ctx_bef.guild.id)
         except FileNotFoundError:
             return
         else:
@@ -94,7 +93,7 @@ class activitylog(commands.Cog):
     async def on_message_delete(self, ctx):
         # Get logging channel
         try:
-            channel = read_json(Path('cogs/json files/loggingchannel.json'))['Channel']
+            channel = read_json(Path('cogs/json files/loggingchannel.json'), ctx.guild.id)
         except FileNotFoundError:
             return
         else:
@@ -105,7 +104,10 @@ class activitylog(commands.Cog):
         embed = discord.Embed(colour=discord.Colour.red())
         embed.set_author(name=ctx.author.display_name, icon_url=ctx.author.avatar_url)
         embed.add_field(name='Message Alert: Deletion', value=f'A message sent by {ctx.author.mention} was deleted in {ctx.channel.mention}', inline=False)
-        embed.add_field(name='Content', value=ctx.content)
+        try:
+            embed.add_field(name='Content', value=ctx.content)
+        except discord.errors.HTTPException:
+            pass
         embed.set_footer(text=f'{datetime.now().strftime("%d/%m/%y - %H:%M:%S")}')
 
         # Send to channel

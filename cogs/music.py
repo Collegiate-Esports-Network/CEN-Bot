@@ -10,17 +10,13 @@ __doc__ = """Role management functions"""
 # from time import sleep
 import logging
 from pathlib import Path
-import pafy
+import json
+
 
 # Discord imports
 import discord
 from discord.ext import commands
-
-# Custom imports
-from utils import JsonInteracts
-
-# Redef
-read_json = JsonInteracts.read_json
+import pafy
 
 
 class music(commands.Cog):
@@ -37,7 +33,7 @@ class music(commands.Cog):
             self.song_queue[guild.id] = []
 
         # pafy request
-        pafy.set_api_key(read_json(Path('environment.json'))['GOOGLE API'])
+        pafy.set_api_key(json.load(Path('environment.json').open())['GOOGLE API'])
 
     # Adds a song to queue
     async def enqueue(self, ctx, song):

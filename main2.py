@@ -19,10 +19,10 @@ from discord.ext.commands import Bot
 from utils import JsonInteracts
 
 # Redef
-read_json = JsonInteracts.read_json
+read_json = JsonInteracts.Standard.read_json
 
 # Load environment variables
-TOKEN = read_json(Path.cwd().joinpath('environment.json'))['TOKEN']
+TOKEN = read_json(Path('environment.json'))['TOKEN']
 
 # Init logging
 logging.basicConfig(
@@ -55,6 +55,7 @@ async def on_disconnect():
 @bot.event
 async def on_command_error(ctx, error):
     logging.error(error)
+    await ctx.send('ERROR: Invalid Command')
 
 
 # main

@@ -51,22 +51,21 @@ class rolereactions(commands.Cog):
 
         # Check if file exits, else create
         if path.is_file():
-            channel = read_json(path)
+            channel = read_json(path, ctx.guild.id)
         else:
             path.touch()
-            channel = dict()
 
         # Check if command user is giving input
         def checkuser(user):
             return user.author == ctx.author and user.channel == ctx.channel
 
-        # Set new channel
+        # Set new channel by guild
         await ctx.send('What is the channel for role reactions?')
         msg = await self.bot.wait_for('message', timeout=30.0, check=checkuser)
-        channel['Channel'] = msg.content
+        channel = msg.content
 
         # Write to file
-        write_json(path, channel)
+        write_json(path, channel, ctx.guild.id)
 
     # Creates/updates embed for channel
     @commands.command(
@@ -78,7 +77,7 @@ class rolereactions(commands.Cog):
     async def reactupdate(self, ctx):
         # Try to open react channel file, pass error if not
         try:
-            react_channel = read_json(Path('cogs/json files/rolereactionchannel.json'))['Channel']
+            react_channel = read_json(Path('cogs/json files/rolereactionchannel.json'), ctx.guild.id)
         except FileNotFoundError:
             await ctx.send('Reaction channel not set')
             return
@@ -91,7 +90,7 @@ class rolereactions(commands.Cog):
 
         # Try to open reaction roles file, pass error if not
         try:
-            react_roles = read_json(Path('cogs/json files/reactionroles.json'))
+            react_roles = read_json(Path('cogs/json files/reactionroles.json'), ctx.guild.id)
         except FileNotFoundError:
             await ctx.send('Reaction roles not created')
             return
@@ -127,7 +126,7 @@ class rolereactions(commands.Cog):
 
         # Check if file exits, else create
         if path.is_file():
-            roles = read_json(path)
+            roles = read_json(path, ctx.guild.id)
         else:
             path.touch()
             roles = dict()
@@ -194,10 +193,10 @@ class rolereactions(commands.Cog):
                 await ctx.send('That role reaction already exists!')
                 return
 
-        # Dump into roles.json
-        write_json(path, roles)
+        # Dump into .json
+        write_json(path, roles, ctx.guild.id)
 
-        self.bot.get_command('reactupdate')(ctx)  # FIXME: Not calling "$reactupdate"
+        await self.bot.get_command('reactupdate')(ctx)
 
     # Add role on reaction
     @commands.Cog.listener()
@@ -208,7 +207,7 @@ class rolereactions(commands.Cog):
 
         # Get reaction channel
         try:
-            react_channel = read_json(Path('cogs/json files/rolereactionchannel.json'))['Channel']
+            react_channel = read_json(Path('cogs/json files/rolereactionchannel.json'), reaction.message.guild.id)
         except FileNotFoundError:
             return
         else:
@@ -216,7 +215,7 @@ class rolereactions(commands.Cog):
             react_channel = self.bot.get_channel(react_channel)
 
         # Get reaction roles
-        react_roles = read_json(Path('cogs/json files/reactionroles.json'))
+        react_roles = read_json(Path('cogs/json files/reactionroles.json'), reaction.message.guild.id)
 
         # Get reactions and their roles
         emojirole = dict()
@@ -249,7 +248,7 @@ class rolereactions(commands.Cog):
 
         # Get reaction channel
         try:
-            react_channel = read_json(Path('cogs/json files/rolereactionchannel.json'))['Channel']
+            react_channel = read_json(Path('cogs/json files/rolereactionchannel.json'), reaction.message.guild.id)
         except FileNotFoundError:
             return
         else:
@@ -257,7 +256,7 @@ class rolereactions(commands.Cog):
             react_channel = self.bot.get_channel(react_channel)
 
         # Get reaction roles
-        react_roles = read_json(Path('cogs/json files/reactionroles.json'))
+        react_roles = read_json(Path('cogs/json files/reactionroles.json'), reaction.message.guild.id)
 
         # Get reactions and their roles
         emojirole = dict()
