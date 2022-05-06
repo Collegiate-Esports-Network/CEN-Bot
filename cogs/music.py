@@ -12,10 +12,15 @@ import logging
 from pathlib import Path
 import pafy
 # import vlc
-from json_interacts import read_json
 
 # Discord imports
 from discord.ext import commands
+
+# Custom imports
+from utils import JsonInteracts
+
+# Redef
+read_json = JsonInteracts.read_json
 
 # PLay music
 # def playmusic(queue, ctx):
@@ -57,6 +62,7 @@ class music(commands.Cog):
 
     # Helper functions
     @commands.command(name='join')
+    @commands.has_role('everyone')
     async def join(self, ctx):
         """
         Bot joins user's voice channel
@@ -64,6 +70,7 @@ class music(commands.Cog):
         await ctx.author.voice.channel.connect()
 
     @commands.command(name='leave')
+    @commands.has_role('everyone')
     async def leave(self, ctx):
         """
         Bot leaves user's voice channel
@@ -72,6 +79,7 @@ class music(commands.Cog):
 
     # Add to music player queue
     @commands.command(name='play')
+    @commands.has_role('everyone')
     async def addmusicqueue(self, ctx, song):
         """
         Plays audio from YouTube in a voice channel

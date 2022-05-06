@@ -12,10 +12,16 @@ import asyncio
 import logging
 
 # Discord imports
+import discord
 from discord.ext import commands
 
 # Custom imports
-from json_interacts import read_json, write_json
+from utils import JsonInteracts
+from utils import get_id
+
+# Redef
+read_json = JsonInteracts.read_json
+write_json = JsonInteracts.write_json
 
 
 class rolereact(commands.Cog):
@@ -30,23 +36,22 @@ class rolereact(commands.Cog):
 
     # Set role reaction channel
     @commands.command(
-        name='setreactchannel',
-        aliases=['setreactionchannel'],
+        name='reactchannel',
+        aliases=['setreactionchannel', 'setreactchannel'],
         brief='Sets the reaction channel',
         help='Sets the reaction channel'
     )
-    async def setreactchannel(self, ctx):
+    @commands.has_role('Bot Manager')
+    async def reactchannel(self, ctx):
         # Init
-        path = Path.cwd()
+        path = Path('cogs/rolereactionchannel.json')
 
-        # Check if file exits and create, else add to path and read
-        if not Path('cogs/rolereactionchannel.json').is_file():
-            path = Path('cogs/rolereactionchannel.json')
+        # Check if file exits, else create
+        if path.is_file():
+            channel = read_json(path)
+        else:
             path.touch()
             channel = dict()
-        else:
-            path = path.joinpath('cogs/rolereactionchannel.json')
-            channel = read_json(path)
 
         # Check if command user is giving input
         def checkuser(user):
@@ -62,34 +67,70 @@ class rolereact(commands.Cog):
 
     # Creates/updates embed for channel
     @commands.command(
-        name='updateroles',
+        name='reactupdate',
         brief='Updates embed for reaction channel',
         help='Updates embed for reaction channel'
     )
-    async def updateroles(self):
-        return
+    @commands.has_role('Bot Manager')
+    async def reactupdate(self, ctx):
+        # Try to open react channel file, pass error if not
+        try:
+            react_channel = read_json(Path('cogs/rolereactionchannel.json'))['Channel']
+        except FileNotFoundError:
+            await ctx.send('Reaction channel not set')
+            return
+        except KeyError:
+            await ctx.send('Reaction channel not set')
+            return
+        else:
+            react_channel = get_id(react_channel)  # Formatting and typing channel id
+            react_channel = self.bot.get_channel(react_channel)  # Getting channel object
+
+        # Try to open reaction roles file, pass error if not
+        try:
+            react_roles = read_json(Path('cogs/reactionroles.json'))
+        except FileNotFoundError:
+            await ctx.send('Reaction roles not created')
+            return
+        except KeyError:
+            await ctx.send('Reaction roles not created')
+            return
+
+        # Create embeds per category
+        for category in react_roles:
+            embed = discord.Embed(title=f'{category} Roles', description=react_roles[category]['Description'])
+            for role in react_roles[category]['Roles']:
+                roleID = get_id(role)
+                roleName = discord.utils.get(ctx.guild.roles, id=roleID)
+                desc = react_roles[category]['Roles'][role]['Description']
+                emoji = react_roles[category]['Roles'][role]['Emoji']
+                embed.add_field(name=f'{emoji} {roleName}', value=desc, inline=True)
+            msg = await react_channel.send(embed=embed)
+            for role in react_roles[category]['Roles']:
+                emoji = react_roles[category]['Roles'][role]['Emoji']
+                await msg.add_reaction(emoji)
 
     # Add reactions to file
     @commands.command(
         name='reactadd',
+        aliases=['addreact'],
         brief='Adds roles to role reactions',
         help='Adds role reactions to the masterlist of all role reactions and updates the reaction embeds'
     )
+    @commands.has_role('Bot Manager')
     async def reactadd(self, ctx):
         # Init
-        path = Path.cwd()
+        path = Path('cogs/reactionroles.json')
 
-        # Check if file exits and create, else add to path and read
-        if not Path('cogs/reactionroles.json').is_file():
-            path = Path('cogs/reactionroles.json')
+        # Check if file exits, else create
+        if path.is_file():
+            roles = read_json(path)
+        else:
             path.touch()
             roles = dict()
-        else:
-            path = path.joinpath('cogs/reactionroles.json')
-            roles = read_json(path)
 
         # Prompts for user entry
-        Qs = ['Role Category', 'Role Name']
+        Qs = ['Role Category', 'Role Mention/ID']
         newrole = dict()
 
         # Check if command user is giving input
@@ -153,7 +194,43 @@ class rolereact(commands.Cog):
         # Dump into roles.json
         write_json(path, roles)
 
-        await self.bot.get_command('updatereactionroles')
+        self.bot.get_command('reactupdate')(ctx)  # FIXME: Not calling "$reactupdate"
+
+    @commands.Cog.listener()
+    async def on_reaction_add(self, reaction, user):
+        # Ignore if bot reacted
+        if user == self.bot.user:
+            return
+
+        # Get reaction channel
+        react_channel = read_json(Path('cogs/rolereactionchannel.json'))['Channel']
+        react_channel = get_id(react_channel)
+        react_channel = self.bot.get_channel(react_channel)
+
+        # Get reaction roles
+        react_roles = read_json(Path('cogs/reactionroles.json'))
+
+        # Get reactions and their roles
+        emojirole = dict()
+        emojiList = []
+        for category in react_roles:
+            for role in react_roles[category]['Roles']:
+                emoji = react_roles[category]['Roles'][role]['Emoji']
+                emojiList.append(emoji)
+                emojirole[emoji] = get_id(role)
+
+        # Check if reaction occured in reaction channel, else return
+        if reaction.message.channel == react_channel:
+            # Check if valid reaction, else return
+            if reaction.emoji in emojiList:
+                roleID = emojirole[reaction.emoji]
+                role = discord.utils.get(user.guild.roles, id=roleID)
+                await user.add_roles(role)
+                logging.info(f'{user.display_name} has been given {role}')
+            else:
+                return
+        else:
+            return
 
 
 # Add to bot

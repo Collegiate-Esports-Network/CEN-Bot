@@ -11,12 +11,16 @@ import sys
 import logging
 from pathlib import Path
 
-# Custom imports
-from json_interacts import read_json
-
 # Discord imports
 import discord
 from discord.ext.commands import Bot
+from discord.ext import commands
+
+# Custom imports
+from utils import JsonInteracts
+
+# Redef
+read_json = JsonInteracts.read_json
 
 # Load environment variables
 TOKEN = read_json(Path.cwd().joinpath('environment.json'))['TOKEN']
@@ -49,7 +53,9 @@ async def on_disconnect():
 
 
 # Simple ping command
-@bot.command(name='ping')
+@bot.command(
+    name='ping'
+)
 async def ping(ctx):
     """
     Replies with Pong! (and the bots ping)
@@ -58,7 +64,9 @@ async def ping(ctx):
 
 
 # Embed current bot info
-@bot.command(name='info')
+@bot.command(
+    name='info'
+)
 async def fetchbotinfo(ctx):
     """
     Returns relevent bot information
@@ -83,7 +91,11 @@ async def on_command_error(ctx, error):
 
 
 # Reload cogs
-@bot.command(name='reload', hidden=True)
+@bot.command(
+    name='reload',
+    hidden=True
+)
+@commands.has_role('Bot Manager')
 async def reload(ctx, cog):
     bot.reload_extension(f'cogs.{cog}')
     logging.info(f'{cog} was reloaded')
