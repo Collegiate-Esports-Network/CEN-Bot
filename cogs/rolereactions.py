@@ -275,7 +275,7 @@ class rolereactions(commands.Cog):
                 roleID = emojirole[reaction.emoji]
                 role = discord.utils.get(user.guild.roles, id=roleID)
                 await user.remove_roles(role)
-                logging.info(f'{role} has been given to {user.display_name} in {user.guild}')
+                logging.info(f'{role} has been removed from {user.display_name} in {user.guild}')
             else:
                 return
         else:
