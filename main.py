@@ -54,8 +54,7 @@ async def on_disconnect():
 # Simple error handling
 @bot.event
 async def on_command_error(ctx, error):
-    logging.error(error)
-    await ctx.send('ERROR: Invalid Command')
+    logging.error(f'{ctx.command.cog_name} threw an error: {error}')
 
 
 # main

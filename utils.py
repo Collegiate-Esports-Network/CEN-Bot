@@ -46,13 +46,17 @@ class JsonInteracts():
             """
             with open(path, 'r') as f:
                 if os.path.getsize(path) == 0:
+                    payload = {}
+                    payload[str(guildID)] = data
+                    with open(path, 'w') as f:
+                        json.dump(payload, f, indent=4)
                     return
                 else:
-                    payload = json.load(f)
-            payload[str(guildID)] = data
-            with open(path, 'w') as f:
-                json.dump(data, f, indent=4)
-            return
+                    payload[str(guildID)] = data
+                    print(payload)
+                    with open(path, 'w') as f:
+                        json.dump(payload, f, indent=4)
+                    return
 
     class Standard():
         def read_json(path: Path) -> dict:

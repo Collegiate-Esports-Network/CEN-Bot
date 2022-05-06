@@ -30,7 +30,7 @@ class activitylog(commands.Cog):
     # Init
     def __init__(self, bot) -> None:
         self.bot = bot
-        self.channelpath = Path('cogs/json files/loggingchannels.json')
+        self.logchannelfile = Path('cogs/json files/loggingchannels.json')
 
     # Check if loaded
     @commands.Cog.listener()
@@ -46,10 +46,10 @@ class activitylog(commands.Cog):
     @commands.has_role('Bot Manager')
     async def setlogchannel(self, ctx):
         # Check if file exists, else create
-        if self.channelpath.is_file():
-            channels = read_json()
+        if self.logchannelfile.is_file():
+            channels = JsonInteracts.Standard.read_json(self.logchannelfile)
         else:
-            self.channelpath.touch()
+            self.logchannelfile.touch()
             channels = dict()
 
         # Check if command user is giving input
@@ -63,17 +63,17 @@ class activitylog(commands.Cog):
         except asyncio.TimeoutError:
             await ctx.send('Command has timed out')
         else:
-            channels[f'{ctx.guild.id}'] = msg
+            channels[f'{ctx.guild.id}'] = msg.content
 
         # Write to file
-        write_json(self.channelpath, channels)
+        write_json(self.logchannelfile, channels)
 
     # Log message edits
     @commands.Cog.listener()
     async def on_message_edit(self, ctx_bef, ctx_aft):
         # Get logging channel
         try:
-            channel = read_json(self.channelpath)[f'{ctx_bef.guild.id}']
+            channel = read_json(self.logchannelfile)[f'{ctx_bef.guild.id}']
         except FileNotFoundError:
             return
         else:
@@ -95,7 +95,7 @@ class activitylog(commands.Cog):
     async def on_message_delete(self, ctx):
         # Get logging channel
         try:
-            channel = read_json(self.channelpath)[f'{ctx.guild.id}']
+            channel = read_json(self.logchannelfile)[f'{ctx.guild.id}']
         except FileNotFoundError:
             return
         else:
