@@ -7,12 +7,35 @@ __status__ = 'Indev'
 __doc__ = """Role management functions"""
 
 # Python imports
+# from time import sleep
 import logging
+from pathlib import Path
 import pafy
-import vlc
+# import vlc
+from json_interacts import read_json
 
 # Discord imports
 from discord.ext import commands
+
+# PLay music
+# def playmusic(queue, ctx):
+#     for url in self.queue:
+#         # Get pafy video object
+#         video = pafy.new(url)
+
+#         # Find best audio stream
+#         audioURL = video.getbestaudio().url
+#         print(audioURL)
+
+#         # VLC Audio Player
+#         player = vlc.MediaPlayer(audioURL, '--verbose=-1')
+#         player.play()
+
+#         while player.is_playing():
+#             sleep(1e-3)
+
+#         self.playingmusic = False
+#         return
 
 
 class music(commands.Cog):
@@ -23,6 +46,9 @@ class music(commands.Cog):
     def __init__(self, bot) -> None:
         self.bot = bot
         self.queue = []
+
+        # pafy request
+        pafy.set_api_key(read_json(Path.joinpath(Path.cwd(), 'environment.json'))['GOOGLE API'])
 
     # Check if loaded
     @commands.Cog.listener()
@@ -44,24 +70,20 @@ class music(commands.Cog):
         """
         await ctx.voice_client.disconnect()
 
-    # Youtube music player
+    # Add to music player queue
     @commands.command(name='play')
-    async def playmusic(self, ctx, song):
+    async def addmusicqueue(self, ctx, song):
         """
         Plays audio from YouTube in a voice channel
         """
+        # Join user channel if not already in it
+        if ctx.guild.voice_client not in self.bot.voice_clients:
+            await self.bot.get_command('join')(ctx)
+
         # Append to queue
         self.queue.append(song)
 
-        # Join user channel
-        await self.bot.get_command('join')(ctx)
-
-        video = pafy.new(song)
-        media = video.getbest().url
-        player = vlc.MediaPlayer(media)
-        player.play()
-
-        # At end of queue, leave
+        # Leave channel
         await self.bot.get_command('leave')(ctx)
 
 
