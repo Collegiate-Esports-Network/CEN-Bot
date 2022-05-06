@@ -9,6 +9,7 @@ __doc__ = """Logs messages and edits in discord servers"""
 # Python imports
 from pathlib import Path
 import logging
+import asyncio
 from datetime import datetime
 
 # Discord imports
@@ -29,7 +30,7 @@ class activitylog(commands.Cog):
     # Init
     def __init__(self, bot) -> None:
         self.bot = bot
-        self.path = Path('cogs/json files/loggingchannels.json')
+        self.channelpath = Path('cogs/json files/loggingchannels.json')
 
     # Check if loaded
     @commands.Cog.listener()
@@ -45,10 +46,10 @@ class activitylog(commands.Cog):
     @commands.has_role('Bot Manager')
     async def setlogchannel(self, ctx):
         # Check if file exists, else create
-        if self.path.is_file():
+        if self.channelpath.is_file():
             channels = read_json()
         else:
-            self.path.touch()
+            self.channelpath.touch()
             channels = dict()
 
         # Check if command user is giving input
@@ -57,18 +58,22 @@ class activitylog(commands.Cog):
 
         # Set new channel
         await ctx.send('What is the channel for message logging?')
-        msg = await self.bot.wait_for('message', timeout=30.0, check=checkuser)
-        channels[f'{ctx.guild.id}'] = msg
+        try:
+            msg = await self.bot.wait_for('message', timeout=30.0, check=checkuser)
+        except asyncio.TimeoutError:
+            await ctx.send('Command has timed out')
+        else:
+            channels[f'{ctx.guild.id}'] = msg
 
         # Write to file
-        write_json(self.path, channels)
+        write_json(self.channelpath, channels)
 
     # Log message edits
     @commands.Cog.listener()
     async def on_message_edit(self, ctx_bef, ctx_aft):
         # Get logging channel
         try:
-            channel = read_json(self.path)[f'{ctx_bef.guild.id}']
+            channel = read_json(self.channelpath)[f'{ctx_bef.guild.id}']
         except FileNotFoundError:
             return
         else:
@@ -90,7 +95,7 @@ class activitylog(commands.Cog):
     async def on_message_delete(self, ctx):
         # Get logging channel
         try:
-            channel = read_json(self.path)[f'{ctx.guild.id}']
+            channel = read_json(self.channelpath)[f'{ctx.guild.id}']
         except FileNotFoundError:
             return
         else:

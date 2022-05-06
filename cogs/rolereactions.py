@@ -16,21 +16,17 @@ import discord
 from discord.ext import commands
 
 # Custom imports
-from utils import JsonInteracts
-from utils import get_id
-
-# Redef
-read_json = JsonInteracts.read_json
-write_json = JsonInteracts.write_json
+from utils import JsonInteracts, get_id
 
 
 class rolereactions(commands.Cog):
-    """
-    These are all functions available for role reaction managment.
+    """These are all functions available for role reaction managment.
     """
     # Init
     def __init__(self, bot) -> None:
         self.bot = bot
+        self.reactchannelfile = Path('cogs/json files/rolereactionchannels.json')
+        self.reactionsfile = Path('cogs/json files/rolereactions.json')
 
     # Check if loaded
     @commands.Cog.listener()
@@ -46,28 +42,30 @@ class rolereactions(commands.Cog):
     )
     @commands.has_role('Bot Manager')
     async def reactchannel(self, ctx):
-        # Init
-        path = Path('cogs/json files/rolereactionchannel.json')
-
-        # Check if file exits, else create
-        if path.is_file():
-            channel = read_json(path, ctx.guild.id)
+        # Check if file exists, else create
+        if self.reactchannelfile.is_file():
+            channels = JsonInteracts.Standard.read_json(self.reactchannelfile)
         else:
-            path.touch()
+            self.reactchannelfile.touch()
+            channels = {}
 
         # Check if command user is giving input
-        def checkuser(user):
-            return user.author == ctx.author and user.channel == ctx.channel
+        def checkuser(msg):
+            return msg.author == ctx.author and msg.channel == ctx.channel
 
-        # Set new channel by guild
+        # Set new channel
         await ctx.send('What is the channel for role reactions?')
-        msg = await self.bot.wait_for('message', timeout=30.0, check=checkuser)
-        channel = msg.content
+        try:
+            msg = await self.bot.wait_for('message', timeout=30.0, check=checkuser)
+        except asyncio.TimeoutError:
+            await ctx.send('Command has timed out')
+        else:
+            channels[f'{ctx.guild.id}'] = msg.content
 
         # Write to file
-        write_json(path, channel, ctx.guild.id)
+        JsonInteracts.Standard.write_json(self.reactchannelfile, channels)
 
-    # Creates/updates embed for channel
+    # Creates/updates embed for reaction channel
     @commands.command(
         name='reactupdate',
         brief='Updates embed for reaction channel',
@@ -75,28 +73,23 @@ class rolereactions(commands.Cog):
     )
     @commands.has_role('Bot Manager')
     async def reactupdate(self, ctx):
-        # Try to open react channel file, pass error if not
+        # Try to open react channel file, send error if not
         try:
-            react_channel = read_json(Path('cogs/json files/rolereactionchannel.json'), ctx.guild.id)
+            channel = JsonInteracts.Standard.read_json(self.reactchannelfile)[f'{ctx.guild.id}']
         except FileNotFoundError:
-            await ctx.send('Reaction channel not set')
-            return
+            await ctx.send('ERROR: Reaction channel not set')
         except KeyError:
-            await ctx.send('Reaction channel not set')
-            return
+            await ctx.send('ERROR: Reaction channel not set')
         else:
-            react_channel = get_id(react_channel)  # Formatting and typing channel id
-            react_channel = self.bot.get_channel(react_channel)  # Getting channel object
+            react_channel = self.bot.get_channel(get_id(channel))
 
-        # Try to open reaction roles file, pass error if not
+        # Try to open reactions file, send error if not
         try:
-            react_roles = read_json(Path('cogs/json files/reactionroles.json'), ctx.guild.id)
+            react_roles = JsonInteracts.Guilds.read_json(self.reactionsfile, ctx.guild.id)
         except FileNotFoundError:
-            await ctx.send('Reaction roles not created')
-            return
+            await ctx.send('ERROR: Reaction channel not set')
         except KeyError:
-            await ctx.send('Reaction roles not created')
-            return
+            await ctx.send('ERROR: Reaction channel not set')
 
         # Create embeds per category
         for category in react_roles:
@@ -112,7 +105,7 @@ class rolereactions(commands.Cog):
                 emoji = react_roles[category]['Roles'][role]['Emoji']
                 await msg.add_reaction(emoji)
 
-    # Add reactions to file
+    # Add reactions to server
     @commands.command(
         name='reactadd',
         aliases=['addreact'],
@@ -121,15 +114,12 @@ class rolereactions(commands.Cog):
     )
     @commands.has_role('Bot Manager')
     async def reactadd(self, ctx):
-        # Init
-        path = Path('cogs/json files/reactionroles.json')
-
-        # Check if file exits, else create
-        if path.is_file():
-            roles = read_json(path, ctx.guild.id)
+        # Check if file exists, else create
+        if self.reactionsfile.is_file():
+            roles = JsonInteracts.Guilds.read_json(self.reactionsfile, ctx.guild.id)
         else:
-            path.touch()
-            roles = dict()
+            self.reactionsfile.touch()
+            roles = {}
 
         # Prompts for user entry
         Qs = ['Role Category', 'Role Mention/ID']
@@ -194,9 +184,10 @@ class rolereactions(commands.Cog):
                 return
 
         # Dump into .json
-        write_json(path, roles, ctx.guild.id)
+        JsonInteracts.Guilds.write_json(self.reactionsfile, roles, ctx.guild.id)
 
-        await self.bot.get_command('reactupdate')(ctx)
+        # Update embed
+        # await self.bot.get_command('reactupdate')(ctx)  # FIXME: Needs to edit embeds
 
     # Add role on reaction
     @commands.Cog.listener()
@@ -207,33 +198,32 @@ class rolereactions(commands.Cog):
 
         # Get reaction channel
         try:
-            react_channel = read_json(Path('cogs/json files/rolereactionchannel.json'), reaction.message.guild.id)
+            channel = JsonInteracts.Standard.read_json(self.reactchannelfile)[f'{reaction.message.guild.id}']
         except FileNotFoundError:
             return
         else:
-            react_channel = get_id(react_channel)
-            react_channel = self.bot.get_channel(react_channel)
+            react_channel = self.bot.get_channel(get_id(channel))
 
         # Get reaction roles
-        react_roles = read_json(Path('cogs/json files/reactionroles.json'), reaction.message.guild.id)
+        react_roles = JsonInteracts.Guilds.read_json(self.reactionsfile, reaction.message.guild.id)
 
         # Get reactions and their roles
-        emojirole = dict()
+        emojiRole = {}
         emojiList = []
         for category in react_roles:
             for role in react_roles[category]['Roles']:
                 emoji = react_roles[category]['Roles'][role]['Emoji']
                 emojiList.append(emoji)
-                emojirole[emoji] = get_id(role)
+                emojiRole[emoji] = get_id(role)
 
-        # Check if reaction occured in reaction channel, else return
+        # Check if reaction occuredc in reaction channel, else ignore
         if reaction.message.channel == react_channel:
             # Check if valid reaction and add role, else return
             if reaction.emoji in emojiList:
-                roleID = emojirole[reaction.emoji]
+                roleID = emojiRole[reaction.emoji]
                 role = discord.utils.get(user.guild.roles, id=roleID)
                 await user.add_roles(role)
-                logging.info(f'{role} has been given {user.display_name} in {user.guild}')
+                logging.info(f'{role} has been given to {user.display_name} in {user.guild}')
             else:
                 return
         else:
@@ -248,30 +238,29 @@ class rolereactions(commands.Cog):
 
         # Get reaction channel
         try:
-            react_channel = read_json(Path('cogs/json files/rolereactionchannel.json'), reaction.message.guild.id)
+            channel = JsonInteracts.Standard.read_json(self.reactchannelfile)[f'{reaction.message.guild.id}']
         except FileNotFoundError:
             return
         else:
-            react_channel = get_id(react_channel)
-            react_channel = self.bot.get_channel(react_channel)
+            react_channel = self.bot.get_channel(get_id(channel))
 
         # Get reaction roles
-        react_roles = read_json(Path('cogs/json files/reactionroles.json'), reaction.message.guild.id)
+        react_roles = JsonInteracts.Guilds.read_json(self.reactionsfile, reaction.message.guild.id)
 
         # Get reactions and their roles
-        emojirole = dict()
+        emojiRole = {}
         emojiList = []
         for category in react_roles:
             for role in react_roles[category]['Roles']:
                 emoji = react_roles[category]['Roles'][role]['Emoji']
                 emojiList.append(emoji)
-                emojirole[emoji] = get_id(role)
+                emojiRole[emoji] = get_id(role)
 
-        # Check if de-reaction occured in reaction channel, else return
+        # Check if reaction occuredc in reaction channel, else ignore
         if reaction.message.channel == react_channel:
-            # Check if valid de-reaction and remove, else return
+            # Check if valid reaction and add role, else return
             if reaction.emoji in emojiList:
-                roleID = emojirole[reaction.emoji]
+                roleID = emojiRole[reaction.emoji]
                 role = discord.utils.get(user.guild.roles, id=roleID)
                 await user.remove_roles(role)
                 logging.info(f'{role} has been removed from {user.display_name} in {user.guild}')
