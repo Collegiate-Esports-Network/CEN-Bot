@@ -36,7 +36,7 @@ logging.basicConfig(
 intents = discord.Intents.all()
 activity = discord.Activity(type=discord.ActivityType.watching, name='for $<command>')
 bot = Bot(intents=intents, activity=activity, command_prefix='$', description='This is the in-house developed CEN Bot!')
-bot.version = '0.4.0'
+bot.version = '0.5.0'
 
 
 # Verify login
