@@ -54,7 +54,10 @@ async def on_disconnect():
 # Simple error handling
 @bot.event
 async def on_command_error(ctx, error):
-    logging.error(f'{ctx.command.cog_name} threw an error: {error}')
+    try:
+        logging.error(f'{ctx.command.cog_name} threw an error: {error}')
+    except AttributeError:
+        logging.error(f'{error}')
 
 
 # main

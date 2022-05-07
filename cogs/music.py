@@ -7,89 +7,121 @@ __status__ = 'Indev'
 __doc__ = """Role management functions"""
 
 # Python imports
-# from time import sleep
-import logging
 from pathlib import Path
-import json
-
+import logging
+import threading
 
 # Discord imports
 import discord
 from discord.ext import commands
 import pafy
 
+# Typing imports
+from typing import List
+
+# Custom imports
+from utils import JsonInteracts
+
+
+# Define Radio
+def Radio(ctx, queue: List):
+    for song in queue:
+        ctx.voice_client.play(discord.PCMVolumeTransformer(discord.FFmpegPCMAudio(song)))
+        ctx.voice_client.source.volume = 0.5
+        queue.remove(song)
+
 
 class music(commands.Cog):
-    """
-    These are all functions related to the musicbot.
+    """These are all functions related to the music bot
     """
     # Init
     def __init__(self, bot) -> None:
         self.bot = bot
-        self.song_queue = dict()
+        self.play_queue = {}
+        self.radios = {}
 
-        # Populate dict object
         for guild in self.bot.guilds:
-            self.song_queue[guild.id] = []
+            self.play_queue[f'{guild.id}'] = []
+            self.radios[f'{guild.id}'] = {
+                'playing': False,
+                'radio': None
+            }
 
         # pafy request
-        pafy.set_api_key(json.load(Path('environment.json').open())['GOOGLE API'])
-
-    # Adds a song to queue
-    async def enqueue(self, ctx, song):
-        # Get best audio url
-        url = pafy.new(song).getbestaudio().url
-
-        # Add to queue
-        self.song_queue[ctx.guild.id].append(url)
-
-    # Plays the queue
-    async def playsong(self, ctx, song):
-        # Get the queue
-        song_queue = self.song_queue[ctx.guild.id]
-
-        # Append if empty
-        if len(song_queue) == 0:
-            await self.enqueue(ctx, song)
-
-        # Loop through queue
-        for song in song_queue:
-            # Remove from list
-            song_queue.remove(song)
-
-            # Send message playing
-            await ctx.send('Now playing')
-
-            # Play song to voice channel using FFMpeg with volum controls
-            ctx.voice_client.play(discord.PCMVolumeTransformer(discord.FFmpegPCMAudio(song)))
-
-            # Set volume
-            ctx.voice_client.source.volume = 0.5
+        pafy.set_api_key(JsonInteracts.Standard.read_json(Path('environment.json'))['GOOGLE API'])
 
     # Check if loaded
     @commands.Cog.listener()
     async def on_ready(self):
         logging.info('Music Cog loaded')
 
-    # Player
+    # Join
     @commands.command(
-        name='play',
-        brief='Plays a song from a YouTube link.',
-        help='Plays a song from a YouTube link. If one is already playing, adds to the queue.'
+        name='join',
+        brief='The bot joins your voice channel',
+        help='The bot joins your voice channel'
     )
-    async def play(self, ctx, song):
-        # Join user channel and play, else queue
+    async def join(self, ctx):
+        # Join user channel, else return
         if ctx.guild.voice_client not in self.bot.voice_clients:
             await ctx.author.voice.channel.connect()
-            await self.playsong(ctx, song)
         else:
-            await ctx.send(f'{song} added to queue')
-            await self.enqueue(ctx, song)
+            return
 
-    # Leave channel
-    @commands.command()
+    # Leave
+    @commands.command(
+        name='leave',
+        brief='The bot leaves your voice channel',
+        help='The bot leaves your voice channel'
+    )
     async def leave(self, ctx):
         await ctx.voice_client.disconnect()
+
+    # Play
+    @commands.command(
+        name='play',
+        brief='Plays a song in your voice channel',
+        help='Plays a song in your voice channel. If a song is already playing it adds to the queue'
+    )
+    async def play(self, ctx, song):
+        # Get queue
+        queue = self.play_queue[f'{ctx.guild.id}']
+
+        # Init radio
+        radio = threading.Thread(name=f'{ctx.guild.id} radio', target=Radio, args=(ctx, queue))
+        self.radios[f'{ctx.guild.id}']['radio'] = radio
+
+        # Get radio dict
+        radio = self.radios[f'{ctx.guild.id}']
+
+        # If queue is empty add and play, else just add
+        if len(queue) == 0:
+            # Get song link
+            url = pafy.new(song).getbestaudio().url
+
+            # Add to queue
+            queue.append(url)
+
+            # Play
+            radio['radio'].start()
+            radio['playing'] = True
+
+        else:
+            queue.append(url)
+
+    # Stop
+    @commands.command(
+        name='stop',
+        brief='Stops a song in your voice channel',
+        help='Stops a song in your voice channel'
+    )
+    async def stop(self, ctx):
+        # Get radio
+        radio = self.radios[f'{ctx.guild.id}']
+
+        # Stop
+        radio['radio'].join()
+        radio['playing'] = False
 
 
 # Add to bot
