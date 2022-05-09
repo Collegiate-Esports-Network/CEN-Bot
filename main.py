@@ -65,5 +65,6 @@ if __name__ == '__main__':
     bot.load_extension('cogs.utility')
     bot.load_extension('cogs.activitylog')
     bot.load_extension('cogs.rolereactions')
-    bot.load_extension('cogs.music')
+    bot.load_extension('cogs.xp')
+    # bot.load_extension('cogs.music')  # FIXME: Broken
     bot.run(TOKEN)

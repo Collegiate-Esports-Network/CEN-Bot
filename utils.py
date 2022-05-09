@@ -52,8 +52,8 @@ class JsonInteracts():
                         json.dump(payload, f, indent=4)
                     return
                 else:
+                    payload = json.load(f)
                     payload[str(guildID)] = data
-                    print(payload)
                     with open(path, 'w') as f:
                         json.dump(payload, f, indent=4)
                     return
