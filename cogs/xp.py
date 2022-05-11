@@ -54,18 +54,18 @@ class xp(commands.Cog):
 
         # Try to give xp, else initialize and give them 1
         try:
-            xplog[f'{ctx.author.id}']
+            xplog[str(ctx.author.id)]
         except KeyError:
-            xplog[f'{ctx.author.id}'] = 1
+            xplog[str(ctx.author.id)] = 1
         else:
             if num < 50:
-                xplog[f'{ctx.author.id}'] += 0
+                xplog[str(ctx.author.id)] += 0
             elif num < 70:
-                xplog[f'{ctx.author.id}'] += 1
+                xplog[str(ctx.author.id)] += 1
             elif num < 90:
-                xplog[f'{ctx.author.id}'] += 2
+                xplog[str(ctx.author.id)] += 2
             else:
-                xplog[f'{ctx.author.id}'] += 3
+                xplog[str(ctx.author.id)] += 3
         
         # Write to file
         JsonInteracts.Guilds.write_json(self.xpfile, xplog, ctx.guild.id)
