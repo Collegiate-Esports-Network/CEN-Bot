@@ -19,7 +19,7 @@ from discord.ext import commands
 from utils import JsonInteracts, get_id
 
 
-class rolereactions(commands.Cog):
+class reactionroles(commands.Cog):
     """These are all functions available for role reaction managment.
     """
     # Init
