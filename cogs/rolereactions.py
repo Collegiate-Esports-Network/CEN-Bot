@@ -25,8 +25,7 @@ class rolereactions(commands.Cog):
     # Init
     def __init__(self, bot) -> None:
         self.bot = bot
-        self.reactchannelfile = Path('cogs/json files/rolereactionchannels.json')
-        self.reactionsfile = Path('cogs/json files/rolereactions.json')
+        self.reactfile = Path('cogs/json files/reactionroles.json')
 
     # Check if loaded
     @commands.Cog.listener()
@@ -35,19 +34,19 @@ class rolereactions(commands.Cog):
 
     # Set role reaction channel
     @commands.command(
-        name='reactchannel',
-        aliases=['setreactionchannel', 'setreactchannel'],
+        name='setreactchannel',
+        aliases=['setreactionchannel'],
         brief='Sets the reaction channel',
         help='Sets the reaction channel'
     )
     @commands.has_role('Bot Manager')
-    async def reactchannel(self, ctx):
+    async def setreactchannel(self, ctx):
         # Check if file exists, else create
-        if self.reactchannelfile.is_file():
-            channels = JsonInteracts.Standard.read_json(self.reactchannelfile)
+        if self.reactfile.is_file():
+            payload = JsonInteracts.Guilds.read_json(self.reactfile, ctx.guild.id)
         else:
-            self.reactchannelfile.touch()
-            channels = {}
+            self.reactfile.touch()
+            payload = {}
 
         # Check if command user is giving input
         def checkuser(msg):
@@ -60,10 +59,10 @@ class rolereactions(commands.Cog):
         except asyncio.TimeoutError:
             await ctx.send('Command has timed out')
         else:
-            channels[f'{ctx.guild.id}'] = msg.content
+            payload['Channel'] = msg.content
 
         # Write to file
-        JsonInteracts.Standard.write_json(self.reactchannelfile, channels)
+        JsonInteracts.Guilds.write_json(self.reactfile, payload, ctx.guild.id)
 
     # Creates/updates embed for reaction channel
     @commands.command(
@@ -73,23 +72,17 @@ class rolereactions(commands.Cog):
     )
     @commands.has_role('Bot Manager')
     async def reactupdate(self, ctx):
-        # Try to open react channel file, send error if not
-        try:
-            channel = JsonInteracts.Standard.read_json(self.reactchannelfile)[f'{ctx.guild.id}']
-        except FileNotFoundError:
-            await ctx.send('ERROR: Reaction channel not set')
-        except KeyError:
-            await ctx.send('ERROR: Reaction channel not set')
-        else:
-            react_channel = self.bot.get_channel(get_id(channel))
-
         # Try to open reactions file, send error if not
         try:
-            react_roles = JsonInteracts.Guilds.read_json(self.reactionsfile, ctx.guild.id)
+            payload = JsonInteracts.Guilds.read_json(self.reactfile, ctx.guild.id)
         except FileNotFoundError:
             await ctx.send('ERROR: Reaction channel not set')
         except KeyError:
             await ctx.send('ERROR: Reaction channel not set')
+
+        # Parse data
+        react_channel = self.bot.get_channel(get_id(payload['Channel']))
+        react_roles = payload['Roles']
 
         # Create embeds per category
         for category in react_roles:
@@ -114,12 +107,25 @@ class rolereactions(commands.Cog):
     )
     @commands.has_role('Bot Manager')
     async def reactadd(self, ctx):
-        # Check if file exists, else create
-        if self.reactionsfile.is_file():
-            roles = JsonInteracts.Guilds.read_json(self.reactionsfile, ctx.guild.id)
-        else:
-            self.reactionsfile.touch()
-            roles = {}
+        # Test if reaction channel is set-up
+        try:
+            JsonInteracts.Guilds.read_json(self.reactfile, ctx.guild.id)
+        except KeyError:
+            await ctx.send('Reaction channel not set.')
+            self.bot.get_command('setreactchannel')
+        
+        # Get reaction payload
+        payload = JsonInteracts.Guilds.read_json(self.reactfile, ctx.guild.id)
+        
+        # Test if reaction roles have been created already
+        try:
+            payload['Roles']
+        except KeyError:
+            payload['Roles'] = {}
+        
+        # Parse payload
+        react_channel = self.bot.get_channel(get_id(payload['Channel']))
+        react_roles = payload['Roles']
 
         # Prompts for user entry
         Qs = ['Role Category', 'Role Mention/ID']
@@ -143,7 +149,7 @@ class rolereactions(commands.Cog):
 
         # Check for new category
         try:
-            roles[newrole[Qs[0]]]
+            react_roles[newrole[Qs[0]]]
         except KeyError:
             # Ask for category description
             await ctx.send('New role category created. What is the category description?')
@@ -154,11 +160,11 @@ class rolereactions(commands.Cog):
                 return
             else:
                 cDescription = msg.content
-                roles[newrole[Qs[0]]] = {'Description': cDescription, 'Roles': {}}
+                react_roles[newrole[Qs[0]]] = {'Description': cDescription, 'Roles': {}}
         finally:
             # Check for new role
             try:
-                roles[newrole[Qs[0]]]['Roles'][newrole[Qs[1]]]
+                react_roles[newrole[Qs[0]]]['Roles'][newrole[Qs[1]]]
             except KeyError:
                 # Ask for role description and emoji
                 await ctx.send('New role reaction created. What is the role description?')
@@ -178,16 +184,20 @@ class rolereactions(commands.Cog):
                         # Populate
                         rDescription = msg1.content
                         emoji = msg2.content
-                        roles[newrole[Qs[0]]]['Roles'][newrole[Qs[1]]] = {'Description': rDescription, "Emoji": emoji}
+                        react_roles[newrole[Qs[0]]]['Roles'][newrole[Qs[1]]] = {'Description': rDescription, "Emoji": emoji}
             else:
                 await ctx.send('That role reaction already exists!')
                 return
 
+        # Combine payload
+        payload['Channel'] = react_channel
+        payload['Roles'] = react_roles
+
         # Dump into .json
-        JsonInteracts.Guilds.write_json(self.reactionsfile, roles, ctx.guild.id)
+        JsonInteracts.Guilds.write_json(self.reactfile, payload, ctx.guild.id)
 
         # Update embed
-        # await self.bot.get_command('reactupdate')(ctx)  # FIXME: Needs to edit embeds
+        # await self.bot.get_command('reactupdate')(ctx)    FIXME: Needs to edit embeds
 
     # Add role on reaction
     @commands.Cog.listener()
@@ -196,16 +206,17 @@ class rolereactions(commands.Cog):
         if user == self.bot.user:
             return
 
-        # Get reaction channel
+        # Try to open reactions file, send error if not
         try:
-            channel = JsonInteracts.Standard.read_json(self.reactchannelfile)[f'{reaction.message.guild.id}']
+            payload = JsonInteracts.Guilds.read_json(self. eactionsfile, reaction.guild.id)
         except FileNotFoundError:
             return
-        else:
-            react_channel = self.bot.get_channel(get_id(channel))
+        except KeyError:
+            return
 
-        # Get reaction roles
-        react_roles = JsonInteracts.Guilds.read_json(self.reactionsfile, reaction.message.guild.id)
+        # Parse data
+        react_channel = self.bot.get_channel(get_id(payload['Channel']))
+        react_roles = payload['Roles']
 
         # Get reactions and their roles
         emojiRole = {}
@@ -236,16 +247,17 @@ class rolereactions(commands.Cog):
         if user == self.bot.user:
             return
 
-        # Get reaction channel
+        # Try to open reactions file, send error if not
         try:
-            channel = JsonInteracts.Standard.read_json(self.reactchannelfile)[f'{reaction.message.guild.id}']
+            payload = JsonInteracts.Guilds.read_json(self.reactionsfile, reaction.guild.id)
         except FileNotFoundError:
             return
-        else:
-            react_channel = self.bot.get_channel(get_id(channel))
+        except KeyError:
+            return
 
-        # Get reaction roles
-        react_roles = JsonInteracts.Guilds.read_json(self.reactionsfile, reaction.message.guild.id)
+        # Parse data
+        react_channel = self.bot.get_channel(get_id(payload['Channel']))
+        react_roles = payload['Roles']
 
         # Get reactions and their roles
         emojiRole = {}
