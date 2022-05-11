@@ -284,4 +284,4 @@ class reactionroles(commands.Cog):
 
 # Add to bot
 def setup(bot) -> None:
-    bot.add_cog(rolereactions(bot))
+    bot.add_cog(reactionroles(bot))
