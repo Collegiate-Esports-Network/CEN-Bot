@@ -18,11 +18,8 @@ from discord.ext.commands import Bot
 # Custom imports
 from utils import JsonInteracts
 
-# Redef
-read_json = JsonInteracts.Standard.read_json
-
 # Load environment variables
-TOKEN = read_json(Path('environment.json'))['TOKEN']
+TOKEN = JsonInteracts.Standard.read_json(Path('environment.json'))['TOKEN']
 
 # Init logging
 logging.basicConfig(
@@ -36,8 +33,16 @@ logging.basicConfig(
 intents = discord.Intents.all()
 activity = discord.Activity(type=discord.ActivityType.watching, name='for $<command>')
 bot = Bot(intents=intents, activity=activity, command_prefix='$', description='This is the in-house developed CEN Bot!')
-bot.version = '0.5.0'
+bot.version = '0.6.0'
 
+# Check all directories are created
+dir_req = [Path('cogs/json files')]
+for dir in dir_req:
+    if dir.is_dir():
+        continue
+    else:
+        dir.mkdir()
+    
 
 # Verify login
 @bot.event
