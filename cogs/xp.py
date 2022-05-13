@@ -29,6 +29,10 @@ class xp(commands.Cog):
         self.bot = bot
         self.xpfile = Path('cogs/json files/xp.json')
 
+        # Create file if it doesn't exist
+        if not self.xpfile.is_file():
+            self.xpfile.touch()
+
     # Check if loaded
     @commands.Cog.listener()
     async def on_ready(self):

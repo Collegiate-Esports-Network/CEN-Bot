@@ -32,6 +32,10 @@ class activitylog(commands.Cog):
         self.bot = bot
         self.logchannelfile = Path('cogs/json files/loggingchannels.json')
 
+        # Create file if it doesn't exist
+        if not self.logchannelfile.is_file():
+            self.logchannelfile.touch()
+
     # Check if loaded
     @commands.Cog.listener()
     async def on_ready(self):

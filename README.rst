@@ -21,7 +21,7 @@ Credits
 | Brendan Root     | Bot Template/Ideas (Bearcat Bot)  |
 +------------------+-----------------------------------+
 
-**The CENBot is currently in version: 0.2.2**
+**The CENBot is currently in version: 1.0.0**
 
 This bot is designed to do 3 things:
 
@@ -35,5 +35,7 @@ As of right now, the bot is currently in development.  It has plans to be finish
 
 **Current Functionality**
 =========================
-* Basic Role Management (indev)
+* Basic Reaction Roles
 * Info and Ping commands
+* Activity Logging
+* xp Logging
