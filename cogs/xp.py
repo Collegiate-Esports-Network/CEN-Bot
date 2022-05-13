@@ -41,15 +41,14 @@ class xp(commands.Cog):
     # Generates xp for users on message
     @commands.Cog.listener()
     async def on_message(self, ctx):
-        # Ignore bot messages
-        if self.bot.user == ctx.author:
+        # Ignore bot messages or messages from test server
+        if self.bot.user == ctx.author or ctx.guild.id == 778306842265911296:
             return
 
-        # Check if file exists, else create
-        if self.xpfile.is_file():
+        # Check for key error
+        try:
             xplog = JsonInteracts.Guilds.read_json(self.xpfile, ctx.guild.id)
-        else:
-            self.xpfile.touch()
+        except KeyError:
             xplog = {}
         
         # Generate random number between 1 and 100

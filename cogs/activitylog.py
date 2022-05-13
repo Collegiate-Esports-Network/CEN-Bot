@@ -19,10 +19,6 @@ from discord.ext import commands
 # Custom imports
 from utils import JsonInteracts, get_id
 
-# Redef
-read_json = JsonInteracts.Standard.read_json
-write_json = JsonInteracts.Standard.write_json
-
 
 class activitylog(commands.Cog):
     """These are all functions related to the activity log.
@@ -49,12 +45,8 @@ class activitylog(commands.Cog):
     )
     @commands.has_role('Bot Manager')
     async def setlogchannel(self, ctx):
-        # Check if file exists, else create
-        if self.logchannelfile.is_file():
-            channels = JsonInteracts.Standard.read_json(self.logchannelfile)
-        else:
-            self.logchannelfile.touch()
-            channels = dict()
+        # Init
+        channels = JsonInteracts.Standard.read_json(self.logchannelfile)
 
         # Check if command user is giving input
         def checkuser(msg):
@@ -70,18 +62,16 @@ class activitylog(commands.Cog):
             channels[f'{ctx.guild.id}'] = msg.content
 
         # Write to file
-        write_json(self.logchannelfile, channels)
+        JsonInteracts.Standard.write_json(self.logchannelfile, channels)
 
     # Log message edits
     @commands.Cog.listener()
     async def on_message_edit(self, ctx_bef, ctx_aft):
-        # Get logging channel
-        try:
-            channel = read_json(self.logchannelfile)[f'{ctx_bef.guild.id}']
-        except FileNotFoundError:
-            return
-        else:
-            channel = self.bot.get_channel(get_id(channel))
+        # Init
+        channels = JsonInteracts.Standard.read_json(self.logchannelfile)
+
+        # Get channel
+        channel = self.bot.get_channel(get_id(channels[str(ctx_bef.guild.id)]))
 
         # Edited message embed
         embed = discord.Embed(colour=discord.Colour.gold())
@@ -102,13 +92,11 @@ class activitylog(commands.Cog):
     # Log message deletions
     @commands.Cog.listener()
     async def on_message_delete(self, ctx):
-        # Get logging channel
-        try:
-            channel = read_json(self.logchannelfile)[f'{ctx.guild.id}']
-        except FileNotFoundError:
-            return
-        else:
-            channel = self.bot.get_channel(get_id(channel))
+        # Init
+        channels = JsonInteracts.Standard.read_json(self.logchannelfile)
+
+        # Get channel
+        channel = self.bot.get_channel(get_id(channels[str(ctx.guild.id)]))
 
         # Deleted message embed
         embed = discord.Embed(colour=discord.Colour.red())
