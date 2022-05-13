@@ -31,7 +31,7 @@ class JsonInteracts():
             """
             with open(path, 'r') as f:
                 if os.path.getsize(path) == 0:
-                    return
+                    return {}
                 else:
                     payload = json.load(f)
                     return payload[str(guildID)]
@@ -71,7 +71,7 @@ class JsonInteracts():
             """
             with open(path, 'r') as f:
                 if os.path.getsize(path) == 0:
-                    return
+                    return {}
                 else:
                     payload = json.load(f)
                     return payload
@@ -88,7 +88,7 @@ class JsonInteracts():
             return
 
 
-def get_id(txt: str) -> int:
+def get_id(txt) -> int:
     """Strips inputs for ids
 
     Args:
@@ -97,4 +97,7 @@ def get_id(txt: str) -> int:
     Returns:
         int: Stripped ID
     """
-    return(int(txt.strip('<#@&>')))
+    if type(txt) == int:
+        return txt
+    else:
+        return(int(txt.strip('<#@&>')))

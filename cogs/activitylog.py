@@ -83,9 +83,14 @@ class activitylog(commands.Cog):
         embed = discord.Embed(colour=discord.Colour.gold())
         embed.set_author(name=ctx_bef.author.display_name, icon_url=ctx_bef.author.avatar_url)
         embed.add_field(name='Message Alert: Edit', value=f'A message sent by {ctx_bef.author.mention} was edited in {ctx_bef.channel.mention}\n[View Message]({ctx_aft.jump_url})', inline=False)
-        embed.add_field(name='Before', value=ctx_bef.content, inline=False)
-        embed.add_field(name='After', value=ctx_aft.content, inline=False)
-        embed.set_footer(text=f'{datetime.now().strftime("%d/%m/%y - %H:%M:%S")}')
+        # Ignore impossible message
+        try:
+            embed.add_field(name='Before', value=ctx_bef.content, inline=False)
+        except discord.errors.HTTPException:
+            return
+        else:
+            embed.add_field(name='After', value=ctx_aft.content, inline=False)
+            embed.set_footer(text=f'{datetime.now().strftime("%d/%m/%y - %H:%M:%S")}')
 
         # Send to channel
         await channel.send(embed=embed)
@@ -105,10 +110,11 @@ class activitylog(commands.Cog):
         embed = discord.Embed(colour=discord.Colour.red())
         embed.set_author(name=ctx.author.display_name, icon_url=ctx.author.avatar_url)
         embed.add_field(name='Message Alert: Deletion', value=f'A message sent by {ctx.author.mention} was deleted in {ctx.channel.mention}', inline=False)
+        # Ignore impossible message
         try:
             embed.add_field(name='Content', value=ctx.content)
         except discord.errors.HTTPException:
-            pass
+            return
         embed.set_footer(text=f'{datetime.now().strftime("%d/%m/%y - %H:%M:%S")}')
 
         # Send to channel

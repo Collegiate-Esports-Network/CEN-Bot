@@ -35,13 +35,13 @@ activity = discord.Activity(type=discord.ActivityType.watching, name='for $<comm
 bot = Bot(intents=intents, activity=activity, command_prefix='$', description='This is the in-house developed CEN Bot!')
 bot.version = '0.6.0'
 
-# Check all directories are created
+# Check all folders are created
 dir_req = [Path('cogs/json files')]
 for dir in dir_req:
-    if dir.is_dir():
-        continue
+    if not dir.is_dir():
+        dir.mkdir
     else:
-        dir.mkdir()
+        continue
     
 
 # Verify login

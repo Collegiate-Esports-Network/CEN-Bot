@@ -27,6 +27,10 @@ class reactionroles(commands.Cog):
         self.bot = bot
         self.reactfile = Path('cogs/json files/reactionroles.json')
 
+        # Create file if it doesn't exist
+        if not self.reactfile.is_file():
+            self.reactfile.touch()
+
     # Check if loaded
     @commands.Cog.listener()
     async def on_ready(self):
@@ -41,12 +45,8 @@ class reactionroles(commands.Cog):
     )
     @commands.has_role('Bot Manager')
     async def setreactchannel(self, ctx):
-        # Check if file exists, else create
-        if self.reactfile.is_file():
-            payload = JsonInteracts.Guilds.read_json(self.reactfile, ctx.guild.id)
-        else:
-            self.reactfile.touch()
-            payload = {}
+        # Init
+        payload = JsonInteracts.Guilds.read_json(self.reactfile, ctx.guild.id)
 
         # Check if command user is giving input
         def checkuser(msg):
@@ -64,40 +64,6 @@ class reactionroles(commands.Cog):
         # Write to file
         JsonInteracts.Guilds.write_json(self.reactfile, payload, ctx.guild.id)
 
-    # Creates/updates embed for reaction channel
-    @commands.command(
-        name='reactupdate',
-        brief='Updates embed for reaction channel',
-        help='Updates embed for reaction channel'
-    )
-    @commands.has_role('Bot Manager')
-    async def reactupdate(self, ctx):
-        # Try to open reactions file, send error if not
-        try:
-            payload = JsonInteracts.Guilds.read_json(self.reactfile, ctx.guild.id)
-        except FileNotFoundError:
-            await ctx.send('ERROR: Reaction channel not set')
-        except KeyError:
-            await ctx.send('ERROR: Reaction channel not set')
-
-        # Parse data
-        react_channel = self.bot.get_channel(get_id(payload['Channel']))
-        react_roles = payload['Roles']
-
-        # Create embeds per category
-        for category in react_roles:
-            embed = discord.Embed(title=f'{category} Roles', description=react_roles[category]['Description'])
-            for role in react_roles[category]['Roles']:
-                roleID = get_id(role)
-                roleName = discord.utils.get(ctx.guild.roles, id=roleID)
-                desc = react_roles[category]['Roles'][role]['Description']
-                emoji = react_roles[category]['Roles'][role]['Emoji']
-                embed.add_field(name=f'{emoji} {roleName}', value=desc, inline=True)
-            msg = await react_channel.send(embed=embed)
-            for role in react_roles[category]['Roles']:
-                emoji = react_roles[category]['Roles'][role]['Emoji']
-                await msg.add_reaction(emoji)
-
     # Add reactions to server
     @commands.command(
         name='reactadd',
@@ -107,15 +73,21 @@ class reactionroles(commands.Cog):
     )
     @commands.has_role('Bot Manager')
     async def reactadd(self, ctx):
-        # Test if reaction channel is set-up
-        try:
-            JsonInteracts.Guilds.read_json(self.reactfile, ctx.guild.id)
-        except KeyError:
-            await ctx.send('Reaction channel not set.')
-            self.bot.get_command('setreactchannel')
-        
-        # Get reaction payload
+        # Init
         payload = JsonInteracts.Guilds.read_json(self.reactfile, ctx.guild.id)
+
+        # Check if react channel exists
+        try:
+           self.bot.get_channel(get_id(payload['Channel']))
+        except KeyError:
+            await ctx.send('React channel not set! Please use "$setreactchannel" to set one.')
+            return
+        
+        # Check if reaction roles exist
+        try:
+            react_roles = payload['Roles']
+        except KeyError:
+            react_roles = {}
         
         # Test if reaction roles have been created already
         try:
@@ -124,7 +96,6 @@ class reactionroles(commands.Cog):
             payload['Roles'] = {}
         
         # Parse payload
-        react_channel = self.bot.get_channel(get_id(payload['Channel']))
         react_roles = payload['Roles']
 
         # Prompts for user entry
@@ -188,16 +159,67 @@ class reactionroles(commands.Cog):
             else:
                 await ctx.send('That role reaction already exists!')
                 return
-
-        # Combine payload
-        payload['Channel'] = react_channel
+        # Update payload
         payload['Roles'] = react_roles
 
         # Dump into .json
         JsonInteracts.Guilds.write_json(self.reactfile, payload, ctx.guild.id)
 
-        # Update embed
-        # await self.bot.get_command('reactupdate')(ctx)    FIXME: Needs to edit embeds
+    # Creates/updates embed for reaction channel
+    @commands.command(
+        name='reactupdate',
+        brief='Updates embed for reaction channel',
+        help='Updates embed for reaction channel'
+    )
+    @commands.has_role('Bot Manager')
+    async def reactupdate(self, ctx):
+        # Init
+        payload = JsonInteracts.Guilds.read_json(self.reactfile, ctx.guild.id)
+
+        # Check if react channel exists
+        try:
+            react_channel = self.bot.get_channel(get_id(payload['Channel']))
+        except KeyError:
+            await ctx.send('React channel not set! Please use "$setreactchannel" to set one.')
+            return
+        
+        # Check if reaction roles exist
+        try:
+            react_roles = payload['Roles']
+        except KeyError:
+            await ctx.send('React channel not set! Please use "$reactadd" to add one.')
+            return
+        
+        # Create embeds
+        for category in react_roles:
+            # Create text
+            embed = discord.Embed(title=f'{category} Roles', description=react_roles[category]['Description'])
+            for role in react_roles[category]['Roles']:
+                roleID = get_id(role)
+                roleName = discord.utils.get(ctx.guild.roles, id=roleID)
+                desc = react_roles[category]['Roles'][role]['Description']
+                emoji = react_roles[category]['Roles'][role]['Emoji']
+                embed.add_field(name=f'{emoji} {roleName}', value=desc, inline=True)
+            
+            # Check if embed exists and edit, else create
+            try:
+                msg = await react_channel.fetch_message(get_id(react_roles[category]['Embed']))
+            except KeyError:
+                msg = await react_channel.send(embed=embed)
+                # Mark as category embed
+                react_roles[category]['Embed'] = msg.id
+            else:
+                await msg.edit(embed=embed)
+
+            # Add reactions
+            for role in react_roles[category]['Roles']:
+                emoji = react_roles[category]['Roles'][role]['Emoji']
+                await msg.add_reaction(emoji)
+        # Update payload
+        payload['Roles'] = react_roles
+
+        # Dump into .json
+        JsonInteracts.Guilds.write_json(self.reactfile, payload, ctx.guild.id)
 
     # Add role on reaction
     @commands.Cog.listener()
