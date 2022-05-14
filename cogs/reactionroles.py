@@ -228,11 +228,9 @@ class reactionroles(commands.Cog):
         if user == self.bot.user:
             return
 
-        # Try to open reactions file, send error if not
+        # If no channel is set-up for guild, return
         try:
-            payload = JsonInteracts.Guilds.read_json(self. eactionsfile, reaction.guild.id)
-        except FileNotFoundError:
-            return
+            payload = JsonInteracts.Guilds.read_json(self.reactfile, reaction.message.guild.id)
         except KeyError:
             return
 
@@ -269,11 +267,9 @@ class reactionroles(commands.Cog):
         if user == self.bot.user:
             return
 
-        # Try to open reactions file, send error if not
+        # If no channel is set-up for guild, return
         try:
-            payload = JsonInteracts.Guilds.read_json(self.reactionsfile, reaction.guild.id)
-        except FileNotFoundError:
-            return
+            payload = JsonInteracts.Guilds.read_json(self.reactfile, reaction.message.guild.id)
         except KeyError:
             return
 

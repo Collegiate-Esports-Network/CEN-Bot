@@ -59,7 +59,7 @@ class activitylog(commands.Cog):
         except asyncio.TimeoutError:
             await ctx.send('Command has timed out')
         else:
-            channels[f'{ctx.guild.id}'] = msg.content
+            channels[str(ctx.guild.id)] = msg.content
 
         # Write to file
         JsonInteracts.Standard.write_json(self.logchannelfile, channels)
