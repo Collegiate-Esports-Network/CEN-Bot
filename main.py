@@ -32,8 +32,8 @@ logging.basicConfig(
 # Init bot
 intents = discord.Intents.all()
 activity = discord.Activity(type=discord.ActivityType.watching, name='for $<command>')
-bot = Bot(intents=intents, activity=activity, command_prefix='$', description='This is ERROR ERROR ERROR!')
-bot.version = '1.0.0'
+bot = Bot(intents=intents, activity=activity, command_prefix='$', description='This is the in-house developed CEN Bot!')
+bot.version = '1.0.1'
 
 # Check all folders are created
 dir_req = [Path('cogs/json files')]
