@@ -72,7 +72,7 @@ class utility(commands.Cog):
         help='Returns relevent bot information'
     )
     async def fetchbotinfo(self, ctx):
-        embed = discord.Embed(title='Bot Info', description='Here is the most up-to-date information on the bot', color=0x2374a5)
+        embed = discord.Embed(title='Bot Info', description='Here is the most up-to-date information on the bot.', color=0x2374a5)
         icon = discord.File('L1.png', filename='L1.png')
         embed.set_author(name='CEN Bot', icon_url='attachment://L1.png')
         embed.add_field(name="Bot Version:", value=self.bot.version)

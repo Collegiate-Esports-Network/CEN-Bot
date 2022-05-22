@@ -37,7 +37,7 @@ class xp(commands.Cog):
     @commands.Cog.listener()
     async def on_ready(self):
         logging.info('xp Cog loaded')
-    
+
     # Generates xp for users on message
     @commands.Cog.listener()
     async def on_message(self, ctx):
@@ -50,7 +50,7 @@ class xp(commands.Cog):
             xplog = JsonInteracts.Guilds.read_json(self.xpfile, ctx.guild.id)
         except KeyError:
             xplog = {}
-        
+
         # Generate random number between 1 and 100
         random.seed(round(time() * 1000))
         num = random.randint(1, 100)
@@ -69,10 +69,10 @@ class xp(commands.Cog):
                 xplog[str(ctx.author.id)] += 2
             else:
                 xplog[str(ctx.author.id)] += 3
-        
+
         # Write to file
         JsonInteracts.Guilds.write_json(self.xpfile, xplog, ctx.guild.id)
-    
+
     # Get xp
     @commands.command(
         name='getxp',
@@ -86,7 +86,7 @@ class xp(commands.Cog):
 
         # Tell users xp
         await ctx.send(f'Your xp in this server is: {xplog[str(ctx.author.id)]}')
-    
+
     # Get leaderboard
     @commands.command(
         name='xpleaderboard',
@@ -104,11 +104,13 @@ class xp(commands.Cog):
 
         # Create embed
         embed = discord.Embed(title='Top 20 xp Leaders')
+        i = 1
         for key in top20:
             userID, xp = key
             username = self.bot.get_user(get_id(userID)).name
-            embed.add_field(name=username, value=xp)
-        
+            embed.add_field(name=f'{i}. {username}', value=f'xp: {xp}', inline=False)
+            i += 1
+
         # Send embed
         await ctx.send(embed=embed)
 
