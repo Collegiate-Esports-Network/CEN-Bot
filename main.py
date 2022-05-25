@@ -33,7 +33,7 @@ logging.basicConfig(
 intents = discord.Intents.all()
 activity = discord.Activity(type=discord.ActivityType.watching, name='for $<command>')
 bot = Bot(intents=intents, activity=activity, command_prefix='$', description='This is the in-house developed CEN Bot!')
-bot.version = '1.1.0'
+bot.version = '1.2.0'
 
 # Check all folders are created
 dir_req = [Path('cogs/json files')]
@@ -67,10 +67,10 @@ async def on_command_error(ctx, error):
 
 # main
 if __name__ == '__main__':
-    bot.load_extension('cogs.utility')
     bot.load_extension('cogs.activitylog')
-    bot.load_extension('cogs.reactionroles')
-    bot.load_extension('cogs.xp')
     # bot.load_extension('cogs.music')  # FIXME: Broken
+    bot.load_extension('cogs.reactionroles')
+    bot.load_extension('cogs.utility')
     bot.load_extension('cogs.welcome')
+    bot.load_extension('cogs.xp')
     bot.run(TOKEN)

@@ -58,6 +58,7 @@ class reactionroles(commands.Cog):
             msg = await self.bot.wait_for('message', timeout=30.0, check=checkuser)
         except asyncio.TimeoutError:
             await ctx.send('Command has timed out')
+            return
         else:
             payload['Channel'] = msg.content
 
