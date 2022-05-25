@@ -168,7 +168,11 @@ class reactionroles(commands.Cog):
                 await ctx.send('Command has timed out')
                 return
             else:
-                reactions[category]['Roles'][role]['Description'] = msg.content
+                # Add check for blank description
+                if msg.content != 'N/A':
+                    reactions[category]['Roles'][role]['Description'] = msg.content
+                else:
+                    reactions[category]['Roles'][role]['Description'] = ''
 
             # Prompt for react emoji
             await ctx.send('What is the emoji for this reaction?')
@@ -237,7 +241,8 @@ class reactionroles(commands.Cog):
 
         # Search through database and remove
         reactions = payload['Reactions']
-        removedreaction = reactions[category]['Roles'].pop(role)
+        reactions[category]['Roles'].pop(role)
+        # removedreaction = reactions[category]['Roles'].pop(role)
 
         # Remove reaction from reaction roles embed
         # await msg.clear_reaction(removedreaction['Emoji'])  #FIXME: Does not remove reactions
