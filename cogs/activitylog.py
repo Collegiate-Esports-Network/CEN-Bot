@@ -11,6 +11,7 @@ from pathlib import Path
 import logging
 import asyncio
 from datetime import datetime
+from http.client import HTTPException
 
 # Discord imports
 import discord
@@ -64,6 +65,9 @@ class activitylog(commands.Cog):
         # Write to file
         JsonInteracts.Standard.write_json(self.logchannelfile, channels)
 
+        # Send confirmation
+        await ctx.send('Log channel set.')
+
     # Log message edits
     @commands.Cog.listener()
     async def on_message_edit(self, ctx_bef, ctx_aft):
@@ -106,6 +110,8 @@ class activitylog(commands.Cog):
         try:
             embed.add_field(name='Content', value=ctx.content)
         except discord.errors.HTTPException:
+            return
+        except HTTPException:
             return
         embed.set_footer(text=f'{datetime.now().strftime("%d/%m/%y - %H:%M:%S")}')
 

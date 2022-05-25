@@ -64,6 +64,9 @@ class reactionroles(commands.Cog):
         # Write to file
         JsonInteracts.Guilds.write_json(self.reactfile, payload, ctx.guild.id)
 
+        # Send confirmation
+        await ctx.send('React channel set.')
+
     # Add reactions to server
     @commands.command(
         name='reactadd',
@@ -76,94 +79,176 @@ class reactionroles(commands.Cog):
         # Init
         payload = JsonInteracts.Guilds.read_json(self.reactfile, ctx.guild.id)
 
-        # Check if react channel exists
-        try:
-           self.bot.get_channel(get_id(payload['Channel']))
-        except KeyError:
-            await ctx.send('React channel not set! Please use "$setreactchannel" to set one.')
-            return
-        
-        # Check if reaction roles exist
-        try:
-            react_roles = payload['Roles']
-        except KeyError:
-            react_roles = {}
-        
-        # Test if reaction roles have been created already
-        try:
-            payload['Roles']
-        except KeyError:
-            payload['Roles'] = {}
-        
-        # Parse payload
-        react_roles = payload['Roles']
-
-        # Prompts for user entry
-        Qs = ['Role Category', 'Role Mention/ID']
-        newrole = dict()
-
         # Check if command user is giving input
         def checkuser(user):
             return user.author == ctx.author and user.channel == ctx.channel
 
-        # Ask questions and get answers
-        for Q in Qs:
-            await ctx.send(Q + '?')
+        # Check if react channel is set, if not, set it
+        try:
+            self.bot.get_channel(get_id(payload['Channel']))
+        except KeyError:
+            # Prompt
+            await ctx.send('React channel is not set! What is the channel for role reactions?')
 
+            # Await response
             try:
                 msg = await self.bot.wait_for('message', timeout=30.0, check=checkuser)
             except asyncio.TimeoutError:
-                await ctx.send('Command has timed out')
+                ctx.send('Command has timed out.')
                 return
             else:
-                newrole[Q] = msg.content
+                payload['Channel'] = msg.content
+
+        # Check if role reactions already exist
+        try:
+            reactions = payload['Reactions']
+        except KeyError:
+            # Create empty dict
+            payload['Reactions'] = {}
+
+            # Reassign
+            reactions = payload['Reactions']
+
+        # Get category of reactions
+        await ctx.send('What is the reaction category?')
+
+        # Await response
+        try:
+            msg = await self.bot.wait_for('message', timeout=30.0, check=checkuser)
+        except asyncio.TimeoutError:
+            ctx.send('Command has timed out.')
+            return
+        else:
+            category = msg.content
 
         # Check for new category
         try:
-            react_roles[newrole[Qs[0]]]
+            reactions[category]
         except KeyError:
-            # Ask for category description
-            await ctx.send('New role category created. What is the category description?')
+            # Create empty dicti
+            reactions[category] = {}
+
+            # Prompt for category descriptionn
+            await ctx.send('New category created. What is the category description?')
             try:
                 msg = await self.bot.wait_for('message', timeout=60.0, check=checkuser)
             except asyncio.TimeoutError:
                 await ctx.send('Command has timed out')
                 return
             else:
-                cDescription = msg.content
-                react_roles[newrole[Qs[0]]] = {'Description': cDescription, 'Roles': {}}
-        finally:
-            # Check for new role
-            try:
-                react_roles[newrole[Qs[0]]]['Roles'][newrole[Qs[1]]]
-            except KeyError:
-                # Ask for role description and emoji
-                await ctx.send('New role reaction created. What is the role description?')
-                try:
-                    msg1 = await self.bot.wait_for('message', timeout=60.0, check=checkuser)
-                except asyncio.TimeoutError:
-                    await ctx.send('Command has timed out')
-                    return
-                else:
-                    await ctx.send('What is the role emoji?')
-                    try:
-                        msg2 = await self.bot.wait_for('message', timeout=60.0, check=checkuser)
-                    except asyncio.TimeoutError:
-                        await ctx.send('Command has timed out')
-                        return
-                    else:
-                        # Populate
-                        rDescription = msg1.content
-                        emoji = msg2.content
-                        react_roles[newrole[Qs[0]]]['Roles'][newrole[Qs[1]]] = {'Description': rDescription, "Emoji": emoji}
-            else:
-                await ctx.send('That role reaction already exists!')
-                return
-        # Update payload
-        payload['Roles'] = react_roles
+                # Create category frame
+                reactions[category]['Description'] = msg.content
+                reactions[category]['Roles'] = {}
 
-        # Dump into .json
+        # Get new role
+        await ctx.send('Please mention the role you are adding.')
+
+        # Await response
+        try:
+            msg = await self.bot.wait_for('message', timeout=30.0, check=checkuser)
+        except asyncio.TimeoutError:
+            ctx.send('Command has timed out.')
+            return
+        else:
+            role = msg.content
+
+        # Check for new role
+        try:
+            reactions[category]['Roles'][role]
+        except KeyError:
+            # Create empty dict
+            reactions[category]['Roles'][role] = {}
+
+            # Prompt for role description
+            await ctx.send('New reaction created. What is the role description?')
+            try:
+                msg = await self.bot.wait_for('message', timeout=60.0, check=checkuser)
+            except asyncio.TimeoutError:
+                await ctx.send('Command has timed out')
+                return
+            else:
+                reactions[category]['Roles'][role]['Description'] = msg.content
+
+            # Prompt for react emoji
+            await ctx.send('What is the emoji for this reaction?')
+            try:
+                msg = await self.bot.wait_for('message', timeout=60.0, check=checkuser)
+            except asyncio.TimeoutError:
+                await ctx.send('Command has timed out')
+                return
+            else:
+                reactions[category]['Roles'][role]['Emoji'] = msg.content
+        else:
+            await ctx.send('Reaction role already exists!')
+            return
+
+        # Update payload
+        payload['Reactions'] = reactions
+
+        # Dump into json
         JsonInteracts.Guilds.write_json(self.reactfile, payload, ctx.guild.id)
+
+        # Send confirmation
+        await ctx.send('Reaction added.')
+
+    # Remove reaction role from server
+    @commands.command(
+        name='reactremove',
+        aliases=['removereaction'],
+        brief='Removes a role reaction',
+        help='Removes a reaction role from the server'
+    )
+    @commands.has_role('Bot Manager')
+    async def reactremove(self, ctx):
+        # Init
+        payload = JsonInteracts.Guilds.read_json(self.reactfile, ctx.guild.id)
+
+        # Check if react channel exists
+        try:
+            self.bot.get_channel(get_id(payload['Channel']))
+        except KeyError:
+            await ctx.send('React channel not set! Please use "$setreactchannel" to set one.')
+            return
+
+        # Check if command user is giving input
+        def checkuser(user):
+            return user.author == ctx.author and user.channel == ctx.channel
+
+        # Get react category
+        await ctx.send('What is the category of the reaction?')
+        try:
+            msg = await self.bot.wait_for('message', timeout=30.0, check=checkuser)
+        except asyncio.TimeoutError:
+            await ctx.send('Command has timed out')
+            return
+        else:
+            category = msg.content
+
+        # Get reaction id
+        await ctx.send('Please mention the role you wish to remove.')
+        try:
+            msg = await self.bot.wait_for('message', timeout=30.0, check=checkuser)
+        except asyncio.TimeoutError:
+            await ctx.send('Command has timed out')
+            return
+        else:
+            role = msg.content
+
+        # Search through database and remove
+        reactions = payload['Reactions']
+        removedreaction = reactions[category]['Roles'].pop(role)
+
+        # Remove reaction from reaction roles embed
+        # await msg.clear_reaction(removedreaction['Emoji'])  #FIXME: Does not remove reactions
+
+        # Update payload
+        payload['Reactions'] = reactions
+
+        # Save changes
+        JsonInteracts.Guilds.write_json(self.reactfile, payload, ctx.guild.id)
+
+        # Send confirmation
+        await ctx.send('Reaction removed.')
 
     # Creates/updates embed for reaction channel
     @commands.command(
@@ -182,14 +267,14 @@ class reactionroles(commands.Cog):
         except KeyError:
             await ctx.send('React channel not set! Please use "$setreactchannel" to set one.')
             return
-        
+
         # Check if reaction roles exist
         try:
-            react_roles = payload['Roles']
+            react_roles = payload['Reactions']
         except KeyError:
-            await ctx.send('React channel not set! Please use "$reactadd" to add one.')
+            await ctx.send('No reactions added! Please use "$reactadd" to add one.')
             return
-        
+
         # Create embeds
         for category in react_roles:
             # Create text
@@ -200,7 +285,7 @@ class reactionroles(commands.Cog):
                 desc = react_roles[category]['Roles'][role]['Description']
                 emoji = react_roles[category]['Roles'][role]['Emoji']
                 embed.add_field(name=f'{emoji} {roleName}', value=desc, inline=True)
-            
+
             # Check if embed exists and edit, else create
             try:
                 msg = await react_channel.fetch_message(get_id(react_roles[category]['Embed']))
@@ -211,15 +296,21 @@ class reactionroles(commands.Cog):
             else:
                 await msg.edit(embed=embed)
 
+            # Clear reactions
+            await msg.clear_reactions()  # FIXME: Remove once $reactremove removes reaction
+
             # Add reactions
             for role in react_roles[category]['Roles']:
                 emoji = react_roles[category]['Roles'][role]['Emoji']
                 await msg.add_reaction(emoji)
         # Update payload
-        payload['Roles'] = react_roles
+        payload['Reactions'] = react_roles
 
         # Dump into .json
         JsonInteracts.Guilds.write_json(self.reactfile, payload, ctx.guild.id)
+
+        # Send confirmation
+        await ctx.send('Reaction embed updated.')
 
     # Add role on reaction
     @commands.Cog.listener()
@@ -236,14 +327,14 @@ class reactionroles(commands.Cog):
 
         # Parse data
         react_channel = self.bot.get_channel(get_id(payload['Channel']))
-        react_roles = payload['Roles']
+        reactions = payload['Reactions']
 
         # Get reactions and their roles
         emojiRole = {}
         emojiList = []
-        for category in react_roles:
-            for role in react_roles[category]['Roles']:
-                emoji = react_roles[category]['Roles'][role]['Emoji']
+        for category in reactions:
+            for role in reactions[category]['Roles']:
+                emoji = reactions[category]['Roles'][role]['Emoji']
                 emojiList.append(emoji)
                 emojiRole[emoji] = get_id(role)
 
@@ -275,14 +366,14 @@ class reactionroles(commands.Cog):
 
         # Parse data
         react_channel = self.bot.get_channel(get_id(payload['Channel']))
-        react_roles = payload['Roles']
+        reactions = payload['Reactions']
 
         # Get reactions and their roles
         emojiRole = {}
         emojiList = []
-        for category in react_roles:
-            for role in react_roles[category]['Roles']:
-                emoji = react_roles[category]['Roles'][role]['Emoji']
+        for category in reactions:
+            for role in reactions[category]['Roles']:
+                emoji = reactions[category]['Roles'][role]['Emoji']
                 emojiList.append(emoji)
                 emojiRole[emoji] = get_id(role)
 

@@ -72,4 +72,5 @@ if __name__ == '__main__':
     bot.load_extension('cogs.reactionroles')
     bot.load_extension('cogs.xp')
     # bot.load_extension('cogs.music')  # FIXME: Broken
+    bot.load_extension('cogs.welcome')
     bot.run(TOKEN)
