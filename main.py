@@ -2,7 +2,7 @@ __author__ = 'Justin Panchula'
 __copyright__ = 'Copyright 2022'
 __credits__ = 'Justin Panchula, Zach Lesniewski'
 __license__ = 'MIT License'
-__version__ = '1.0.0'
+__version__ = '2.0.0'
 __status__ = 'Production'
 __doc__ = """Main file of the CEN Discord Bot"""
 
@@ -33,7 +33,7 @@ logging.basicConfig(
 intents = discord.Intents.all()
 activity = discord.Activity(type=discord.ActivityType.watching, name='for $<command>')
 bot = Bot(intents=intents, activity=activity, command_prefix='$', description='This is the in-house developed CEN Bot!')
-bot.version = '1.0.1'
+bot.version = '1.1.0'
 
 # Check all folders are created
 dir_req = [Path('cogs/json files')]
