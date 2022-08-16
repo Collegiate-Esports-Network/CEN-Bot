@@ -3,6 +3,7 @@
 *.json
 main2.py
 discord.py
+old cogs
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

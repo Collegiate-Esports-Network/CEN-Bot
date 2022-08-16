@@ -19,6 +19,8 @@ from mysql.connector import errorcode
 # Discord imports
 import discord
 from discord.ext.commands import Bot
+from discord import app_commands
+from discord.ext import commands
 
 # Custom imports
 from utils import json_read
@@ -37,7 +39,6 @@ intents.presences = True
 intents.members = True
 intents.message_content = True
 
-
 # Create custom bot subclass
 class mybot(Bot):
     def __init__(self) -> None:
@@ -47,6 +48,8 @@ class mybot(Bot):
             description='The in-house developed CEN Bot',
             command_prefix='$$'
         )
+        self.version = '2.0.0'
+        self.cnx = None
  
     async def setup_hook(self) -> None:
         # Init
@@ -56,7 +59,7 @@ class mybot(Bot):
 
         # Scrape for extensions
         for file in os.listdir('./cogs'):
-            if file.endswith('2.py'):
+            if file.endswith('.py'):
                 found_extensions.append(f'cogs.{file[:-3]}')
         
         # Load extensions
@@ -65,28 +68,23 @@ class mybot(Bot):
                 await self.load_extension(extension)
             except Exception as e:
                 failed_extensions.append(extension)
+                logging.warning(e)
             else:
                 loaded_extensions.append(extension)
         
         # Log
         logging.info(f'{loaded_extensions} loaded')
-        logging.warning(f'{failed_extensions} not loaded')
+        if len(failed_extensions) != 0:
+            logging.warning(f'{failed_extensions} not loaded')
+        
+        # Force sync
+        await bot.tree.sync()
 
     async def on_ready(self) -> None:
         logging.info(f'{self.user.display_name} has logged in')
 
-
 # Init Bot
 bot = mybot()
-
-
-# Simple error handling
-@bot.event
-async def on_command_error(ctx, error):
-    try:
-        logging.error(f'{ctx.command.cog_name} threw an error: {error}')
-    except AttributeError:
-        logging.error(f'{error}')
 
 # Init MySQL connection
 USER = json_read(Path('environment.json'))['MYSQL USER']
@@ -103,7 +101,16 @@ except mysql.connector.Error as err:
         logging.warning("SQL Database does not exist")
     else:
         logging.error(err)
+else:
+    bot.cnx = cnx
 
+# Simple error handling
+@bot.event
+async def on_command_error(ctx, error):
+    try:
+        logging.error(f'{ctx.command.cog_name} threw an error: {error}')
+    except AttributeError:
+        logging.error(f'{error}')
 
 # main
 if __name__ == '__main__':
