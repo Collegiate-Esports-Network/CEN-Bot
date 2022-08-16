@@ -1,7 +1,8 @@
 # Custom Stuffs
-*.log
+*.log*
 *.json
 main2.py
+discord.py
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

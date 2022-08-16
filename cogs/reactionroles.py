@@ -168,11 +168,7 @@ class reactionroles(commands.Cog):
                 await ctx.send('Command has timed out')
                 return
             else:
-                # Add check for blank description
-                if msg.content != 'N/A':
-                    reactions[category]['Roles'][role]['Description'] = msg.content
-                else:
-                    reactions[category]['Roles'][role]['Description'] = ''
+                reactions[category]['Roles'][role]['Description'] = msg.content
 
             # Prompt for react emoji
             await ctx.send('What is the emoji for this reaction?')
@@ -290,7 +286,12 @@ class reactionroles(commands.Cog):
                 roleName = discord.utils.get(ctx.guild.roles, id=roleID)
                 desc = react_roles[category]['Roles'][role]['Description']
                 emoji = react_roles[category]['Roles'][role]['Emoji']
-                embed.add_field(name=f'{emoji} {roleName}', value=desc, inline=True)
+
+                # Check if description is blank (N/A)
+                if desc != 'N/A':
+                    embed.add_field(name=f'{emoji} {roleName}', value=desc, inline=True)
+                else:
+                    embed.add_field(name=f'{emoji} {roleName}', inline=True)
 
             # Check if embed exists and edit, else create
             try:

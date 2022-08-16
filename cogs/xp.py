@@ -116,5 +116,5 @@ class xp(commands.Cog):
 
 
 # Add to bot
-def setup(bot) -> None:
+async def setup(bot) -> None:
     bot.add_cog(xp(bot))

@@ -78,7 +78,7 @@ class utility(commands.Cog):
         embed.add_field(name="Bot Version:", value=self.bot.version)
         embed.add_field(name="Python Version:", value='3.10.4')
         embed.add_field(name="Discord.py Version:", value=discord.__version__)
-        embed.add_field(name='Written By:', value='Justin Panchula and Zach Lesniewski', inline=False)
+        embed.add_field(name='Written By:', value='[Justin Panchula](https://github.com/JustinPanchula), [Zach Lesniewski](https://github.com/Zach0813), and (Jordan Wentland)[https://github.com/jordanwentland]', inline=False)
         embed.add_field(name='Server Information:', value=f'This bot is in {len(self.bot.guilds)} servers watching over {len(set(self.bot.get_all_members()))-len(self.bot.guilds)} members.', inline=False)
         embed.set_footer(text=f'Information requested by: {ctx.author.display_name}')
 
