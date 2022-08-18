@@ -14,6 +14,7 @@ import discord
 from discord.ext import commands
 from discord import app_commands
 
+
 class utility(commands.GroupCog, name='utility'):
     """These are all functions that act as utility to the bot.
     """
@@ -29,8 +30,8 @@ class utility(commands.GroupCog, name='utility'):
     )
     @commands.is_owner()
     async def utility_shutdown(self, interaction: discord.Interaction) -> None:
-        if self.bot.cnx is not None:  #FIXME: Remove once connection becomes live
-            self.bot.cnx.close()
+        self.bot.cnx.commit()
+        self.bot.cnx.close()
         await interaction.response.send_message(f'{self.bot.user.name} is shutting down now')
         self.bot.close()
         logging.info(f'{self.bot.user.name} has safely closed the connection to discord')
@@ -45,7 +46,7 @@ class utility(commands.GroupCog, name='utility'):
         await self.bot.tree.sync()
         logging.info('The bot was focibly synced')
         await interaction.response.send_message('The bot was synced', ephemeral=True)
-    
+
     # load cogs
     @app_commands.command(
         name='load',
@@ -71,7 +72,7 @@ class utility(commands.GroupCog, name='utility'):
     @commands.is_owner()
     async def utility_reload(self, interaction: discord.Interaction, cog: str) -> None:
         await self.bot.reload_extension(f'cogs.{cog}')
-        logging.info(f'{cog} was reloaded')
+        logging.info(f'"{cog}" was reloaded')
         await interaction.response.send_message(f'{cog} was reloaded', ephemeral=True)
 
     # Unload cogs
@@ -87,6 +88,7 @@ class utility(commands.GroupCog, name='utility'):
         await self.bot.unload_extension(f'cogs.{cog}')
         logging.info(f'{cog} was unloaded')
         await interaction.response.send_message(f'{cog} was unloaded', ephemeral=True)
+
 
 class utility2(commands.Cog):
     """This is the simple ping command
@@ -120,6 +122,7 @@ class utility2(commands.Cog):
         embed.set_footer(text=f'Information requested by: {interaction.user}')
 
         await interaction.response.send_message(file=icon, embed=embed, ephemeral=True)
+
 
 # Add to bot
 async def setup(bot: commands.Bot) -> None:
