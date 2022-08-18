@@ -26,7 +26,7 @@ class welcome(commands.GroupCog, name='welcome'):
         self.bot = bot
         self.welcome_file = Path('data/welcome.json')
         self.welcome_data = JsonInteracts.read(self.welcome_file)
-        self.save_timer = 1
+        self.save_timer = 10
         super().__init__()
 
     # Sends a message on user join
@@ -57,7 +57,7 @@ class welcome(commands.GroupCog, name='welcome'):
         # Check if save timer is up
         if self.save_timer <= 0:
             JsonInteracts.write(self.welcome_file, self.welcome_data)
-            self.save_timer = 1
+            self.save_timer = 10
 
     # Sets the welcome messsage channel
     @app_commands.command(

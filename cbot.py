@@ -20,6 +20,7 @@ intents.presences = True
 intents.members = True
 intents.message_content = True
 
+
 # Create custom bot subclass
 class cbot(Bot):
     def __init__(self) -> None:
@@ -30,7 +31,7 @@ class cbot(Bot):
             command_prefix='$$'
         )
         self.version = '2.0.0'
- 
+
     async def setup_hook(self) -> None:
         # Init
         found_extensions = []
@@ -41,7 +42,7 @@ class cbot(Bot):
         for file in os.listdir('./cogs'):
             if file.endswith('.py'):
                 found_extensions.append(f'cogs.{file[:-3]}')
-        
+
         # Load extensions
         for extension in found_extensions:
             try:
@@ -51,12 +52,12 @@ class cbot(Bot):
                 logging.warning(e)
             else:
                 loaded_extensions.append(extension)
-        
+
         # Log
         logging.info(f'{loaded_extensions} loaded')
         if len(failed_extensions) != 0:
             logging.warning(f'{failed_extensions} not loaded')
-        
+
         # Force sync
         await self.tree.sync()
 
