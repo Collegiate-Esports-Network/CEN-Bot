@@ -80,8 +80,8 @@ class react(commands.GroupCog, name='react'):
                 "Channel": None,
                 "Categories": {}
             }
-        else:
-            # Assign sub-group
+        finally:
+            # Parse categories
             categories = self.react_data[str(interaction.guild_id)]['Categories']
 
         # Test if category exists
@@ -93,9 +93,9 @@ class react(commands.GroupCog, name='react'):
                 "Embed": None,
                 "Roles": {}
             }
-
-        # Parse roles
-        roles = categories[category]['Roles']
+        finally:
+            # Parse roles
+            roles = categories[category]['Roles']
 
         # Test if role exists
         try:
@@ -151,10 +151,10 @@ class react(commands.GroupCog, name='react'):
             roles[str(get_id(role))]
         except KeyError:
             await interaction.response.send_message('ERROR: That role does not exist!', ephemeral=True)
+            return
         else:
             roles.pop(str(get_id(role)))
             await interaction.response.send_message('SUCCESS: That role was removed!', ephemeral=True)
-            return
 
         # Merge changes
         categories[category]['Roles'] = roles
@@ -170,75 +170,7 @@ class react(commands.GroupCog, name='react'):
     )
     @commands.has_role('bot manager')
     async def react_send(self, interaction: Interaction) -> None:
-        # Check if reaction channel exists
-        try:
-            self.react_data[str(interaction.guild_id)]['Channel']
-        except KeyError:
-            await interaction.response.send_message('ERROR: Reaction channel not set!', ephemeral=True)
-            return
-        else:
-            channel = self.react_data[str(interaction.guild_id)]['Channel']
-            if channel is None:
-                await interaction.response.send_message('ERROR: Reaction channel not set!', ephemeral=True)
-                return
-            else:
-                # Get channel object
-                channel = self.bot.get_channel(channel)
-
-        # Check if reactions exist
-        try:
-            self.react_data[str(interaction.guild_id)]['Categories']
-        except KeyError:
-            await interaction.response.send_message('ERROR: Reactions do not exist!', ephemeral=True)
-            return
-        else:
-            categories = self.react_data[str(interaction.guild_id)]['Categories']
-
-        # Create embeds and send
-        for category in categories:
-            category = categories[category]
-            # Create embed
-            desc = category['Description']
-            if desc is None:
-                embed = discord.Embed(title=f'{category} Roles')
-            else:
-                embed = discord.Embed(title=f'{category} Roles', description=desc)
-
-            # Populate embed
-            for role in category['Roles']:
-                # Init
-                roleName = discord.utils.get(interaction.guild.roles, id=get_id(role)).name
-                desc = category['Roles'][role]['Description']
-                emoji = category['Roles'][role]['Emoji']
-
-                # Check if description is blank (N/A)
-                if desc is None:
-                    embed.add_field(name=f'{emoji} {roleName}', inline=True)
-                else:
-                    embed.add_field(name=f'{emoji} {roleName}', value=desc, inline=True)
-
-            # Check if embed exists and edit, else create
-            if category['Embed'] is None:
-                msg = await channel.send(embed=embed)
-                # Mark as category embed
-                category['Embed'] = msg.id
-
-                # Merge
-                self.react_data[str(interaction.guild_id)]['Categories'] = category
-
-                # Save
-                JsonInteracts.write(self.react_file, self.react_data)
-            else:
-                msg = await channel.fetch_message(get_id(category['Embed']))
-                await msg.edit(embed=embed)
-
-            # Clear previous reactions
-            await msg.clear_reactions()  # FIXME: Remove once $reactremove removes reaction
-
-            # Add reactions
-            for role in category['Roles']:
-                emoji = role['Emoji']
-                await msg.add_reaction(emoji)
+        return
 
     # Add or remove role on reaction
     @commands.Cog.listener()
