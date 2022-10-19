@@ -1,7 +1,7 @@
 __author__ = 'Justin Panchula'
 __copyright__ = 'Copyright 2022'
 __credits__ = 'Justin Panchula'
-__license__ = 'MIT License'
+__license__ = 'Copyright CEN'
 __version__ = '2.0.0'
 __status__ = 'Production'
 __doc__ = """Logs activity in discord servers"""
