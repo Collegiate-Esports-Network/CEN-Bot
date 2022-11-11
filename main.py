@@ -8,10 +8,11 @@ __doc__ = """Main file of the CEN Discord client"""
 # Python imports
 import logging
 from logging.handlers import TimedRotatingFileHandler
+import json
 from pathlib import Path
+from discord.
 
 # Custom imports
-from utils import JsonInteracts
 from cbot import cbot
 
 # Init logging
@@ -25,6 +26,7 @@ logging.basicConfig(
 # Init Bot
 bot = cbot()
 
+
 # Simple error handling
 @bot.event
 async def on_command_error(ctx, error):
@@ -33,10 +35,17 @@ async def on_command_error(ctx, error):
     except AttributeError:
         logging.error(f'{error}')
 
+
+# On bot join update server data
+@bot.event
+async def on_guild_join(guild):
+    async with bot.pool.acquire() as con:
+        await con.execute("INSERT INTO server_data (guild_id) VALUES ($1) ON CONFLICT DO NOTHING", guild.id)
+
 # main
 if __name__ == '__main__':
     # Load environment variables
-    TOKEN = JsonInteracts.read(Path('environment.json'))['TESTTOKEN']
+    TOKEN = json.load(open(Path('environment.json'), 'r'))['TESTTOKEN']
 
     # Start bot
     bot.run(token=TOKEN, log_handler=None)

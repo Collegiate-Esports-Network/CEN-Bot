@@ -29,10 +29,8 @@ class utility(commands.GroupCog, name='utility'):
     )
     @commands.is_owner()
     async def utility_shutdown(self, interaction: discord.Interaction) -> None:
-        self.bot.cnx.commit()
-        self.bot.cnx.close()
         await interaction.response.send_message(f'{self.bot.user.name} is shutting down now')
-        self.bot.close()
+        await self.bot.close()
         logging.info(f'{self.bot.user.name} has safely closed the connection to discord')
 
     # Force bot sync
@@ -43,7 +41,7 @@ class utility(commands.GroupCog, name='utility'):
     @commands.is_owner()
     async def utility_sync(self, interaction: discord.Interaction) -> None:
         await self.bot.tree.sync()
-        logging.info('The bot was focibly synced')
+        logging.info('The bot was forcibly synced')
         await interaction.response.send_message('The bot was synced', ephemeral=True)
 
     # load cogs

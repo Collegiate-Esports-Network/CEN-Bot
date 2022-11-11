@@ -1,8 +1,6 @@
 # Custom Stuffs
-data
 *.log*
-*.json
-main2.py
+environment.json
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -135,7 +133,7 @@ env.bak/
 venv.bak/
 
 # VSCode project settings
-.vscode/
+# .vscode/
 
 # Spyder project settings
 .spyderproject

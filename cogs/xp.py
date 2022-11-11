@@ -18,7 +18,7 @@ from discord import app_commands
 
 # Custom imports
 from cbot import cbot
-from utils import JsonInteracts, get_id
+from custom_funcs import JsonInteracts, get_id
 
 
 class xp(commands.GroupCog, name='xp'):

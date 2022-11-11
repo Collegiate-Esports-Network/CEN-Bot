@@ -8,6 +8,9 @@ __doc__ = """Custom Bot class"""
 # Python imports
 import logging
 import os
+import asyncpg
+import json
+from pathlib import Path
 
 # Discord imports
 import discord
@@ -27,12 +30,20 @@ class cbot(Bot):
             intents=intents,
             activity=discord.Activity(type=discord.ActivityType.playing, name='big brother'),
             description='The in-house developed CEN Bot',
-            command_prefix='$$'
+            command_prefix="$$"
         )
         self.version = '2.0.0'
 
+        # Define the PostgreSQL connection once
+        password = json.load(open(Path('environment.json'), 'r'))["POSTGRESQL_PASS"]
+        self.cnx_str = str(f"postgresql://cenbot:{password}@cenbot-do-user-12316711-0.b.db.ondigitalocean.com:25060/cenbot?sslmode=require")
+        self.pool = None
+
     async def setup_hook(self) -> None:
-        # Init
+        # Create DB Connection
+        self.pool = await asyncpg.create_pool(self.cnx_str)
+
+        # Create extension lists
         found_extensions = []
         loaded_extensions = []
         failed_extensions = []
@@ -52,13 +63,18 @@ class cbot(Bot):
             else:
                 loaded_extensions.append(extension)
 
-        # Log
+        # Log extensions
         logging.info(f'{loaded_extensions} loaded')
         if len(failed_extensions) != 0:
             logging.warning(f'{failed_extensions} not loaded')
 
-        # Force sync
+        # Force command sync
         await self.tree.sync()
+
+        # Force SQL Check
+        for guild in self.guilds:
+            async with self.pool.acquire() as con:
+                await con.execute("INSERT INTO server_data (guild_id) VALUES ($1) ON CONFLICT DO NOTHING", guild.id)
 
     async def on_ready(self) -> None:
         logging.info(f'{self.user.display_name} has logged in')
