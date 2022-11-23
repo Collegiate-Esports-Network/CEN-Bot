@@ -16,7 +16,7 @@ from discord.ext import commands
 from discord import app_commands
 
 # Custom imports
-from custom_funcs import JsonInteracts, get_id
+from helper.get_id import get_id
 
 
 class react(commands.GroupCog, name='react'):

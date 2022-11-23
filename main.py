@@ -6,21 +6,23 @@ __status__ = 'Production'
 __doc__ = """Main file of the CEN Discord client"""
 
 # Python imports
+from dotenv import load_dotenv
 import logging
 from logging.handlers import TimedRotatingFileHandler
-import json
-from pathlib import Path
-from discord.
+import os
 
 # Custom imports
 from cbot import cbot
+
+# Init environment
+load_dotenv()
 
 # Init logging
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s %(levelname)-8s %(message)s',
     datefmt='%Y-%m-%d %H:%M:%S',
-    handlers=[TimedRotatingFileHandler(filename='LOGGING.log', when='W6', interval=1, backupCount=3, encoding='UTF-8')]
+    handlers=[TimedRotatingFileHandler(filename="LOGGING.log", when='W6', interval=1, backupCount=3, encoding='UTF-8')]
 )
 
 # Init Bot
@@ -31,21 +33,21 @@ bot = cbot()
 @bot.event
 async def on_command_error(ctx, error):
     try:
-        logging.error(f'{ctx.command.cog_name} threw an error: {error}')
+        logging.error(f"{ctx.command.cog_name} threw an error: {error}")
     except AttributeError:
-        logging.error(f'{error}')
+        logging.error(f"{error}")
 
 
 # On bot join update server data
 @bot.event
 async def on_guild_join(guild):
     async with bot.pool.acquire() as con:
-        await con.execute("INSERT INTO server_data (guild_id) VALUES ($1) ON CONFLICT DO NOTHING", guild.id)
+        await con.execute("INSERT INTO serverdata (guild_id) VALUES ($1) ON CONFLICT DO NOTHING", guild.id)
 
 # main
 if __name__ == '__main__':
     # Load environment variables
-    TOKEN = json.load(open(Path('environment.json'), 'r'))['TESTTOKEN']
+    TOKEN = os.getenv('TESTTOKEN')
 
     # Start bot
     bot.run(token=TOKEN, log_handler=None)

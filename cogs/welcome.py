@@ -5,16 +5,13 @@ __version__ = '2.0.0'
 __status__ = 'Production'
 __doc__ = """Welcome message functions"""
 
-# Python imports
-from pathlib import Path
-
 # Discord imports
 import discord
 from discord.ext import commands
 from discord import app_commands
 
 # Custom imports
-from custom_funcs import JsonInteracts, get_id
+from helper.get_id import get_id
 
 
 class welcome(commands.GroupCog, name='welcome'):
@@ -23,92 +20,58 @@ class welcome(commands.GroupCog, name='welcome'):
     # Init
     def __init__(self, bot: commands.Bot) -> None:
         self.bot = bot
-        self.welcome_file = Path('data/welcome.json')
-        self.welcome_data = JsonInteracts.read(self.welcome_file)
-        self.save_timer = 10
         super().__init__()
 
     # Sends a message on user join
     @commands.Cog.listener()
     async def on_member_join(self, member: discord.Member) -> None:
-        # Get welcome channel
-        try:
-            welcome_channel = self.welcome_data[str(member.guild.id)]['Channel']
-        except KeyError:
-            return
-        else:
-            welcome_channel = self.bot.get_channel(get_id(welcome_channel))
+        # Get message channel
+        async with self.bot.pool.acquire() as con:
+            channel = await con.execute("SELECT welcome_channel FROM serverdata WHERE guild_id=$1", member.guild.id)
 
-        # Get welcome message and edit
-        try:
-            welcome_message = self.welcome_data[str(member.guild.id)]['Message']
-        except KeyError:
-            welcome_message = 'Welcome to the server <new_user>!'
-        else:
-            welcome_message = welcome_message.replace('<new_user>', member.mention)
+        # Test for null
+        if channel is None:
+            return
+
+        # Get welcome message
+        async with self.bot.pool.acquire() as con:
+            message = await con.execute("SELECT welcome_message FROM serverdata WHERE guild_id=$1", member.guild.id)
+
+        # Edit welcome message
+        message = message.replace('<new_user>', member.mention)
 
         # Send welcome message
-        await welcome_channel.send(welcome_message)
-
-        # Subtract 1 from timer
-        self.save_timer -= 1
-
-        # Check if save timer is up
-        if self.save_timer <= 0:
-            JsonInteracts.write(self.welcome_file, self.welcome_data)
-            self.save_timer = 10
+        await self.bot.get_channel(channel).send(message)
 
     # Sets the welcome messsage channel
     @app_commands.command(
         name='setchannel',
-        description='Sets the welcome channel'
+        description="Sets the welcome channel"
     )
     @app_commands.describe(
-        channel='Discord channel mention'
+        channel="Discord channel mention"
     )
     @commands.has_role('bot manager')
     async def welcome_setchannel(self, interaction: discord.Interaction, channel: str) -> None:
-        # Test is this guild exists in memory
-        try:
-            self.welcome_data[str(interaction.guild_id)]
-        except KeyError:
-            self.welcome_data[str(interaction.guild_id)] = {}
-
-        # Test if a welcome channel is created for the server
-        try:
-            self.welcome_data[str(interaction.guild_id)]['Channel']
-        except KeyError:
-            self.welcome_data[str(interaction.guild_id)]['Channel'] = ''
-
-        # Set channel
-        self.welcome_data[str(interaction.guild_id)]['Channel'] = get_id(channel)
+        # Update channel
+        async with self.bot.pool.acquire() as con:
+            await con.execute("UPDATE serverdata SET welcome_channel=$2 WHERE guild_id=$1", interaction.guild.id, get_id(channel))
 
         await interaction.response.send_message('Welcome channel set', ephemeral=True)
 
     # Sets the welcome message
     @app_commands.command(
         name='setmessage',
-        description='Sets the welcome message'
+        description="Sets the welcome message"
     )
     @app_commands.describe(
-        message='The welcome message. Use "<new_user>" to mention the member.'
+        message="The welcome message. Use '<new_user>' to mention the member."
     )
     @commands.has_role('bot manager')
     async def welcome_setmessage(self, interaction: discord.Interaction, message: str) -> None:
-        # Test is this guild exists in memory
-        try:
-            self.welcome_data[str(interaction.guild_id)]
-        except KeyError:
-            self.welcome_data[str(interaction.guild_id)] = {}
-
-        # Test if a welcome message is created for the server
-        try:
-            self.welcome_data[str(interaction.guild_id)]['Message']
-        except KeyError:
-            self.welcome_data[str(interaction.guild_id)]['Message'] = ''
-
-        # Set message
-        self.welcome_data[str(interaction.guild_id)]['Message'] = message
+        # Updates the welcome message
+        async with self.bot.pool.acquire() as con:
+            await con.execute("UPDATE serverdata SET welcome_message=$2 WHERE guild_id=$1", interaction.guild.id, message)
 
         # Respond
         await interaction.response.send_message('Welcome message saved', ephemeral=True)
@@ -119,45 +82,24 @@ class welcome(commands.GroupCog, name='welcome'):
     )
     @commands.has_role('bot manager')
     async def welcome_testmessage(self, interaction: discord.Interaction):
-        tests = {
-            'Channel': None,
-            'Message': None
-        }
+        # Get welcome channel
+        async with self.bot.pool.acquire() as con:
+            channel = await con.execute("SELECT welcome_channel FROM serverdata WHERE guild_id=$1", interaction.guild.id)
 
-        # Test if a welcome channel is already created for the server
-        try:
-            self.welcome_data[str(interaction.guild_id)]['Channel']
-        except KeyError:
-            tests['Channel'] = False
-        else:
-            welcome_channel = self.bot.get_channel(self.welcome_data[str(interaction.guild_id)]['Channel'])
-
-        # Test if a welcome message is created for the server
-        try:
-            self.welcome_data[str(interaction.guild_id)]['Message']
-        except KeyError:
-            tests['Message'] = False
-        else:
-            welcome_message = self.welcome_data[str(interaction.guild_id)]['Message']
-            print(welcome_message)
-
-        # Return if tests fail
-        if tests['Channel'] is False:
+        # Test if channel is null
+        if channel is None:
             await interaction.response.send_message('ERROR: No welcome channel is set for this guild!', ephemeral=True)
-        elif tests['Message'] is False:
-            await interaction.response.send_message('ERROR: No welcome message is set for this guild! The default is currently being used.', ephemeral=True)
-
-            welcome_message = 'Welcome to our server <new_user>!'
-            welcome_message = welcome_message.replace('<new_user>', interaction.user.mention)
-            await welcome_channel.send(welcome_message)
+            return
         else:
-            welcome_message = welcome_message.replace('<new_user>', interaction.user.mention)
-            await welcome_channel.send(welcome_message)
+            # Get welcome message
+            async with self.bot.pool.acquire() as con:
+                message = await con.execute("SELECT welcome_channel FROM serverdata WHERE guild_id=$1", interaction.guild.id)
 
-            await interaction.response.send_message('SUCCESS: All tests passed', ephemeral=True)
+            # Edit welcome message
+            message = message.replace('<new_user>', interaction.user.mention)
 
-        # Save edits
-        JsonInteracts.write(self.welcome_file, self.welcome_data)
+            # Send welcome message
+            await self.bot.get_channel(channel).send(message, ephemeral=False)
 
 
 # Add to bot

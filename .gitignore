@@ -1,6 +1,6 @@
 # Custom Stuffs
 *.log*
-environment.json
+create_table.sql
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
