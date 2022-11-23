@@ -31,7 +31,8 @@ class logging(commands.GroupCog, name='logging'):
     async def on_message_edit(self, ctx_bef: discord.Message, ctx_aft: discord.Message) -> None:
         # Get log channel
         async with self.bot.pool.acquire() as con:
-            channel = await con.execute("SELECT log_channel FROM serverdata WHERE guild_id=$1", ctx_bef.guild.id)
+            channel = await con.fetch("SELECT log_channel FROM serverdata WHERE guild_id=$1", ctx_bef.guild.id)
+        channel = channel[0]['log_channel']
 
         # Test if channel is null and return
         if channel is None:
@@ -39,7 +40,8 @@ class logging(commands.GroupCog, name='logging'):
 
         # Get log level
         async with self.bot.pool.acquire() as con:
-            level = await con.execute("SELECT log_level FROM serverdata WHERE guild_id=$1", ctx_bef.guild.id)
+            level = await con.fetch("SELECT log_level FROM serverdata WHERE guild_id=$1", ctx_bef.guild.id)
+        level = level[0]['log_level']
 
         # Check log level
         if level < 1:
@@ -68,7 +70,8 @@ class logging(commands.GroupCog, name='logging'):
     async def on_message_delete(self, ctx: discord.Message) -> None:
         # Get log channel
         async with self.bot.pool.acquire() as con:
-            channel = await con.execute("SELECT log_channel FROM serverdata WHERE guild_id=$1", ctx.guild.id)
+            channel = await con.fetch("SELECT log_channel FROM serverdata WHERE guild_id=$1", ctx.guild.id)
+        channel = channel[0]['log_channel']
 
         # Test if channel is null and return
         if channel is None:
@@ -76,7 +79,8 @@ class logging(commands.GroupCog, name='logging'):
 
         # Get log level
         async with self.bot.pool.acquire() as con:
-            level = await con.execute("SELECT log_level FROM serverdata WHERE guild_id=$1", ctx.guild.id)
+            level = await con.fetch("SELECT log_level FROM serverdata WHERE guild_id=$1", ctx.guild.id)
+        level = level[0]['log_level']
 
         # Check log level
         if level < 1:

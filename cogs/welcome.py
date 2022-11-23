@@ -27,7 +27,8 @@ class welcome(commands.GroupCog, name='welcome'):
     async def on_member_join(self, member: discord.Member) -> None:
         # Get message channel
         async with self.bot.pool.acquire() as con:
-            channel = await con.execute("SELECT welcome_channel FROM serverdata WHERE guild_id=$1", member.guild.id)
+            channel = await con.fetch("SELECT welcome_channel FROM serverdata WHERE guild_id=$1", member.guild.id)
+        channel = channel[0]['welcome_channel']
 
         # Test for null
         if channel is None:
@@ -35,10 +36,11 @@ class welcome(commands.GroupCog, name='welcome'):
 
         # Get welcome message
         async with self.bot.pool.acquire() as con:
-            message = await con.execute("SELECT welcome_message FROM serverdata WHERE guild_id=$1", member.guild.id)
+            message = await con.fetch("SELECT welcome_message FROM serverdata WHERE guild_id=$1", member.guild.id)
+        message = message[0]['welcome_message']
 
         # Edit welcome message
-        message = message.replace('<new_user>', member.mention)
+        message = message.replace('<new_member>', member.mention)
 
         # Send welcome message
         await self.bot.get_channel(channel).send(message)
@@ -65,7 +67,7 @@ class welcome(commands.GroupCog, name='welcome'):
         description="Sets the welcome message"
     )
     @app_commands.describe(
-        message="The welcome message. Use '<new_user>' to mention the member."
+        message="The welcome message. Use '<new_member>' to mention the member."
     )
     @commands.has_role('bot manager')
     async def welcome_setmessage(self, interaction: discord.Interaction, message: str) -> None:
@@ -84,7 +86,8 @@ class welcome(commands.GroupCog, name='welcome'):
     async def welcome_testmessage(self, interaction: discord.Interaction):
         # Get welcome channel
         async with self.bot.pool.acquire() as con:
-            channel = await con.execute("SELECT welcome_channel FROM serverdata WHERE guild_id=$1", interaction.guild.id)
+            channel = await con.fetch("SELECT welcome_channel FROM serverdata WHERE guild_id=$1", interaction.guild.id)
+        channel = channel[0]['welcome_channel']
 
         # Test if channel is null
         if channel is None:
@@ -93,13 +96,17 @@ class welcome(commands.GroupCog, name='welcome'):
         else:
             # Get welcome message
             async with self.bot.pool.acquire() as con:
-                message = await con.execute("SELECT welcome_channel FROM serverdata WHERE guild_id=$1", interaction.guild.id)
+                message = await con.fetch("SELECT welcome_message FROM serverdata WHERE guild_id=$1", interaction.guild.id)
+            message = message[0]['welcome_message']
 
             # Edit welcome message
-            message = message.replace('<new_user>', interaction.user.mention)
+            message = message.replace('<new_member>', interaction.user.mention)
 
             # Send welcome message
-            await self.bot.get_channel(channel).send(message, ephemeral=False)
+            await self.bot.get_channel(channel).send(message)
+
+        # Respond
+        await interaction.response.send_message("Test sent.", ephemeral=True)
 
 
 # Add to bot
