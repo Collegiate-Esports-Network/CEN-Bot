@@ -11,18 +11,16 @@ from http.client import HTTPException
 from typing import Literal
 
 # Discord imports
+from cbot import cbot
 import discord
 from discord.ext import commands
 from discord import app_commands
-
-# Custom imports
-from helper.get_id import get_id
 
 
 class logging(commands.GroupCog, name='logging'):
     """These are all the logging functions
     """
-    def __init__(self, bot: commands.Bot):
+    def __init__(self, bot: cbot):
         self.bot = bot
         super().__init__()
 
@@ -108,10 +106,10 @@ class logging(commands.GroupCog, name='logging'):
         description="Sets the channel server logs will be sent to"
     )
     @commands.has_role('bot manager')
-    async def logging_setchannel(self, interaction: discord.Interaction, channel: str) -> None:
+    async def logging_setchannel(self, interaction: discord.Interaction, channel: discord.TextChannel) -> None:
         # Update log channel
         async with self.bot.pool.acquire() as con:
-            await con.execute("UPDATE serverdata SET log_channel=$2 WHERE guild_id=$1", interaction.guild.id, get_id(channel))
+            await con.execute("UPDATE serverdata SET log_channel=$2 WHERE guild_id=$1", interaction.guild.id, channel.id)
 
         # Respond
         await interaction.response.send_message("Log channel saved", ephemeral=False)
@@ -133,5 +131,5 @@ class logging(commands.GroupCog, name='logging'):
 
 
 # Add to bot
-async def setup(bot: commands.Bot) -> None:
+async def setup(bot: cbot) -> None:
     await bot.add_cog(logging(bot))

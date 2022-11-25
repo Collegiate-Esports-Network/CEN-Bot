@@ -6,19 +6,17 @@ __status__ = 'Production'
 __doc__ = """Welcome message functions"""
 
 # Discord imports
+from cbot import cbot
 import discord
 from discord.ext import commands
 from discord import app_commands
-
-# Custom imports
-from helper.get_id import get_id
 
 
 class welcome(commands.GroupCog, name='welcome'):
     """These are the welcome message functions
     """
     # Init
-    def __init__(self, bot: commands.Bot) -> None:
+    def __init__(self, bot: cbot) -> None:
         self.bot = bot
         super().__init__()
 
@@ -50,14 +48,11 @@ class welcome(commands.GroupCog, name='welcome'):
         name='setchannel',
         description="Sets the welcome channel"
     )
-    @app_commands.describe(
-        channel="Discord channel mention"
-    )
     @commands.has_role('bot manager')
-    async def welcome_setchannel(self, interaction: discord.Interaction, channel: str) -> None:
+    async def welcome_setchannel(self, interaction: discord.Interaction, channel: discord.TextChannel) -> None:
         # Update channel
         async with self.bot.pool.acquire() as con:
-            await con.execute("UPDATE serverdata SET welcome_channel=$2 WHERE guild_id=$1", interaction.guild.id, get_id(channel))
+            await con.execute("UPDATE serverdata SET welcome_channel=$2 WHERE guild_id=$1", interaction.guild.id, channel.id)
 
         await interaction.response.send_message('Welcome channel set', ephemeral=True)
 
@@ -110,5 +105,5 @@ class welcome(commands.GroupCog, name='welcome'):
 
 
 # Add to bot
-async def setup(bot: commands.Bot) -> None:
+async def setup(bot: cbot) -> None:
     await bot.add_cog(welcome(bot))

@@ -6,19 +6,15 @@ __status__ = 'Production'
 __doc__ = """xp Functions"""
 
 # Python imports
-from pathlib import Path
 import random
 import time
 from collections import Counter
 
 # Discord imports
+from cbot import cbot
 import discord
 from discord.ext import commands
 from discord import app_commands
-
-# Custom imports
-from cbot import cbot
-from helper.get_id import get_id
 
 
 class xp(commands.GroupCog, name='xp'):
@@ -26,9 +22,6 @@ class xp(commands.GroupCog, name='xp'):
     """
     def __init__(self, bot: cbot) -> None:
         self.bot = bot
-        self.xp_file = Path('data/xp.json')
-        self.xp_data = JsonInteracts.read(self.xp_file)
-        self.save_timer = 10
         super().__init__()
 
     @commands.Cog.listener()
@@ -36,71 +29,89 @@ class xp(commands.GroupCog, name='xp'):
         # Ignore messages from test server
         if self.bot.user == ctx.author or ctx.guild.id == 0:  # 778306842265911296
             return
-        
-        # See if an xp log is already created for the server
-        try:
-            xp_guild = self.xp_data[str(ctx.guild.id)]
-        except KeyError:
-            xp_guild = {}
 
-        # Generate random number between 1 and 100
+        # Generate random number between 1 and 100 and assign xp
         random.seed(round(time.time() * 1000))
         num = random.randint(1, 100)
-
-        # Give xp to message sender
-        try:
-            xp_guild[str(ctx.author.id)]
-        except KeyError:
-            xp_guild[str(ctx.author.id)] = 1
+        exp = 0
+        if num < 70:
+            exp = 1
+        elif num < 90:
+            exp = 2
         else:
-            if num < 50:
-                xp_guild[str(ctx.author.id)] += 0
-            elif num < 70:
-                xp_guild[str(ctx.author.id)] += 1
-            elif num < 90:
-                xp_guild[str(ctx.author.id)] += 2
-            else:
-                xp_guild[str(ctx.author.id)] += 3
+            exp = 3
 
-        # Merge changes
-        self.xp_data[str(ctx.guild.id)] = xp_guild
+        # Get xp records
+        async with self.bot.pool.acquire() as con:
+            record = await con.fetch("SELECT * FROM xp WHERE guild_id=$1", ctx.guild.id)
+        record = dict(record[0])
 
-        # Subtract 1 from timer
-        self.save_timer -= 1
-
-        # Check if save timer is up
-        if self.save_timer <= 0:
-            JsonInteracts.write(self.xp_file, self.xp_data)
-            self.save_timer = 10
+        # Record check
+        try:
+            old_exp = record[f'm_{ctx.author.id}']
+        except KeyError:
+            # Add user to table
+            async with self.bot.pool.acquire() as con:
+                await con.execute(f"ALTER TABLE xp ADD m_{ctx.author.id} int DEFAULT 0")
+        else:
+            # Add change in xp
+            new_exp = old_exp + exp
+            async with self.bot.pool.acquire() as con:
+                await con.execute(f"UPDATE xp SET m_{ctx.author.id}=$1 WHERE guild_id=$2", new_exp, ctx.guild.id)
 
     @app_commands.command(
         name='xp',
-        description='Returns your current xp'
+        description="Returns your current xp"
     )
     async def xp_xp(self, interaction: discord.Interaction) -> None:
-        await interaction.response.send_message(f'Your xp in this server is: {self.xp_data[str(interaction.guild_id)][str(interaction.user.id)]}')
+        # Get xp records
+        async with self.bot.pool.acquire() as con:
+            record = await con.fetch("SELECT * FROM xp WHERE guild_id=$1", interaction.guild.id)
+        record = dict(record[0])
+
+        # Record check
+        try:
+            exp = record[f'm_{interaction.user.id}']
+        except KeyError:
+            await interaction.response.send_message("You haven't talked in this server yet", ephemeral=True)
+        else:
+            await interaction.response.send_message(f"Your xp in this server is: {exp}", ephemeral=True)
 
     @app_commands.command(
         name='leaderboard',
-        description='Returns the top 20 xp leaders'
+        description="Returns the top 20 xp leaders"
     )
     async def xp_leaderboard(self, interaction: discord.Interaction) -> None:
-        # Get top 20 xps
-        k = Counter(self.xp_data[str(interaction.guild_id)])
-        top20 = k.most_common(20)
+        # Get xp data
+        async with self.bot.pool.acquire() as con:
+            record = await con.fetch("SELECT * FROM xp WHERE guild_id=$1", interaction.guild.id)
+        record = dict(record[0])
 
-        # Create embed
+        # Remove guild from record
+        record.pop('guild_id')
+
+        # Init embed
         embed = discord.Embed(title='Top 20 xp Leaders')
-        i = 1
-        for key in top20:
-            userID, xp = key
-            username = self.bot.get_user(get_id(userID)).name
-            embed.add_field(name=f'{i}. {username}', value=f'xp: {xp}', inline=False)
-            i += 1
 
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+        # Get top 20
+        t20 = Counter(record)
+        t20 = t20.most_common()
+        i = 1
+        for key, exp in t20:
+            # Convert to int
+            id = int(key[2:])
+
+            # Build embed
+            member = self.bot.get_user(id)
+            embed.add_field(name=f"#{i}", value=f"{member.display_name} - xp: {exp}", inline=False)
+
+            # Increment 1
+            i += i
+
+        # Send response
+        await interaction.response.send_message(embed=embed, ephemeral=False)
 
 
 # Add to bot
-async def setup(bot: commands.Bot) -> None:
+async def setup(bot: cbot) -> None:
     await bot.add_cog(xp(bot))

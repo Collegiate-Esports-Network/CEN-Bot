@@ -11,6 +11,9 @@ import logging
 from logging.handlers import TimedRotatingFileHandler
 import os
 
+# Discord imports
+import discord
+
 # Custom imports
 from cbot import cbot
 
@@ -40,9 +43,18 @@ async def on_command_error(ctx, error):
 
 # On bot join update server data
 @bot.event
-async def on_guild_join(guild):
+async def on_guild_join(guild: discord.Guild):
     async with bot.pool.acquire() as con:
         await con.execute("INSERT INTO serverdata (guild_id) VALUES ($1) ON CONFLICT DO NOTHING", guild.id)
+        await con.execute("INSERT INTO xp (guild_id) VALUES ($1) ON CONFLICT DO NOTHING", guild.id)
+
+
+# On bot leave, delete server data
+@bot.event
+async def on_guild_remove(guild: discord.Guild):
+    async with bot.pool.acquire() as con:
+        await con.execute("DELETE FROM serverdata WHERE guild_id=$1", guild.id)
+
 
 # main
 if __name__ == '__main__':
