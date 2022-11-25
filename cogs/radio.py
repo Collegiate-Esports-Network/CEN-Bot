@@ -41,10 +41,10 @@ class radio(commands.GroupCog, name='radio'):
         name='play',
         description="Plays a URL from YouTube"
     )
-    @app_commands.describe(
-        URL="YouTube link"
-    )
-    async def radio_play(self, interaction: discord.Interaction, URL: str) -> None:
+    # @app_commands.describe(
+    #     URL="YouTube link"
+    # )
+    async def radio_play(self, interaction: discord.Interaction) -> None:
         await interaction.response.send_message("I'm sorry, this module is not yet configured", ephemeral=True)
 
     @app_commands.command(
@@ -58,10 +58,10 @@ class radio(commands.GroupCog, name='radio'):
         name='volume',
         description="Sets the volume level of the bot"
     )
-    @app_commands.describe(
-        volume="The volume of the music player"
-    )
-    async def radio_volume(self, interaction: discord.Interaction, volume: discord.Interaction) -> None:
+    # @app_commands.describe(
+    #     volume="The volume of the music player"
+    # )
+    async def radio_volume(self, interaction: discord.Interaction) -> None:
         await interaction.response.send_message("I'm sorry, this module is not yet configured", ephemeral=True)
 
     # Bot leaves channel
