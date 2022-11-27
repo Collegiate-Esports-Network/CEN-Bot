@@ -6,9 +6,12 @@ __status__ = 'Production'
 __doc__ = """Main file of the CEN Discord client"""
 
 # Python imports
+from asyncpg.exceptions import PostgresError
 from dotenv import load_dotenv
+import logging.config
+import logging.handlers
 import logging
-from logging.handlers import TimedRotatingFileHandler
+import yaml
 import os
 
 # Discord imports
@@ -21,12 +24,9 @@ from cbot import cbot
 load_dotenv()
 
 # Init logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s %(levelname)-8s %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S',
-    handlers=[TimedRotatingFileHandler(filename="LOGGING.log", when='W6', interval=1, backupCount=3, encoding='UTF-8')]
-)
+config = yaml.safe_load(open('logging.yaml', 'r').read())
+logging.config.dictConfig(config)
+logger = logging.getLogger('CENBot')
 
 # Init Bot
 bot = cbot()
@@ -36,24 +36,34 @@ bot = cbot()
 @bot.event
 async def on_command_error(ctx, error):
     try:
-        logging.error(f"{ctx.command.cog_name} threw an error: {error}")
+        logger.error(f"{ctx.command.cog_name} threw an error: {error}")
     except AttributeError:
-        logging.error(f"{error}")
+        logger.error(f"{error}")
 
 
 # On bot join update server data
 @bot.event
 async def on_guild_join(guild: discord.Guild):
-    async with bot.pool.acquire() as con:
-        await con.execute("INSERT INTO serverdata (guild_id) VALUES ($1) ON CONFLICT DO NOTHING", guild.id)
-        await con.execute("INSERT INTO xp (guild_id) VALUES ($1) ON CONFLICT DO NOTHING", guild.id)
+    try:
+        async with bot.pool.acquire() as con:
+            await con.execute("INSERT INTO serverdata (guild_id) VALUES ($1) ON CONFLICT DO NOTHING", guild.id)
+            await con.execute("INSERT INTO xp (guild_id) VALUES ($1) ON CONFLICT DO NOTHING", guild.id)
+    except PostgresError as e:
+        logger.exception(e)
+    except Exception as e:
+        logger.exception(e)
 
 
 # On bot leave, delete server data
 @bot.event
 async def on_guild_remove(guild: discord.Guild):
-    async with bot.pool.acquire() as con:
-        await con.execute("DELETE FROM serverdata WHERE guild_id=$1", guild.id)
+    try:
+        async with bot.pool.acquire() as con:
+            await con.execute("DELETE FROM serverdata WHERE guild_id=$1", guild.id)
+    except PostgresError as e:
+        logger.exception(e)
+    except Exception as e:
+        logger.exception(e)
 
 
 # main

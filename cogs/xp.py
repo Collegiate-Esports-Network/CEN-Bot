@@ -16,6 +16,11 @@ import discord
 from discord.ext import commands
 from discord import app_commands
 
+# Logging
+import logging
+from asyncpg.exceptions import PostgresError
+logger = logging.getLogger('xp')
+
 
 class xp(commands.GroupCog, name='xp'):
     """ These are all functions related to the xp function of the bot.
@@ -42,22 +47,34 @@ class xp(commands.GroupCog, name='xp'):
             exp = 3
 
         # Get xp records
-        async with self.bot.pool.acquire() as con:
-            record = await con.fetch("SELECT * FROM xp WHERE guild_id=$1", ctx.guild.id)
-        record = dict(record[0])
+        try:
+            async with self.bot.pool.acquire() as con:
+                record = await con.fetch("SELECT * FROM xp WHERE guild_id=$1", ctx.guild.id)
+            record = dict(record[0])
+        except PostgresError as e:
+            logger.exception(e)
+            return
 
         # Record check
         try:
             old_exp = record[f'm_{ctx.author.id}']
         except KeyError:
             # Add user to table
-            async with self.bot.pool.acquire() as con:
-                await con.execute(f"ALTER TABLE xp ADD m_{ctx.author.id} int DEFAULT 0")
+            try:
+                async with self.bot.pool.acquire() as con:
+                    await con.execute(f"ALTER TABLE xp ADD m_{ctx.author.id} int DEFAULT 0")
+            except PostgresError as e:
+                logger.exception(e)
+                return
         else:
             # Add change in xp
             new_exp = old_exp + exp
-            async with self.bot.pool.acquire() as con:
-                await con.execute(f"UPDATE xp SET m_{ctx.author.id}=$1 WHERE guild_id=$2", new_exp, ctx.guild.id)
+            try:
+                async with self.bot.pool.acquire() as con:
+                    await con.execute(f"UPDATE xp SET m_{ctx.author.id}=$1 WHERE guild_id=$2", new_exp, ctx.guild.id)
+            except PostgresError as e:
+                logger.exception(e)
+                return
 
     @app_commands.command(
         name='xp',
@@ -65,17 +82,22 @@ class xp(commands.GroupCog, name='xp'):
     )
     async def xp_xp(self, interaction: discord.Interaction) -> None:
         # Get xp records
-        async with self.bot.pool.acquire() as con:
-            record = await con.fetch("SELECT * FROM xp WHERE guild_id=$1", interaction.guild.id)
-        record = dict(record[0])
+        try:
+            async with self.bot.pool.acquire() as con:
+                record = await con.fetch("SELECT * FROM xp WHERE guild_id=$1", interaction.guild.id)
+            record = dict(record[0])
+        except PostgresError as e:
+            logger.exception(e)
+            interaction.response.send_message("There was an error fetching your data, please try again.", ephemeral=True)
 
         # Record check
         try:
             exp = record[f'm_{interaction.user.id}']
-        except KeyError:
-            await interaction.response.send_message("You haven't talked in this server yet", ephemeral=True)
+        except KeyError as e:
+            logger.exception(e)
+            await interaction.response.send_message("You haven't talked in this server yet.", ephemeral=True)
         else:
-            await interaction.response.send_message(f"Your xp in this server is: {exp}", ephemeral=True)
+            await interaction.response.send_message(f"Your xp in this server is: {exp}.", ephemeral=True)
 
     @app_commands.command(
         name='leaderboard',
@@ -83,9 +105,14 @@ class xp(commands.GroupCog, name='xp'):
     )
     async def xp_leaderboard(self, interaction: discord.Interaction) -> None:
         # Get xp data
-        async with self.bot.pool.acquire() as con:
-            record = await con.fetch("SELECT * FROM xp WHERE guild_id=$1", interaction.guild.id)
-        record = dict(record[0])
+        try:
+            async with self.bot.pool.acquire() as con:
+                record = await con.fetch("SELECT * FROM xp WHERE guild_id=$1", interaction.guild.id)
+            record = dict(record[0])
+        except PostgresError as e:
+            logger.exception(e)
+            interaction.response.send_message("There was an error fetching the leaderboard, please try again.", ephemeral=True)
+            return
 
         # Remove guild from record
         record.pop('guild_id')

@@ -6,13 +6,16 @@ __status__ = 'Production'
 __doc__ = """Custom Bot class"""
 
 # Python imports
-import logging
 import os
 import asyncpg
 
 # Discord imports
 import discord
 from discord.ext.commands import Bot
+
+# Logging
+import logging
+logger = logging.getLogger('CENBot')
 
 # Init intents
 intents = discord.Intents.all()
@@ -39,6 +42,8 @@ class cbot(Bot):
         self.pool = None
 
     async def setup_hook(self) -> None:
+        # Announce connectiong
+        logger.info(f"{self.user.display_name} is connecting...")
         # Create DB Connection
         self.pool = await asyncpg.create_pool(self.cnx_str)
 
@@ -58,31 +63,31 @@ class cbot(Bot):
                 await self.load_extension(extension)
             except Exception as e:
                 failed_extensions.append(extension)
-                logging.warning(e)
+                logger.warning(e)
             else:
                 loaded_extensions.append(extension)
 
         # Log extensions
-        logging.info(f"{loaded_extensions} loaded")
+        logger.info(f"{loaded_extensions} loaded")
         if len(failed_extensions) != 0:
-            logging.warning(f"{failed_extensions} not loaded")
+            logger.warning(f"{failed_extensions} not loaded")
 
         # Force command sync
         await self.tree.sync()
 
     async def on_ready(self) -> None:
-        logging.info(f"{self.user.display_name} has logged in")
+        logger.info(f"{self.user.display_name} has logged in")
 
         # Test first time logon
         if self.first_time is True:
             # Set to false
             self.first_time = False
-            logging.info("PostgreSQL server sync started")
+            logger.info("PostgreSQL server sync started")
             try:
                 for guild in self.guilds:
                     async with self.pool.acquire() as con:
                         await con.execute("INSERT INTO serverdata (guild_id) VALUES ($1) ON CONFLICT DO NOTHING", guild.id)
                         await con.execute("INSERT INTO xp (guild_id) VALUES ($1) ON CONFLICT DO NOTHING", guild.id)
-                logging.info("PostgreSQL server sync completed")
+                logger.info("PostgreSQL server sync completed")
             except asyncpg.PostgresError as e:
-                logging.error(e)
+                logger.error(e)

@@ -5,14 +5,15 @@ __version__ = '2.0.0'
 __status__ = 'Production'
 __doc__ = """Utility Functions"""
 
-# Python imports
-import logging
-
 # Discord imports
 from cbot import cbot
 import discord
 from discord.ext import commands
 from discord import app_commands
+
+# Logging
+import logging
+logger = logging.getLogger('utility')
 
 
 class utility(commands.GroupCog, name='utility'):
@@ -32,7 +33,7 @@ class utility(commands.GroupCog, name='utility'):
     async def utility_shutdown(self, interaction: discord.Interaction) -> None:
         await interaction.response.send_message(f"{self.bot.user.name} is shutting down now", ephemeral=True)
         await self.bot.close()
-        logging.info(f"{self.bot.user.name} has safely closed the connection to discord")
+        logger.info(f"{self.bot.user.name} has safely closed the connection to discord")
 
     # Force bot sync
     @app_commands.command(
@@ -42,8 +43,8 @@ class utility(commands.GroupCog, name='utility'):
     @commands.is_owner()
     async def utility_sync(self, interaction: discord.Interaction) -> None:
         await self.bot.tree.sync()
-        logging.info("The bot was forcibly synced")
-        await interaction.response.send_message("The bot was synced", ephemeral=True)
+        logger.info("The bot was forcibly synced")
+        await interaction.response.send_message("The bot was synced.", ephemeral=True)
 
     # load cogs
     @app_commands.command(
@@ -56,8 +57,8 @@ class utility(commands.GroupCog, name='utility'):
     @commands.is_owner()
     async def utility_load(self, interaction: discord.Interaction, cog: str) -> None:
         await self.bot.load_extension(f'cogs.{cog}')
-        logging.info(f"'{cog}' was loaded")
-        await interaction.response.send_message(f"'{cog}' was loaded", ephemeral=True)
+        logger.info(f"'{cog}' was loaded")
+        await interaction.response.send_message(f"'{cog}' was loaded.", ephemeral=True)
 
     # Reload cogs
     @app_commands.command(
@@ -70,8 +71,8 @@ class utility(commands.GroupCog, name='utility'):
     @commands.is_owner()
     async def utility_reload(self, interaction: discord.Interaction, cog: str) -> None:
         await self.bot.reload_extension(f'cogs.{cog}')
-        logging.info(f"'{cog}' was reloaded")
-        await interaction.response.send_message(f"'{cog}' was reloaded", ephemeral=True)
+        logger.info(f"'{cog}' was reloaded")
+        await interaction.response.send_message(f"'{cog}' was reloaded.", ephemeral=True)
 
     # Unload cogs
     @app_commands.command(
@@ -84,7 +85,7 @@ class utility(commands.GroupCog, name='utility'):
     @commands.is_owner()
     async def utility_unload(self, interaction: discord.Interaction, cog: str) -> None:
         await self.bot.unload_extension(f'cogs.{cog}')
-        logging.info(f"{cog} was unloaded")
+        logger.info(f"{cog} was unloaded")
         await interaction.response.send_message(f"'{cog}' was unloaded", ephemeral=True)
 
 
@@ -113,7 +114,7 @@ class utility2(commands.Cog):
         icon = discord.File('L1.png', filename='L1.png')
         embed.set_author(name=self.bot.user.name, icon_url='attachment://L1.png')
         embed.add_field(name="Bot Version:", value=self.bot.version)
-        embed.add_field(name="Python Version:", value='3.10.4')
+        embed.add_field(name="Python Version:", value=__version__)
         embed.add_field(name="Discord.py Version:", value=discord.__version__)
         embed.add_field(name="Written By:", value="[Justin Panchula](https://github.com/JustinPanchula)", inline=False)
         embed.add_field(name="Server Information:", value=f"This bot is in {len(self.bot.guilds)} servers watching over {len(set(self.bot.get_all_members()))-len(self.bot.guilds)} members.", inline=False)

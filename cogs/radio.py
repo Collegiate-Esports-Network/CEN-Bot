@@ -11,6 +11,10 @@ import discord
 from discord.ext import commands
 from discord import app_commands
 
+# Logging
+import logging
+logger = logging.getLogger('radio')
+
 
 class radio(commands.GroupCog, name='radio'):
     """These are all the radio commands

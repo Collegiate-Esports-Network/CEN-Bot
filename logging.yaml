@@ -1,0 +1,63 @@
+---
+version: 1
+formatters: 
+  default: 
+    format: '%(asctime)s | %(name)-8s: %(levelname)-8s %(message)s'
+    datefmt: '%Y-%m-%d %H:%M:%S'
+  client:
+    format: '%(asctime)s | discord : %(levelname)-8s %(message)s'
+    datefmt: '%Y-%m-%d %H:%M:%S'
+handlers: 
+  bot: 
+    class: logging.handlers.TimedRotatingFileHandler
+    formatter: default
+    filename: LOG.log
+    when: W6
+    backupCount: 3
+    encoding: UTF-8
+    level: DEBUG
+  client:
+    class: logging.handlers.TimedRotatingFileHandler
+    formatter: client
+    filename: LOG.log
+    when: W6
+    backupCount: 3
+    encoding: UTF-8
+    level: DEBUG
+loggers:
+  discord:
+    handlers: [client]
+    level: INFO
+    propogate: false
+  CENBot: 
+    handlers: [bot]
+    level: DEBUG
+    propogate: false
+  log: 
+    handlers: [bot]
+    level: INFO
+    propogate: false
+  radio: 
+    handlers: [bot]
+    level: INFO
+    propogate: false
+  react: 
+    handlers: [bot]
+    level: INFO
+    propogate: false
+  socials: 
+    handlers: [bot]
+    level: INFO
+    propogate: false
+  utility: 
+    handlers: [bot]
+    level: INFO
+    propogate: false
+  welcome: 
+    handlers: [bot]
+    level: INFO
+    propogate: false
+  xp: 
+    handlers: [bot]
+    level: INFO
+    propogate: false
