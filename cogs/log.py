@@ -65,6 +65,10 @@ class log(commands.GroupCog, name='log'):
     # Log message edits (level 1)
     @commands.Cog.listener()
     async def on_message_edit(self, ctx_bef: discord.Message, ctx_aft: discord.Message) -> None:
+        # Check null case
+        if ctx_bef.guild.id is None or ctx_aft.guild.id is None:
+            return
+
         # Get log channel
         try:
             async with self.bot.pool.acquire() as con:
@@ -118,6 +122,10 @@ class log(commands.GroupCog, name='log'):
     # Log message deletions (level 1)
     @commands.Cog.listener()
     async def on_message_delete(self, ctx: discord.Message) -> None:
+        # Check null case
+        if ctx.guild.id is None:
+            return
+
         # Get log channel
         try:
             async with self.bot.pool.acquire() as con:
