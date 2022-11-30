@@ -42,8 +42,11 @@ class log(commands.GroupCog, name='log'):
         except PostgresError as e:
             logger.exception(e)
             await interaction.response.send_message("There was an error updating your data, please try again.", ephemeral=True)
+        except Exception as e:
+            logger.exception(e)
+            await interaction.response.send_message("There was an error, please try again.", ephemeral=True)
         else:
-            await interaction.response.send_message("Log channel set.", ephemeral=True)
+            await interaction.response.send_message("Log channel set.", ephemeral=False)
 
     # Set log level
     @app_commands.command(
@@ -53,20 +56,25 @@ class log(commands.GroupCog, name='log'):
     @commands.has_role('bot manager')
     async def log_setlevel(self, interaction: discord.Interaction,
                            level: Literal['0: None', '1: Default', '2: All Messages', '3: All Voice Activity', '4: All Activity']) -> None:
+        # Convert data
+        level = int(level[0:1])
         try:
             async with self.bot.pool.acquire() as con:
                 await con.execute("UPDATE serverdata SET log_level=$2 WHERE guild_id=$1", interaction.guild.id, level)
         except PostgresError as e:
             logger.exception(e)
             await interaction.response.send_message("There was an error updating your data, please try again.", ephemeral=True)
+        except Exception as e:
+            logger.exception(e)
+            await interaction.response.send_message("There was an error, please try again.", ephemeral=True)
         else:
-            await interaction.response.send_message("Log level set.", ephemeral=True)
+            await interaction.response.send_message("Log level set.", ephemeral=False)
 
     # Log message edits (level 1)
     @commands.Cog.listener()
     async def on_message_edit(self, ctx_bef: discord.Message, ctx_aft: discord.Message) -> None:
         # Check null case
-        if ctx_bef.guild.id is None or ctx_aft.guild.id is None:
+        if ctx_bef.guild is None or ctx_aft.guild is None or ctx_bef.guild.id is None or ctx_aft.guild.id is None:
             return
 
         # Get log channel
@@ -123,7 +131,7 @@ class log(commands.GroupCog, name='log'):
     @commands.Cog.listener()
     async def on_message_delete(self, ctx: discord.Message) -> None:
         # Check null case
-        if ctx.guild.id is None:
+        if ctx.guild is None or ctx.guild.id is None:
             return
 
         # Get log channel

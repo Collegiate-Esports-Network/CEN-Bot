@@ -40,7 +40,7 @@ class welcome(commands.GroupCog, name='welcome'):
             logger.exception(e)
             await interaction.response.send_message("There was an error, please try again.", ephemeral=True)
         else:
-            await interaction.response.send_message("Welcome channel set.", ephemeral=True)
+            await interaction.response.send_message("Welcome channel set.", ephemeral=False)
 
     @app_commands.command(
         name='setmessage',
@@ -61,7 +61,7 @@ class welcome(commands.GroupCog, name='welcome'):
             logger.exception(e)
             await interaction.response.send_message("There was an error, please try again.", ephemeral=True)
         else:
-            await interaction.response.send_message("Welcome message set.", ephemeral=True)
+            await interaction.response.send_message("Welcome message set.", ephemeral=False)
 
     @app_commands.command(
         name='testmessage',
