@@ -1,6 +1,5 @@
 # Custom Stuffs
 *.log*
-*.sql
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
