@@ -1,6 +1,5 @@
 # Custom Stuffs
 *.log*
-*.sql
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -125,7 +124,6 @@ celerybeat.pid
 
 # Environments
 .env
-.venv
 env/
 venv/
 ENV/
