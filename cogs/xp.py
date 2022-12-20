@@ -131,7 +131,7 @@ class xp(commands.GroupCog, name='xp'):
 
             # Build embed
             member = self.bot.get_user(id)
-            if member is not None:
+            if member is not None and exp != 0:
                 embed.add_field(name=f"#{i}", value=f"{member.display_name} - xp: {exp}", inline=False)
 
                 # Increment 1
