@@ -125,7 +125,7 @@ if __name__ == '__main__':
             embed.set_footer(text=f"{datetime.now().strftime('%d/%m/%y - %H:%M:%S')}")
 
         # Send to channel
-        await bot.get_channel(channel).send("<@everyone>", embed=embed)
+        await bot.get_channel(channel).send("@everyone", embed=embed)
 
         # Respond
         await interaction.followup.send("Message reported.")
