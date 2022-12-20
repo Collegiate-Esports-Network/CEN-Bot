@@ -353,7 +353,7 @@ class react(commands.GroupCog, name='react'):
 
                 # Add role to embed
                 if role_desc is None:
-                    embed.add_field(name=f"{emoji} {role_name}", value=None, inline=True)
+                    embed.add_field(name=f"{emoji} {role_name}", value="\u200b", inline=True)
                 else:
                     embed.add_field(name=f"{emoji} {role_name}", value=role_desc, inline=True)
 

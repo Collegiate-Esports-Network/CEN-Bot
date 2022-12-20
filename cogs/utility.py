@@ -51,8 +51,8 @@ class utility(commands.Cog):
         await interaction.response.send_message(file=icon, embed=embed, ephemeral=True)
 
 
-class utility2(commands.GroupCog, name='utility2'):
-    """These are all functions that act as utility to the bot.
+class admin(commands.GroupCog, name='admin'):
+    """These are all the admin functions of the bot.
     """
     # Init
     def __init__(self, bot: cbot) -> None:
@@ -127,4 +127,4 @@ class utility2(commands.GroupCog, name='utility2'):
 # Add to bot
 async def setup(bot: cbot) -> None:
     await bot.add_cog(utility(bot))
-    await bot.add_cog(utility2(bot))
+    await bot.add_cog(admin(bot))
