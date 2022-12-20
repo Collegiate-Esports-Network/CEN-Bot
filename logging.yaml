@@ -51,7 +51,7 @@ loggers:
     propogate: false
   utility: 
     handlers: [bot]
-    level: INFO
+    level: DEBUG
     propogate: false
   welcome: 
     handlers: [bot]

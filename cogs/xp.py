@@ -78,7 +78,7 @@ class xp(commands.GroupCog, name='xp'):
 
     @app_commands.command(
         name='xp',
-        description="Returns your current xp"
+        description="Returns your current xp."
     )
     async def xp_xp(self, interaction: discord.Interaction) -> None:
         # Get xp records
@@ -101,7 +101,7 @@ class xp(commands.GroupCog, name='xp'):
 
     @app_commands.command(
         name='leaderboard',
-        description="Returns the top 20 xp leaders"
+        description="Returns the top 20 xp leaders."
     )
     async def xp_leaderboard(self, interaction: discord.Interaction) -> None:
         # Get xp data

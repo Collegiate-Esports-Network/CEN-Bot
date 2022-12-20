@@ -17,7 +17,7 @@ logger = logging.getLogger('socials')
 
 
 class socials(commands.GroupCog, name='socials'):
-    """These are all the logging functions
+    """These are all the logging functions.
     """
     def __init__(self, bot: cbot):
         self.bot = bot

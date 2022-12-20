@@ -18,7 +18,7 @@ logger = logging.getLogger('welcome')
 
 
 class welcome(commands.GroupCog, name='welcome'):
-    """These are the welcome message functions
+    """These are the welcome message functions.
     """
     def __init__(self, bot: cbot) -> None:
         self.bot = bot
@@ -26,7 +26,7 @@ class welcome(commands.GroupCog, name='welcome'):
 
     @app_commands.command(
         name='setchannel',
-        description="Sets the welcome channel"
+        description="Sets the welcome channel."
     )
     @commands.has_role('bot manager')
     async def welcome_setchannel(self, interaction: discord.Interaction, channel: discord.TextChannel) -> None:
@@ -44,7 +44,7 @@ class welcome(commands.GroupCog, name='welcome'):
 
     @app_commands.command(
         name='setmessage',
-        description="Sets the welcome message"
+        description="Sets the welcome message."
     )
     @app_commands.describe(
         message="The welcome message. Use '<new_member>' to mention the member."
@@ -65,7 +65,7 @@ class welcome(commands.GroupCog, name='welcome'):
 
     @app_commands.command(
         name='testmessage',
-        description='Tests the welcome message'
+        description="Tests the welcome message."
     )
     @commands.has_role('bot manager')
     async def welcome_testmessage(self, interaction: discord.Interaction):
@@ -77,8 +77,9 @@ class welcome(commands.GroupCog, name='welcome'):
         except PostgresError as e:
             logger.exception(e)
             await interaction.response.send_message("There was an error fetching your data, please try again later.", ephemeral=True)
+            return
         except AttributeError:
-            await interaction.response.send_message("There is no welcome channel set", ephemeral=True)
+            await interaction.response.send_message("There is no welcome channel set.", ephemeral=True)
             return
 
         # Get welcome message

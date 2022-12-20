@@ -4,7 +4,7 @@
     "python.linting.flake8Enabled": true,
     "python.linting.enabled": true,
     "python.linting.flake8Args": [
-        "--ignore=E501, W292"
+        "--ignore=E127, E501, W292"
     ],
 
     // VSCode settings

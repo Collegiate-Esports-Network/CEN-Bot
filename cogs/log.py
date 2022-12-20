@@ -23,7 +23,7 @@ logger = logging.getLogger('log')
 
 
 class log(commands.GroupCog, name='log'):
-    """These are all the logging functions
+    """These are all the logging functions.
     """
     def __init__(self, bot: cbot):
         self.bot = bot
@@ -32,7 +32,7 @@ class log(commands.GroupCog, name='log'):
     # Set log channel
     @app_commands.command(
         name='setchannel',
-        description="Sets the channel server logs will be sent to"
+        description="Sets the channel server logs will be sent to."
     )
     @commands.has_role('bot manager')
     async def log_setchannel(self, interaction: discord.Interaction, channel: discord.TextChannel) -> None:
@@ -51,11 +51,11 @@ class log(commands.GroupCog, name='log'):
     # Set log level
     @app_commands.command(
         name='setlevel',
-        description="Sets the level server logs will track"
+        description="Sets the level server logs will track."
     )
     @commands.has_role('bot manager')
     async def log_setlevel(self, interaction: discord.Interaction,
-                           level: Literal['0: None', '1: Default', '2: All Messages', '3: All Voice Activity', '4: All Activity']) -> None:
+                           level: Literal['0: None', '1: Default (Reports Only)', '2: Message Edits', '3: All Messages', '4: All Activity']) -> None:
         # Convert data
         level = int(level[0:1])
         try:
@@ -70,11 +70,15 @@ class log(commands.GroupCog, name='log'):
         else:
             await interaction.response.send_message("Log level set.", ephemeral=False)
 
-    # Log message edits (level 1)
+    # Log message edits (level 2)
     @commands.Cog.listener()
     async def on_message_edit(self, ctx_bef: discord.Message, ctx_aft: discord.Message) -> None:
         # Check null case
         if ctx_bef.guild is None or ctx_aft.guild is None or ctx_bef.guild.id is None or ctx_aft.guild.id is None:
+            return
+
+        # Check if bot sent message
+        if ctx_bef.author.id == self.bot.user.id:
             return
 
         # Get log channel
@@ -102,14 +106,13 @@ class log(commands.GroupCog, name='log'):
             return
 
         # Check log level
-        if level < 1:
+        if level < 2:
             return
 
         # Edited message embed
         embed = discord.Embed(colour=discord.Colour.gold())
         embed.set_author(name=ctx_bef.author.display_name, icon_url=ctx_bef.author.display_avatar)
-        embed.add_field(name='Message Alert: Edit', value=f"A message sent by {ctx_bef.author.mention} \
-                                                            was edited in {ctx_bef.channel.mention} \
+        embed.add_field(name='Message Alert: Edit', value=f"A message sent by {ctx_bef.author.mention} was edited in {ctx_bef.channel.mention} \
                                                             \n[View Message]({ctx_aft.jump_url})", inline=False)
         # Ignore impossible message
         try:
@@ -127,11 +130,15 @@ class log(commands.GroupCog, name='log'):
         # Send to channel
         await self.bot.get_channel(channel).send(embed=embed)
 
-    # Log message deletions (level 1)
+    # Log message deletions (level 2)
     @commands.Cog.listener()
     async def on_message_delete(self, ctx: discord.Message) -> None:
         # Check null case
         if ctx.guild is None or ctx.guild.id is None:
+            return
+
+        # Check if bot sent message
+        if ctx.author.id == self.bot.user.id:
             return
 
         # Get log channel
@@ -159,13 +166,13 @@ class log(commands.GroupCog, name='log'):
             level = 0
 
         # Check log level
-        if level < 1:
+        if level < 2:
             return
 
         # Deleted message embed
-        embed = discord.Embed(colour=discord.Colour.red())
+        embed = discord.Embed(colour=discord.Colour.orange())
         embed.set_author(name=ctx.author.display_name, icon_url=ctx.author.display_avatar)
-        embed.add_field(name='Message Alert: Deletion', value=f'A message sent by {ctx.author.mention} was deleted in {ctx.channel.mention}', inline=False)
+        embed.add_field(name='Message Alert: Deletion', value=f"A message sent by {ctx.author.mention} was deleted in {ctx.channel.mention}", inline=False)
         # Ignore impossible message
         try:
             embed.add_field(name='Content', value=ctx.content)
