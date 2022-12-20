@@ -188,11 +188,14 @@ class react(commands.GroupCog, name='react'):
             category_id = response[0]['category_id']
         except PostgresError as e:
             logger.exception(e)
-            await interaction.response.send_message("There was an error retrieving your data, please try again.", ephemeral=True)
+            await interaction.followup.send("There was an error retrieving your data, please try again.", ephemeral=True)
+            return
+        except IndexError:
+            await interaction.followup.send(f"'{cate_name}' is not a valid category, please try again.", ephemeral=True)
             return
         except Exception as e:
             logger.exception(e)
-            await interaction.response.send_message("There was an error, please try again.", ephemeral=True)
+            await interaction.followup.send("There was an error, please try again.", ephemeral=True)
             return
 
         # FIXME: Gets emoji from reaction, but should be a better way. Webhooks?
@@ -288,10 +291,10 @@ class react(commands.GroupCog, name='react'):
             channel = response[0]['react_channel']
         except PostgresError as e:
             logger.exception(e)
-            await interaction.response.send_message("There was an error fetching your data, please try again.", ephemeral=True)
+            await interaction.followup.send("There was an error fetching your data, please try again.", ephemeral=True)
             return
         except AttributeError:
-            await interaction.response.send_message("There is no react channel set.", ephemeral=True)
+            await interaction.followup.send("There is no react channel set.", ephemeral=True)
             return
 
         # Get all categories
@@ -300,10 +303,10 @@ class react(commands.GroupCog, name='react'):
                 categories = await con.fetch("SELECT * FROM reactcategory WHERE guild_id=$1", interaction.guild.id)
         except PostgresError as e:
             logger.exception(e)
-            await interaction.response.send_message("There was an error fetching your data, please try again.", ephemeral=True)
+            await interaction.followup.send("There was an error fetching your data, please try again.", ephemeral=True)
             return
         except AttributeError:
-            await interaction.response.send_message("There was an error, please try again.", ephemeral=True)
+            await interaction.followup.send("There was an error, please try again.", ephemeral=True)
             return
 
         # Build embed
@@ -325,9 +328,9 @@ class react(commands.GroupCog, name='react'):
                     roles = await con.fetch("SELECT * FROM reactdata WHERE category_id=$1", cate_id)
             except PostgresError as e:
                 logger.exception(e)
-                await interaction.response.send_message("There was an error fetching your data, please try again.", ephemeral=True)
+                await interaction.followup.send("There was an error fetching your data, please try again.", ephemeral=True)
             except AttributeError:
-                await interaction.response.send_message("There was an error, please try again.", ephemeral=True)
+                await interaction.followup.send("There was an error, please try again.", ephemeral=True)
 
             # Prep reaction list
             react_list = []
@@ -374,9 +377,9 @@ class react(commands.GroupCog, name='react'):
                         await con.execute("UPDATE reactcategory SET cate_embed=$1 WHERE category_id=$2", message.id, cate_id)
                 except PostgresError as e:
                     logger.exception(e)
-                    await interaction.response.send_message("There was an error saving your data, please try again.", ephemeral=True)
+                    await interaction.followup.send("There was an error saving your data, please try again.", ephemeral=True)
                 except AttributeError:
-                    await interaction.response.send_message("There was an error, please try again.", ephemeral=True)
+                    await interaction.followup.send("There was an error, please try again.", ephemeral=True)
 
             # React to embed message
             for emoji in react_list:
