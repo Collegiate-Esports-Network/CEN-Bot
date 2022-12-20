@@ -82,8 +82,8 @@ if __name__ == '__main__':
         # Get log channel
         try:
             async with bot.pool.acquire() as con:
-                response = await con.fetch("SELECT log_channel FROM serverdata WHERE guild_id=$1", interaction.guild.id)
-            channel = response[0]['log_channel']
+                response = await con.fetch("SELECT report_channel FROM serverdata WHERE guild_id=$1", interaction.guild.id)
+            channel = response[0]['report_channel']
         except PostgresError as e:
             logger.exception(e)
             return
@@ -125,7 +125,7 @@ if __name__ == '__main__':
             embed.set_footer(text=f"{datetime.now().strftime('%d/%m/%y - %H:%M:%S')}")
 
         # Send to channel
-        await bot.get_channel(channel).send(embed=embed)
+        await bot.get_channel(channel).send("<@everyone>", embed=embed)
 
         # Respond
         await interaction.followup.send("Message reported.")
