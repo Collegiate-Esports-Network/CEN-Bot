@@ -199,8 +199,8 @@ class react(commands.GroupCog, name='react'):
             return
 
         # FIXME: Gets emoji from reaction, but should be a better way. Webhooks?
-        wmessage = await interaction.followup.send("React to this message with the emoji you'd like to use. (5s timer)", ephemeral=False)
-        await asyncio.sleep(5)
+        wmessage = await interaction.followup.send("React to this message with the emoji you'd like to use. (10s timer)", ephemeral=False)
+        await asyncio.sleep(10)
         try:
             # Handling different emoji types
             message = await wmessage.fetch()
@@ -352,7 +352,10 @@ class react(commands.GroupCog, name='react'):
                 role_name = interaction.guild.get_role(role_id).name
 
                 # Add role to embed
-                embed.add_field(name=role_name, value=role_desc)
+                if role_desc is None:
+                    embed.add_field(name=f"{emoji} {role_name}", value=None, inline=True)
+                else:
+                    embed.add_field(name=f"{emoji} {role_name}", value=role_desc, inline=True)
 
                 # Add its reaction to the list
                 react_list.append(emoji)

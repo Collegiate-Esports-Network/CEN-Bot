@@ -71,7 +71,7 @@ async def on_guild_remove(guild: discord.Guild):
 # main
 if __name__ == '__main__':
     # Load environment variables
-    TOKEN = os.getenv('TOKEN')
+    TOKEN = os.getenv('TESTTOKEN')
 
     # Context menu message reporting (Level 1 logging)
     @bot.tree.context_menu(name='Report Message')
