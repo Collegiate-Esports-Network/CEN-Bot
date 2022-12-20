@@ -123,7 +123,6 @@ class xp(commands.GroupCog, name='xp'):
         # Get top 20
         t20 = Counter(record)
         t20 = t20.most_common()
-        print(t20)
         i = 1
         for key, exp in t20:
             # Convert to int
