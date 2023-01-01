@@ -16,6 +16,11 @@ handlers:
     backupCount: 3
     encoding: UTF-8
     level: DEBUG
+  bot_console:
+    class: logging.StreamHandler
+    formatter: default
+    level: DEBUG
+    stream: ext://sys.stdout
   client:
     class: logging.handlers.TimedRotatingFileHandler
     formatter: client
@@ -24,40 +29,45 @@ handlers:
     backupCount: 3
     encoding: UTF-8
     level: DEBUG
+  client_console:
+    class: logging.StreamHandler
+    formatter: client
+    level: DEBUG
+    stream: ext://sys.stdout
 loggers:
   discord:
-    handlers: [client]
+    handlers: [client, client_console]
     level: INFO
     propogate: false
   CENBot: 
-    handlers: [bot]
+    handlers: [bot, bot_console]
     level: DEBUG
     propogate: false
   log: 
-    handlers: [bot]
+    handlers: [bot, bot_console]
     level: INFO
     propogate: false
   radio: 
-    handlers: [bot]
+    handlers: [bot, bot_console]
     level: INFO
     propogate: false
   react: 
-    handlers: [bot]
+    handlers: [bot, bot_console]
     level: INFO
     propogate: false
   socials: 
-    handlers: [bot]
+    handlers: [bot, bot_console]
     level: INFO
     propogate: false
   utility: 
-    handlers: [bot]
+    handlers: [bot, bot_console]
     level: DEBUG
     propogate: false
   welcome: 
-    handlers: [bot]
+    handlers: [bot, bot_console]
     level: INFO
     propogate: false
   xp: 
-    handlers: [bot]
+    handlers: [bot, bot_console]
     level: INFO
     propogate: false
