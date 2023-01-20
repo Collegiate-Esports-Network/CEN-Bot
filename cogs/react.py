@@ -169,15 +169,13 @@ class react(commands.GroupCog, name='react'):
     )
     @app_commands.describe(
         role="The role mention.",
-        role_desc="The role description.",
         cate_name="The category this role is under. Case sensitive."
     )
     @app_commands.rename(
-        role_desc='role_description',
         cate_name='category_name'
     )
     @commands.has_role('bot manager')
-    async def react_updatereaction(self, interaction: discord.Interaction, role: discord.Role, role_desc: Optional[str], cate_name: str) -> None:
+    async def react_updatereaction(self, interaction: discord.Interaction, role: discord.Role, cate_name: str) -> None:
         # Defer response
         await interaction.response.defer(ephemeral=False)
 
@@ -228,7 +226,7 @@ class react(commands.GroupCog, name='react'):
             # Insert data
             try:
                 async with self.bot.pool.acquire() as con:
-                    await con.execute("INSERT INTO reactdata (role_id, category_id, role_desc, role_emoji) VALUES ($1, $2, $3, $4)", role.id, category_id, role_desc, emoji)
+                    await con.execute("INSERT INTO reactdata (role_id, category_id, role_emoji) VALUES ($1, $2, $3)", role.id, category_id, emoji)
             except PostgresError as e:
                 logger.exception(e)
                 await interaction.followup.send("There was an error upserting your data, please try again.", ephemeral=True)
@@ -241,7 +239,7 @@ class react(commands.GroupCog, name='react'):
             # Update data
             try:
                 async with self.bot.pool.acquire() as con:
-                    await con.execute("UPDATE reactdata SET category_id=$1, role_desc=$2, role_emoji=$3 WHERE role_id=$4", category_id, role_desc, emoji, role.id)
+                    await con.execute("UPDATE reactdata SET category_id=$1, role_emoji=$2 WHERE role_id=$3", category_id, emoji, role.id)
             except PostgresError as e:
                 logger.exception(e)
                 await interaction.followup.send("There was an error upserting your data, please try again.", ephemeral=True)
@@ -374,7 +372,7 @@ class react(commands.GroupCog, name='react'):
                 class Roles(discord.ui.View):
                     def __init__(self):
                         super().__init__()
-                RoleView = Roles
+                RoleView = Roles()
 
                 # Create role button
                 role_button = ReactButton(role_id, role_name, emoji)
