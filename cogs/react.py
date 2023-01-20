@@ -323,17 +323,17 @@ class react(commands.GroupCog, name='react'):
                     try:
                         await member.add_roles(self.role)
                     except discord.Forbidden and discord.HTTPException:
-                        await interaction.response.send_message(f"There was an error giving you the {self.role.name} role, please try again.", ephemeral=True)
+                        await interaction.response.send_message(f"There was an error giving you the ``{self.role.name}`` role, please try again.", ephemeral=True)
                     else:
-                        await interaction.response.send_message(f"You have been given the {self.role.name} role.", ephemeral=True)
+                        await interaction.response.send_message(f"You have been given the ``{self.role.name}`` role.", ephemeral=True)
                 else:
                     # Remove role from member
                     try:
                         await member.remove_roles(self.role)
                     except discord.Forbidden and discord.HTTPException:
-                        await interaction.response.send_message(f"There was an error removing the {self.role.name} role from you, please try again.", ephemeral=True)
+                        await interaction.response.send_message(f"There was an error removing the ``{self.role.name}`` role from you, please try again.", ephemeral=True)
                     else:
-                        await interaction.response.send_message(f"The {self.role.name} role has been removed from you.", ephemeral=True)
+                        await interaction.response.send_message(f"The ``{self.role.name}`` role has been removed from you.", ephemeral=True)
 
         # Build message
         for category in categories:
@@ -386,7 +386,7 @@ class react(commands.GroupCog, name='react'):
                 message = await self.bot.get_channel(channel).fetch_message(message_id)
 
                 # Edit message
-                message.edit(f"\n**{cate_name}**\n{cate_desc}", view=RoleView)
+                message.edit(f"---\n**{cate_name}**\n{cate_desc}", view=RoleView)
             else:
                 # Send message
                 message = await self.bot.get_channel(channel).send(f"\n**{cate_name}**\n{cate_desc}", view=RoleView)
@@ -402,58 +402,6 @@ class react(commands.GroupCog, name='react'):
                     await interaction.followup.send("There was an error, please try again.", ephemeral=True)
 
         await interaction.followup.send("Reactions updated", ephemeral=False)
-
-    # Reaction role processing
-    @commands.Cog.listener()
-    async def on_raw_reaction_add(self, payload: discord.RawReactionActionEvent) -> None:
-        # Rip data
-        channel_id = payload.channel_id
-        message_id = payload.message_id
-        emoji = payload.emoji
-        member = payload.member
-
-        # Ignore bot reactions
-        if member.id == self.bot.user.id:
-            return
-
-        # Test if reaction was to a react message
-        try:
-            async with self.bot.pool.acquire() as con:
-                response = await con.fetch("SELECT 1 FROM reactcategory WHERE cate_embed=$1", message_id)
-        except PostgresError as e:
-            logger.exception(e)
-            return
-        except AttributeError as e:
-            logger.exception(e)
-            return
-        if len(response) == 0:
-            return
-        else:
-            # Remove reaction
-            await self.bot.get_channel(channel_id).get_partial_message(message_id).remove_reaction(emoji=emoji, member=member)
-
-        # Emoji validation
-        if emoji.is_unicode_emoji():
-            emoji = emoji.name
-        elif emoji.is_custom_emoji():
-            emoji = str(emoji.id)
-        try:
-            async with self.bot.pool.acquire() as con:
-                response = await con.fetch("SELECT role_id FROM reactdata WHERE role_emoji=$1", emoji)
-            role_id = response[0]['role_id']
-        except PostgresError as e:
-            logger.exception(e)
-            return
-        except AttributeError as e:
-            logger.exception(e)
-            return
-
-        # Check if member has role
-        role = member.guild.get_role(role_id)
-        if role in member.roles:
-            await member.remove_roles(role)
-        else:
-            await member.add_roles(role)
 
 
 # Add to bot
