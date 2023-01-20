@@ -353,6 +353,12 @@ class react(commands.GroupCog, name='react'):
             except AttributeError:
                 await interaction.followup.send("There was an error, please try again.", ephemeral=True)
 
+            # Create Role view
+            class Roles(discord.ui.View):
+                def __init__(self):
+                    super().__init__()
+            RoleView = Roles()
+
             # Add roles
             for role in roles:
                 # Rip data
@@ -367,12 +373,6 @@ class react(commands.GroupCog, name='react'):
 
                 # Get role name from id
                 role_name = interaction.guild.get_role(role_id).name
-
-                # Create default view
-                class Roles(discord.ui.View):
-                    def __init__(self):
-                        super().__init__()
-                RoleView = Roles()
 
                 # Create role button
                 role_button = ReactButton(role_id, role_name, emoji)
@@ -389,7 +389,7 @@ class react(commands.GroupCog, name='react'):
                 message.edit(f"---\n**{cate_name}**\n{cate_desc}", view=RoleView)
             else:
                 # Send message
-                message = await self.bot.get_channel(channel).send(f"\n**{cate_name}**\n{cate_desc}", view=RoleView)
+                message = await self.bot.get_channel(channel).send(f"---\n**{cate_name}**\n{cate_desc}", view=RoleView)
 
                 # Save message id
                 try:
