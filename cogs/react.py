@@ -389,7 +389,7 @@ class react(commands.GroupCog, name='react'):
                     await interaction.followup.send("There was an error updating reactions, please try again.", ephemeral=True)
                 else:
                     # Edit message
-                    await message.edit(f"**{cate_name}**\n{cate_desc}", view=RoleView)
+                    await message.edit(content=f"**{cate_name}**\n{cate_desc}", view=RoleView)
             else:
                 # Send message
                 message = await self.bot.get_channel(channel).send(f"**{cate_name}**\n{cate_desc}", view=RoleView)
