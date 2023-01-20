@@ -383,13 +383,16 @@ class react(commands.GroupCog, name='react'):
             # Check for previous message
             if message_id is not None:
                 # Get previous message
-                message = await self.bot.get_channel(channel).fetch_message(message_id)
-
-                # Edit message
-                message.edit(f"---\n**{cate_name}**\n{cate_desc}", view=RoleView)
+                try:
+                    message = await self.bot.get_channel(channel).fetch_message(message_id)
+                except discord.errors.NotFound:
+                    await interaction.followup.send("There was an error updating reactions, please try again.", ephemeral=True)
+                else:
+                    # Edit message
+                    message.edit(f"**{cate_name}**\n{cate_desc}", view=RoleView)
             else:
                 # Send message
-                message = await self.bot.get_channel(channel).send(f"---\n**{cate_name}**\n{cate_desc}", view=RoleView)
+                message = await self.bot.get_channel(channel).send(f"**{cate_name}**\n{cate_desc}", view=RoleView)
 
                 # Save message id
                 try:
