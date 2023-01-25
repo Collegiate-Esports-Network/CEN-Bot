@@ -390,9 +390,16 @@ class react(commands.GroupCog, name='react'):
                 else:
                     # Edit message
                     await message.edit(content=f"**{cate_name}**\n{cate_desc}", view=RoleView)
+
+                    # Add view persistance
+                    self.bot.add_view(view=RoleView, message_id=message.id)
+
             else:
                 # Send message
                 message = await self.bot.get_channel(channel).send(f"**{cate_name}**\n{cate_desc}", view=RoleView)
+
+                # Add view persistance
+                self.bot.add_view(view=RoleView, message_id=message.id)
 
                 # Save message id
                 try:
@@ -403,9 +410,6 @@ class react(commands.GroupCog, name='react'):
                     await interaction.followup.send("There was an error saving your data, please try again.", ephemeral=True)
                 except AttributeError:
                     await interaction.followup.send("There was an error, please try again.", ephemeral=True)
-
-                # Add view persistance
-                self.bot.add_view(view=RoleView, message_id=message.id)
 
         await interaction.followup.send("Reactions updated", ephemeral=False)
 
