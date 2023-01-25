@@ -310,7 +310,7 @@ class react(commands.GroupCog, name='react'):
         # Create default button
         class ReactButton(discord.ui.Button):
             def __init__(self, role_id, role_name, role_emoji):
-                super().__init__(style=discord.ButtonStyle.blurple, label=role_name, emoji=role_emoji, custom_id=role_id)
+                super().__init__(style=discord.ButtonStyle.blurple, label=role_name, emoji=role_emoji, custom_id=str(role_id))
                 self.role = interaction.guild.get_role(role_id)
 
             async def callback(self, interaction: discord.Interaction):
