@@ -404,6 +404,9 @@ class react(commands.GroupCog, name='react'):
                 except AttributeError:
                     await interaction.followup.send("There was an error, please try again.", ephemeral=True)
 
+                # Add view persistance
+                self.bot.add_view(view=RoleView, message_id=message.id)
+
         await interaction.followup.send("Reactions updated", ephemeral=False)
 
 
