@@ -5,6 +5,7 @@ create table if not exists public.serverdata (
     guild_id        bigint      not null,
     -- logging
     log_channel     bigint                  default null,
+    report_channel  bigint                  default null,
     log_level       smallint    not null    default 2,
     -- welcome
     welcome_channel bigint                  default null,

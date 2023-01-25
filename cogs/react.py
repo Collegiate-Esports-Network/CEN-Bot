@@ -169,15 +169,13 @@ class react(commands.GroupCog, name='react'):
     )
     @app_commands.describe(
         role="The role mention.",
-        role_desc="The role description.",
         cate_name="The category this role is under. Case sensitive."
     )
     @app_commands.rename(
-        role_desc='role_description',
         cate_name='category_name'
     )
     @commands.has_role('bot manager')
-    async def react_updatereaction(self, interaction: discord.Interaction, role: discord.Role, role_desc: Optional[str], cate_name: str) -> None:
+    async def react_updatereaction(self, interaction: discord.Interaction, role: discord.Role, cate_name: str) -> None:
         # Defer response
         await interaction.response.defer(ephemeral=False)
 
@@ -228,7 +226,7 @@ class react(commands.GroupCog, name='react'):
             # Insert data
             try:
                 async with self.bot.pool.acquire() as con:
-                    await con.execute("INSERT INTO reactdata (role_id, category_id, role_desc, role_emoji) VALUES ($1, $2, $3, $4)", role.id, category_id, role_desc, emoji)
+                    await con.execute("INSERT INTO reactdata (role_id, category_id, role_emoji) VALUES ($1, $2, $3)", role.id, category_id, emoji)
             except PostgresError as e:
                 logger.exception(e)
                 await interaction.followup.send("There was an error upserting your data, please try again.", ephemeral=True)
@@ -241,7 +239,7 @@ class react(commands.GroupCog, name='react'):
             # Update data
             try:
                 async with self.bot.pool.acquire() as con:
-                    await con.execute("UPDATE reactdata SET category_id=$1, role_desc=$2, role_emoji=$3 WHERE role_id=$4", category_id, role_desc, emoji, role.id)
+                    await con.execute("UPDATE reactdata SET category_id=$1, role_emoji=$2 WHERE role_id=$3", category_id, emoji, role.id)
             except PostgresError as e:
                 logger.exception(e)
                 await interaction.followup.send("There was an error upserting your data, please try again.", ephemeral=True)
@@ -309,18 +307,41 @@ class react(commands.GroupCog, name='react'):
             await interaction.followup.send("There was an error, please try again.", ephemeral=True)
             return
 
-        # Build embed
+        # Create default button
+        class ReactButton(discord.ui.Button):
+            def __init__(self, role_id, role_name, role_emoji):
+                super().__init__(style=discord.ButtonStyle.blurple, label=role_name, emoji=role_emoji)
+                self.role = interaction.guild.get_role(role_id)
+
+            async def callback(self, interaction: discord.Interaction):
+                # Get member who clicked
+                member = interaction.user
+
+                # Check if member already has role
+                if self.role not in member.roles:
+                    # Add role to member
+                    try:
+                        await member.add_roles(self.role)
+                    except discord.Forbidden and discord.HTTPException:
+                        await interaction.response.send_message(f"There was an error giving you the ``{self.role.name}`` role, please try again.", ephemeral=True)
+                    else:
+                        await interaction.response.send_message(f"You have been given the ``{self.role.name}`` role.", ephemeral=True)
+                else:
+                    # Remove role from member
+                    try:
+                        await member.remove_roles(self.role)
+                    except discord.Forbidden and discord.HTTPException:
+                        await interaction.response.send_message(f"There was an error removing the ``{self.role.name}`` role from you, please try again.", ephemeral=True)
+                    else:
+                        await interaction.response.send_message(f"The ``{self.role.name}`` role has been removed from you.", ephemeral=True)
+
+        # Build message
         for category in categories:
             # Rip data
             cate_id = category['category_id']
             cate_name = category['cate_name']
             cate_desc = category['cate_desc']
-            cate_embed = category['cate_embed']
-
-            # Build embed
-            embed = discord.Embed(colour=discord.Colour.from_str('#2374A5'))  # CEN Blue
-            embed.set_author(name=self.bot.user.display_name, icon_url=self.bot.user.display_avatar)
-            embed.add_field(name=cate_name, value=cate_desc, inline=False)
+            message_id = category['message_id']
 
             # Get all roles
             try:
@@ -332,14 +353,16 @@ class react(commands.GroupCog, name='react'):
             except AttributeError:
                 await interaction.followup.send("There was an error, please try again.", ephemeral=True)
 
-            # Prep reaction list
-            react_list = []
+            # Create Role view
+            class Roles(discord.ui.View):
+                def __init__(self):
+                    super().__init__()
+            RoleView = Roles()
 
             # Add roles
             for role in roles:
                 # Rip data
                 role_id = role['role_id']
-                role_desc = role['role_desc']
                 role_emoji = role['role_emoji']
 
                 # Get emoji from id
@@ -351,96 +374,40 @@ class react(commands.GroupCog, name='react'):
                 # Get role name from id
                 role_name = interaction.guild.get_role(role_id).name
 
-                # Add role to embed
-                if role_desc is None:
-                    embed.add_field(name=f"{emoji} {role_name}", value="\u200b", inline=True)
-                else:
-                    embed.add_field(name=f"{emoji} {role_name}", value=role_desc, inline=True)
+                # Create role button
+                role_button = ReactButton(role_id, role_name, emoji)
 
-                # Add its reaction to the list
-                react_list.append(emoji)
+                # Add to view
+                RoleView.add_item(role_button)
 
             # Check for previous message
-            if cate_embed is not None:
+            if message_id is not None:
                 # Get previous message
-                message = await self.bot.get_channel(channel).fetch_message(cate_embed)
-
-                # Clear reactions
-                await message.clear_reactions()
-
-                # Edit embed
-                await message.edit(embed=embed)
+                try:
+                    message = await self.bot.get_channel(channel).fetch_message(message_id)
+                except discord.errors.NotFound:
+                    await interaction.followup.send("There was an error updating reactions, please try again.", ephemeral=True)
+                else:
+                    # Edit message
+                    await message.edit(content=f"**{cate_name}**\n{cate_desc}", view=RoleView)
             else:
                 # Send message
-                message = await self.bot.get_channel(channel).send(embed=embed)
+                message = await self.bot.get_channel(channel).send(f"**{cate_name}**\n{cate_desc}", view=RoleView)
 
-                # Save embed
+                # Save message id
                 try:
                     async with self.bot.pool.acquire() as con:
-                        await con.execute("UPDATE reactcategory SET cate_embed=$1 WHERE category_id=$2", message.id, cate_id)
+                        await con.execute("UPDATE reactcategory SET message_id=$1 WHERE category_id=$2", message.id, cate_id)
                 except PostgresError as e:
                     logger.exception(e)
                     await interaction.followup.send("There was an error saving your data, please try again.", ephemeral=True)
                 except AttributeError:
                     await interaction.followup.send("There was an error, please try again.", ephemeral=True)
 
-            # React to embed message
-            for emoji in react_list:
-                await message.add_reaction(emoji)
+                # Add view persistance
+                self.bot.add_view(view=RoleView, message_id=message.id)
 
         await interaction.followup.send("Reactions updated", ephemeral=False)
-
-    # Reaction role processing
-    @commands.Cog.listener()
-    async def on_raw_reaction_add(self, payload: discord.RawReactionActionEvent) -> None:
-        # Rip data
-        channel_id = payload.channel_id
-        message_id = payload.message_id
-        emoji = payload.emoji
-        member = payload.member
-
-        # Ignore bot reactions
-        if member.id == self.bot.user.id:
-            return
-
-        # Test if reaction was to a react message
-        try:
-            async with self.bot.pool.acquire() as con:
-                response = await con.fetch("SELECT 1 FROM reactcategory WHERE cate_embed=$1", message_id)
-        except PostgresError as e:
-            logger.exception(e)
-            return
-        except AttributeError as e:
-            logger.exception(e)
-            return
-        if len(response) == 0:
-            return
-        else:
-            # Remove reaction
-            await self.bot.get_channel(channel_id).get_partial_message(message_id).remove_reaction(emoji=emoji, member=member)
-
-        # Emoji validation
-        if emoji.is_unicode_emoji():
-            emoji = emoji.name
-        elif emoji.is_custom_emoji():
-            emoji = str(emoji.id)
-        try:
-            async with self.bot.pool.acquire() as con:
-                response = await con.fetch("SELECT role_id FROM reactdata WHERE role_emoji=$1", emoji)
-            role_id = response[0]['role_id']
-        except PostgresError as e:
-            logger.exception(e)
-            return
-        except AttributeError as e:
-            logger.exception(e)
-            return
-
-        # Check if member has role
-        role = member.guild.get_role(role_id)
-        if role in member.roles:
-            await member.remove_roles(role)
-        else:
-            await member.add_roles(role)
 
 
 # Add to bot

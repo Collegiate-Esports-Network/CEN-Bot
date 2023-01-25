@@ -32,7 +32,7 @@ class xp(commands.GroupCog, name='xp'):
     @commands.Cog.listener()
     async def on_message(self, ctx: discord.Message) -> None:
         # Ignore messages from test server
-        if self.bot.user == ctx.author or ctx.guild.id == 0:  # 778306842265911296
+        if self.bot.user == ctx.author:
             return
 
         # Generate random number between 1 and 100 and assign xp
@@ -130,10 +130,11 @@ class xp(commands.GroupCog, name='xp'):
 
             # Build embed
             member = self.bot.get_user(id)
-            embed.add_field(name=f"#{i}", value=f"{member.display_name} - xp: {exp}", inline=False)
+            if member is not None and exp != 0:
+                embed.add_field(name=f"#{i}", value=f"{member.display_name} - xp: {exp}", inline=False)
 
-            # Increment 1
-            i += i
+                # Increment 1
+                i += 1
 
         # Send response
         await interaction.response.send_message(embed=embed, ephemeral=False)

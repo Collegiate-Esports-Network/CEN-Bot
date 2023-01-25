@@ -6,7 +6,7 @@ create table if not exists public.reactcategory (
     guild_id        bigint          not null,
     cate_name       varchar(256)    not null,
     cate_desc       varchar(1024),
-    cate_embed      bigint,
+    message_id      bigint,
 
     --Constraints
     constraint pkey_reactcategory primary key (category_id),
@@ -22,7 +22,6 @@ create table if not exists public.reactdata (
 --  ID              dtype           conditions  default  
     role_id         bigint          not null,
     category_id     int             not null,
-    role_desc       varchar(1024),
     role_emoji      varchar(19)     not null,
 
     --Constraints
