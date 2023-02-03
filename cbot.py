@@ -108,7 +108,7 @@ class cbot(Bot):
         # Fetch all messages that need to be sent
         try:
             async with self.pool.acquire() as con:
-                response = await con.fetch("SELECT * FROM timedmessages WHERE time_hour=$1 AND time_minute=$2 AND dow=$3 OR dow=0", now.hour, now.minute, now.date().isoweekday())
+                response = await con.fetch("SELECT * FROM timedmessages WHERE time_hour=$1 AND time_minute=$2 AND (dow=$3 OR dow=0)", now.hour, now.minute, now.date().isoweekday())
         except PostgresError as e:
             logger.exception(e)
         except Exception as e:
