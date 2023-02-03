@@ -50,7 +50,7 @@ class timed_messages(commands.GroupCog, name='timed_messages'):
     )
     @app_commands.describe(
         content="The message you want sent",
-        hour="24-Hour time (Eastern)"
+        hour="24-Hour time (UTC)"
     )
     @app_commands.rename(
         DoW='day_of_week'
