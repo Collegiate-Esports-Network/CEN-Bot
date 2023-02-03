@@ -77,9 +77,10 @@ class admin(commands.GroupCog, name='admin'):
     )
     @commands.is_owner()
     async def utility_sync(self, interaction: discord.Interaction) -> None:
+        await interaction.response.defer()
         await self.bot.tree.sync()
         logger.info("The bot was forcibly synced")
-        await interaction.response.send_message("The bot was synced.", ephemeral=True)
+        await interaction.followup.send("The bot was synced.", ephemeral=True)
 
     # load cogs
     @app_commands.command(
