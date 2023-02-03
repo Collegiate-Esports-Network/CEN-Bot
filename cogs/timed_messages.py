@@ -6,23 +6,33 @@ __status__ = 'Production'
 __doc__ = """Timed Messages Functions"""
 
 # Python imports
-from datetime import datetime
+from enum import Enum
 
 # Discord imports
 from cbot import cbot
 import discord
-from discord.ext import commands, tasks
+from discord.ext import commands
 from discord import app_commands
 
 # typing
-from typing import Optional
-from typing import Literal
-from datetime import time
+from typing import Literal, Optional
 
 # Logging
 import logging
 from asyncpg.exceptions import PostgresError
 logger = logging.getLogger('timed_messages')
+
+
+# Define ISO days of the week
+class DayofWeek(Enum):
+    Everyday = 0
+    Monday = 1
+    Tuesday = 2
+    Wednesday = 3
+    Thursday = 4
+    Friday = 5
+    Saturday = 6
+    Sunday = 7
 
 
 class timed_messages(commands.GroupCog, name='timed_messages'):
@@ -40,23 +50,22 @@ class timed_messages(commands.GroupCog, name='timed_messages'):
     )
     @app_commands.describe(
         content="The message you want sent",
-        time_stamp="The time and timezone you want the message sent at"
+        hour="24-Hour time (Eastern)"
     )
     @app_commands.rename(
-        DoW='Day of Week'
+        DoW='day_of_week'
     )
     @commands.has_role('bot mangaer')
-    async def timed_mesages_update(self, interaction: discord.Interaction, job_id: int, channel: discord.TextChannel, content: str, time_stamp: time,
-                                   DoW: Optional[Literal['0: Sunday', '1: Monday', '2: Tuesday', '3: Wednesday', '4: Thursday', '5: Friday', '6: Saturday']]):
+    async def timed_mesages_update(self, interaction: discord.Interaction, channel: discord.TextChannel, content: str, hour: int, minute: int,
+                                   DoW: Literal['0: Everyday', '1: Monday', '2: Tuesday', '3: Wednesday', '4: Thursday', '5: Friday', '6: Saturday', '7: Sunday'], job_id: Optional[int]):
         # Convert day of week to int
-        if DoW is not None:
-            DoW = int(DoW[0:1])
+        DoW = int(DoW[0:1])
 
         # Add to/Update database
         if job_id is None:
             try:
                 async with self.bot.pool.acquire() as con:
-                    await con.execute("INSERT INTO timedmessages (guild_id, channel_id, content, time_stamp, DoW) VALUES ($1, $2, $3, $4, $5)", interaction.guild.id, channel.id, content, time_stamp, DoW)
+                    await con.execute("INSERT INTO timedmessages (guild_id, channel_id, content, time_hour, time_minute, DoW) VALUES ($1, $2, $3, $4, $5, $6)", interaction.guild.id, channel.id, content, hour, minute, DoW)
             except PostgresError as e:
                 logger.exception(e)
                 await interaction.response.send_message("There was an error upserting your data, please try again.", ephemeral=True)
@@ -68,7 +77,7 @@ class timed_messages(commands.GroupCog, name='timed_messages'):
         else:
             try:
                 async with self.bot.pool.acquire() as con:
-                    await con.execute("UPDATE timedmessages SET content=$1, time_stamp=$2, DoW=$3 WHERE guild_id=$4 and job_id=$5", content, time_stamp, DoW, interaction.guild.id, job_id)
+                    await con.execute("UPDATE timedmessages SET channel_id=$1, content=$2, time_hour=$3, time_minute=$4, DoW=$5 WHERE guild_id=$6 AND job_id=$7", channel.id, content, hour, minute, DoW, interaction.guild.id, job_id)
             except PostgresError as e:
                 logger.exception(e)
                 await interaction.response.send_message("There was an error upserting your data, please try again.", ephemeral=True)
@@ -115,16 +124,22 @@ class timed_messages(commands.GroupCog, name='timed_messages'):
             logger.exception(e)
             await interaction.response.send_message("There was an error, please try again.", ephemeral=True)
         else:
-            await interaction.response.send_message(response)
+            # Format response
+            message = "```txt\n"
+            for record in response:
+                job_id = record['job_id']
+                channel_id = record['channel_id']
+                content = record['content']
+                hour = record['time_hour']
+                minute = record['time_minute']
+                DoW = record['dow']
 
-    # @tasks.loop(seconds=60, reconnect=True)
-    # async def timed_messages_send(self):
-    #     # Get current datetime
-    #     now = datetime.now()
+                message += f"Job ID: {job_id} | Channel: #{self.bot.get_channel(channel_id).name} | Message: {content} | Sends at: {hour}:{minute} Eastern every {DayofWeek(DoW).name}\n"
+            message += "```"
 
-    #     # Get all messages sent this minute
+            await interaction.response.send_message(message, ephemeral=True)
 
 
-# Add to bot
+# Add to bo0t
 async def setup(bot: commands.Bot) -> None:
     await bot.add_cog(timed_messages(bot))

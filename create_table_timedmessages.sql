@@ -1,14 +1,15 @@
 -- Creates the database for the CEN Bot
 drop table if exists public.timedmessages;
 create table if not exists public.timedmessages (
---  ID              dtype              conditions  default
-    job_id          serial             not null,
+--  ID              dtype       conditions  default
+    job_id          serial      not null,
 
-    guild_id        bigint             not null,
-    channel_id      bigint             not null,
-    content         text               not null,
-    time_stamp      timestamptz        not null,
-    dow             int,
+    guild_id        bigint      not null,
+    channel_id      bigint      not null,
+    content         text        not null,
+    time_hour       smallint    not null,
+    time_minute     smallint    not null,
+    dow             smallint,
     
     -- Constraints
     constraint pkey_timedmessages primary key (job_id),
