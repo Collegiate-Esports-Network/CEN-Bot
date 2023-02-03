@@ -59,6 +59,10 @@ loggers:
     handlers: [bot, bot_console]
     level: INFO
     propogate: false
+  timed_messaged:
+    handlers: [bot, bot_console]
+    level: INFO
+    propogate: false
   utility: 
     handlers: [bot, bot_console]
     level: DEBUG

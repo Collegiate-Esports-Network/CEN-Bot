@@ -33,7 +33,7 @@ class cbot(Bot):
             description="The in-house developed CEN Bot",
             command_prefix="$$"
         )
-        self.version = '2.0.0'
+        self.version = '2.1.0'
         self.first_time = True
 
         # Define the PostgreSQL connection once
