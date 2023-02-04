@@ -97,7 +97,10 @@ class react(commands.GroupCog, name='react'):
             if cate_name_new is not None:
                 try:
                     async with self.bot.pool.acquire() as con:
-                        await con.execute("UPDATE reactcategory SET cate_desc=$1, cate_name=$4 WHERE guild_id=$2 AND cate_name=$3", cate_desc, interaction.guild.id, cate_name, cate_name_new)
+                        if cate_desc is not None:
+                            await con.execute("UPDATE reactcategory SET cate_desc=$1, cate_name=$4 WHERE guild_id=$2 AND cate_name=$3", cate_desc, interaction.guild.id, cate_name, cate_name_new)
+                        else:
+                            await con.execute("UPDATE reactcategory SET cate_name=$3 WHERE guild_id=$1 AND cate_name=$2", interaction.guild.id, cate_name, cate_name_new)
                 except PostgresError as e:
                     logger.exception(e)
                     await interaction.response.send_message("There was an error upserting your data, please try again.", ephemeral=True)
