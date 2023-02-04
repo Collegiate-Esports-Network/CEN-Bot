@@ -66,7 +66,7 @@ class react(commands.GroupCog, name='react'):
         cate_desc='category_description'
     )
     @commands.has_role('bot manager')
-    async def react_updatecategory(self, interaction: discord.Interaction, cate_name: str, cate_desc: Optional[str], cate_name_new:Optional[str]) -> None:
+    async def react_updatecategory(self, interaction: discord.Interaction, cate_name: str, cate_desc: Optional[str], cate_name_new: Optional[str]) -> None:
         # Test if record already exists
         try:
             async with self.bot.pool.acquire() as con:
@@ -112,7 +112,7 @@ class react(commands.GroupCog, name='react'):
             else:
                 try:
                     async with self.bot.pool.acquire() as con:
-                        await con.execute("UPDATE reactcategory SET cate_desc=$1, WHERE guild_id=$2 AND cate_name=$3", cate_desc, interaction.guild.id, cate_name)
+                        await con.execute("UPDATE reactcategory SET cate_desc=$1 WHERE guild_id=$2 AND cate_name=$3", cate_desc, interaction.guild.id, cate_name)
                 except PostgresError as e:
                     logger.exception(e)
                     await interaction.response.send_message("There was an error upserting your data, please try again.", ephemeral=True)
