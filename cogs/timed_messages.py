@@ -134,7 +134,11 @@ class timed_messages(commands.GroupCog, name='timed_messages'):
                 minute = record['time_minute']
                 DoW = record['dow']
 
-                message += f"Job ID: {job_id} | Channel: #{self.bot.get_channel(channel_id).name} | Message: {content} | Sends at: {hour}:{minute} Eastern every {DayofWeek(DoW).name}\n"
+                # Formatting logic
+                if DayofWeek(DoW).name == 'Everyday':
+                    message += f"Job ID: {job_id} | Channel: #{self.bot.get_channel(channel_id).name} | Message: {content} | Sends at: {hour}:{minute} UTC {DayofWeek(DoW).name}\n"
+                else:
+                    message += f"Job ID: {job_id} | Channel: #{self.bot.get_channel(channel_id).name} | Message: {content} | Sends at: {hour}:{minute} UTC every {DayofWeek(DoW).name}\n"
             message += "```"
 
             await interaction.response.send_message(message, ephemeral=True)
