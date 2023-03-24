@@ -8,13 +8,16 @@ __doc__ = """Custom Bot class"""
 # Python imports
 import os
 import asyncpg
+from datetime import datetime
 
 # Discord imports
 import discord
+from discord.ext import tasks
 from discord.ext.commands import Bot
 
 # Logging
 import logging
+from asyncpg.exceptions import PostgresError
 logger = logging.getLogger('CENBot')
 
 # Init intents
@@ -33,7 +36,7 @@ class cbot(Bot):
             description="The in-house developed CEN Bot",
             command_prefix="$$"
         )
-        self.version = '2.0.0'
+        self.version = '2.1.0'
         self.first_time = True
 
         # Define the PostgreSQL connection once
@@ -75,6 +78,10 @@ class cbot(Bot):
         # Force command sync
         await self.tree.sync()
 
+        # Start tasks
+        logger.info("Starting tasks")
+        self.timed_messages_send.start()
+
     async def on_ready(self) -> None:
         logger.info(f"{self.user.display_name} has logged in")
 
@@ -91,3 +98,29 @@ class cbot(Bot):
                 logger.info("PostgreSQL server sync completed")
             except asyncpg.PostgresError as e:
                 logger.error(e)
+
+    # Timed messages send loop
+    @tasks.loop(seconds=60)
+    async def timed_messages_send(self):
+        # Get current datetime
+        now = datetime.now()
+
+        # Fetch all messages that need to be sent
+        try:
+            async with self.pool.acquire() as con:
+                response = await con.fetch("SELECT * FROM timedmessages WHERE time_hour=$1 AND time_minute=$2 AND (dow=$3 OR dow=0)", now.hour, now.minute, now.date().isoweekday())
+        except PostgresError as e:
+            logger.exception(e)
+        except Exception as e:
+            logger.exception(e)
+        else:
+            # Send all messages
+            for record in response:
+                channel_id = record['channel_id']
+                content = record['content']
+
+                await self.get_channel(channel_id).send(content)
+
+    @timed_messages_send.before_loop
+    async def before_loop(self):
+        await self.wait_until_ready()

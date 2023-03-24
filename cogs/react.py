@@ -57,14 +57,16 @@ class react(commands.GroupCog, name='react'):
     )
     @app_commands.describe(
         cate_name="The category name.",
+        cate_name_new="The new category name",
         cate_desc="The category description."
     )
     @app_commands.rename(
         cate_name='category_name',
+        cate_name_new='category_name_new',
         cate_desc='category_description'
     )
     @commands.has_role('bot manager')
-    async def react_updatecategory(self, interaction: discord.Interaction, cate_name: str, cate_desc: Optional[str]) -> None:
+    async def react_updatecategory(self, interaction: discord.Interaction, cate_name: str, cate_desc: Optional[str], cate_name_new: Optional[str]) -> None:
         # Test if record already exists
         try:
             async with self.bot.pool.acquire() as con:
@@ -92,17 +94,33 @@ class react(commands.GroupCog, name='react'):
                 await interaction.response.send_message(f"React category '{cate_name}' inserted.", ephemeral=False)
         else:
             # Update data
-            try:
-                async with self.bot.pool.acquire() as con:
-                    await con.execute("UPDATE reactcategory SET cate_desc=$1 WHERE guild_id=$2 and cate_name=$3", cate_desc, interaction.guild.id, cate_name)
-            except PostgresError as e:
-                logger.exception(e)
-                await interaction.response.send_message("There was an error upserting your data, please try again.", ephemeral=True)
-            except Exception as e:
-                logger.exception(e)
-                await interaction.response.send_message("There was an error, please try again.", ephemeral=True)
+            if cate_name_new is not None:
+                try:
+                    async with self.bot.pool.acquire() as con:
+                        if cate_desc is not None:
+                            await con.execute("UPDATE reactcategory SET cate_desc=$1, cate_name=$4 WHERE guild_id=$2 AND cate_name=$3", cate_desc, interaction.guild.id, cate_name, cate_name_new)
+                        else:
+                            await con.execute("UPDATE reactcategory SET cate_name=$3 WHERE guild_id=$1 AND cate_name=$2", interaction.guild.id, cate_name, cate_name_new)
+                except PostgresError as e:
+                    logger.exception(e)
+                    await interaction.response.send_message("There was an error upserting your data, please try again.", ephemeral=True)
+                except Exception as e:
+                    logger.exception(e)
+                    await interaction.response.send_message("There was an error, please try again.", ephemeral=True)
+                else:
+                    await interaction.response.send_message(f"React category '{cate_name_new}' updated.", ephemeral=False)
             else:
-                await interaction.response.send_message(f"React category '{cate_name}' updated.", ephemeral=False)
+                try:
+                    async with self.bot.pool.acquire() as con:
+                        await con.execute("UPDATE reactcategory SET cate_desc=$1 WHERE guild_id=$2 AND cate_name=$3", cate_desc, interaction.guild.id, cate_name)
+                except PostgresError as e:
+                    logger.exception(e)
+                    await interaction.response.send_message("There was an error upserting your data, please try again.", ephemeral=True)
+                except Exception as e:
+                    logger.exception(e)
+                    await interaction.response.send_message("There was an error, please try again.", ephemeral=True)
+                else:
+                    await interaction.response.send_message(f"React category '{cate_name}' updated.", ephemeral=False)
 
     # Deletes a react category
     @app_commands.command(
@@ -298,7 +316,7 @@ class react(commands.GroupCog, name='react'):
         # Get all categories
         try:
             async with self.bot.pool.acquire() as con:
-                categories = await con.fetch("SELECT * FROM reactcategory WHERE guild_id=$1", interaction.guild.id)
+                categories = await con.fetch("SELECT * FROM reactcategory WHERE guild_id=$1 ORDER BY cate_name ASC", interaction.guild.id)
         except PostgresError as e:
             logger.exception(e)
             await interaction.followup.send("There was an error fetching your data, please try again.", ephemeral=True)
@@ -310,7 +328,7 @@ class react(commands.GroupCog, name='react'):
         # Create default button
         class ReactButton(discord.ui.Button):
             def __init__(self, role_id, role_name, role_emoji):
-                super().__init__(style=discord.ButtonStyle.blurple, label=role_name, emoji=role_emoji)
+                super().__init__(style=discord.ButtonStyle.blurple, label=role_name, emoji=role_emoji, custom_id=str(role_id))
                 self.role = interaction.guild.get_role(role_id)
 
             async def callback(self, interaction: discord.Interaction):
@@ -356,7 +374,7 @@ class react(commands.GroupCog, name='react'):
             # Create Role view
             class Roles(discord.ui.View):
                 def __init__(self):
-                    super().__init__()
+                    super().__init__(timeout=None)
             RoleView = Roles()
 
             # Add roles
@@ -390,9 +408,15 @@ class react(commands.GroupCog, name='react'):
                 else:
                     # Edit message
                     await message.edit(content=f"**{cate_name}**\n{cate_desc}", view=RoleView)
+
+                    # Add view persistance
+                    self.bot.add_view(view=RoleView, message_id=message.id)
             else:
                 # Send message
                 message = await self.bot.get_channel(channel).send(f"**{cate_name}**\n{cate_desc}", view=RoleView)
+
+                # Add view persistance
+                self.bot.add_view(view=RoleView, message_id=message.id)
 
                 # Save message id
                 try:
