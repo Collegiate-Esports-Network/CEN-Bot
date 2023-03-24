@@ -129,12 +129,16 @@ class xp(commands.GroupCog, name='xp'):
             id = int(key[2:])
 
             # Build embed
+            text = "```txt\n"
             member = self.bot.get_user(id)
             if member is not None and exp != 0:
-                embed.add_field(name=f"#{i}", value=f"{member.display_name} - xp: {exp}", inline=False)
+                text += f"#{i}: {member.display_name} - {exp}\n"
 
                 # Increment 1
                 i += 1
+            text += "```"
+
+            embed.add_field(name="", value=text, inline=False)
 
         # Send response
         await interaction.response.send_message(embed=embed, ephemeral=False)
