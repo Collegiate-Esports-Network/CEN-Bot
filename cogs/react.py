@@ -134,8 +134,8 @@ class react(commands.GroupCog, name='react'):
         # Fetch embed
         try:
             async with self.bot.pool.acquire() as con:
-                response = await con.fetch("SELECT cate_embed FROM reactcategory WHERE cate_name=$1 AND guild_id=$2", cate_name, interaction.guild.id)
-                cate_embed = response[0]['cate_embed']
+                response = await con.fetch("SELECT message_id FROM reactcategory WHERE cate_name=$1 AND guild_id=$2", cate_name, interaction.guild.id)
+                message_id = response[0]['message_id']
         except PostgresError as e:
             logger.exception(e)
             await interaction.response.send_message("There was an error fetching your data, please try again.", ephemeral=True)
@@ -159,7 +159,7 @@ class react(commands.GroupCog, name='react'):
             await interaction.response.send_message(f"React category '{cate_name}' deleted.", ephemeral=False)
 
         # Delete embed
-        message = await self.bot.get_channel(channel).fetch_message(cate_embed)
+        message = await self.bot.get_channel(channel).fetch_message(message_id)
         await message.delete()
 
     # Updates/Adds a react role
