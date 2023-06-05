@@ -114,6 +114,11 @@ class welcome(commands.GroupCog, name='welcome'):
         except AttributeError:
             return
 
+        # Test for valid channel
+        channel = self.bot.get_channel(channel)
+        if channel is None:
+            return
+
         # Get welcome message
         try:
             async with self.bot.pool.acquire() as con:
@@ -128,7 +133,7 @@ class welcome(commands.GroupCog, name='welcome'):
         message = message.replace('<new_member>', member.mention)
 
         # Send welcome message
-        await self.bot.get_channel(channel).send(message)
+        await channel.send(message)
 
 
 # Add to bot

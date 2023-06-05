@@ -49,7 +49,7 @@ class xp(commands.GroupCog, name='xp'):
         # Get xp records
         try:
             async with self.bot.pool.acquire() as con:
-                record = await con.fetch("SELECT * FROM xp WHERE guild_id=$1", ctx.guild.id)
+                record = await con.fetch("SELECT * FROM xp (s_$1)", ctx.guild.id)
             record = dict(record[0])
         except PostgresError as e:
             logger.exception(e)
@@ -57,12 +57,12 @@ class xp(commands.GroupCog, name='xp'):
 
         # Record check
         try:
-            old_exp = record[f'm_{ctx.author.id}']
+            old_exp = record[ctx.author.id]
         except KeyError:
             # Add user to table
             try:
                 async with self.bot.pool.acquire() as con:
-                    await con.execute(f"ALTER TABLE xp ADD m_{ctx.author.id} int DEFAULT 0")
+                    await con.execute("INSERT INTO xp (user_id) VALUES ($1)", ctx.author.id)
             except PostgresError as e:
                 logger.exception(e)
                 return
@@ -71,7 +71,7 @@ class xp(commands.GroupCog, name='xp'):
             new_exp = old_exp + exp
             try:
                 async with self.bot.pool.acquire() as con:
-                    await con.execute(f"UPDATE xp SET m_{ctx.author.id}=$1 WHERE guild_id=$2", new_exp, ctx.guild.id)
+                    await con.execute("UPDATE xp SET s_$1=$2 WHERE user_id=$3", ctx.guild.id, new_exp, ctx.author.id)
             except PostgresError as e:
                 logger.exception(e)
                 return
@@ -84,7 +84,7 @@ class xp(commands.GroupCog, name='xp'):
         # Get xp records
         try:
             async with self.bot.pool.acquire() as con:
-                record = await con.fetch("SELECT * FROM xp WHERE guild_id=$1", interaction.guild.id)
+                record = await con.fetch("SELECT * FROM xp (s_$1)", interaction.guild.id)
             record = dict(record[0])
         except PostgresError as e:
             logger.exception(e)
@@ -92,7 +92,7 @@ class xp(commands.GroupCog, name='xp'):
 
         # Record check
         try:
-            exp = record[f'm_{interaction.user.id}']
+            exp = record[interaction.user.id]
         except KeyError as e:
             logger.exception(e)
             await interaction.response.send_message("You haven't talked in this server yet.", ephemeral=True)
@@ -107,7 +107,7 @@ class xp(commands.GroupCog, name='xp'):
         # Get xp data
         try:
             async with self.bot.pool.acquire() as con:
-                record = await con.fetch("SELECT * FROM xp WHERE guild_id=$1", interaction.guild.id)
+                record = await con.fetch("SELECT * FROM xp (s_$1)", interaction.guild.id)
             record = dict(record[0])
         except PostgresError as e:
             logger.exception(e)
@@ -115,7 +115,7 @@ class xp(commands.GroupCog, name='xp'):
             return
 
         # Remove guild from record
-        record.pop('guild_id')
+        record.pop('user_id')
 
         # Init embed
         embed = discord.Embed(title='Top 20 xp Leaders')
@@ -126,7 +126,7 @@ class xp(commands.GroupCog, name='xp'):
         i = 1
 
         # Build embed
-        text = "```txt\n"
+        text = "```\n"
         for key, exp in t20:
             # Convert to int
             id = int(key[2:])
@@ -136,6 +136,9 @@ class xp(commands.GroupCog, name='xp'):
 
                 # Increment 1
                 i += 1
+            # Keep list at Top 20
+            if i > 20:
+                break
         text += "```"
         embed.add_field(name="", value=text, inline=False)
 

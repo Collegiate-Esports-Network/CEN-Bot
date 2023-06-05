@@ -85,20 +85,6 @@ class cbot(Bot):
     async def on_ready(self) -> None:
         logger.info(f"{self.user.display_name} has logged in")
 
-        # Test first time logon
-        if self.first_time is True:
-            # Set to false
-            self.first_time = False
-            logger.info("PostgreSQL server sync started")
-            try:
-                for guild in self.guilds:
-                    async with self.pool.acquire() as con:
-                        await con.execute("INSERT INTO serverdata (guild_id) VALUES ($1) ON CONFLICT DO NOTHING", guild.id)
-                        await con.execute("INSERT INTO xp (guild_id) VALUES ($1) ON CONFLICT DO NOTHING", guild.id)
-                logger.info("PostgreSQL server sync completed")
-            except asyncpg.PostgresError as e:
-                logger.error(e)
-
     # Timed messages send loop
     @tasks.loop(seconds=60)
     async def timed_messages_send(self):

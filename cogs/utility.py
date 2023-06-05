@@ -5,6 +5,9 @@ __version__ = '2.0.0'
 __status__ = 'Production'
 __doc__ = """Utility Functions"""
 
+# Python imports
+import sys
+
 # Discord imports
 from cbot import cbot
 import discord
@@ -41,7 +44,7 @@ class utility(commands.Cog):
         icon = discord.File('L1.png', filename='L1.png')
         embed.set_author(name=self.bot.user.name, icon_url='attachment://L1.png')
         embed.add_field(name="Bot Version:", value=self.bot.version)
-        embed.add_field(name="Python Version:", value=__version__)
+        embed.add_field(name="Python Version:", value=f'{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}')
         embed.add_field(name="Discord.py Version:", value=discord.__version__)
         embed.add_field(name="Written By:", value="[Justin Panchula](https://github.com/JustinPanchula)", inline=False)
         embed.add_field(name="Server Information:", value=f"This bot is in {len(self.bot.guilds)} servers watching over \

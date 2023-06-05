@@ -214,9 +214,8 @@ class react(commands.GroupCog, name='react'):
             await interaction.followup.send("There was an error, please try again.", ephemeral=True)
             return
 
-        # FIXME: Gets emoji from reaction, but should be a better way. Webhooks?
-        wmessage = await interaction.followup.send("React to this message with the emoji you'd like to use. (10s timer)", ephemeral=False)
-        await asyncio.sleep(10)
+        wmessage = await interaction.followup.send("React to this message with the emoji you'd like to use. (15s timer)", ephemeral=False)
+        await asyncio.sleep(15)
         try:
             # Handling different emoji types
             message = await wmessage.fetch()
@@ -226,6 +225,22 @@ class react(commands.GroupCog, name='react'):
             await message.delete()
         except IndexError:
             await interaction.followup.send(f"There was an error getting the emoji for react role {role.name}, please try again.", ephemeral=True)
+            return
+
+        # Valid <25 existing reactions
+        try:
+            async with self.bot.pool.acquire() as con:
+                response = await con.fetch("SELECT * FROM reactdata WHERE category_id=$1", category_id)
+        except PostgresError as e:
+            logger.exception(e)
+            await interaction.followup.send("There was an error upserting your data, please try again.", ephemeral=True)
+            return
+        except Exception as e:
+            logger.exception(e)
+            await interaction.followup.send("There was an error, please try again.", ephemeral=True)
+            return
+        if len(response) >= 25:
+            await interaction.followup.send("You have reached the 25 button maximum for this category. Please consider deleting a reaction or creating a new category")
             return
 
         # Upsert data
