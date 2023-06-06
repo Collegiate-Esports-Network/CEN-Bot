@@ -51,14 +51,6 @@ loggers:
     handlers: [bot, bot_console]
     level: INFO
     propogate: false
-  react: 
-    handlers: [bot, bot_console]
-    level: INFO
-    propogate: false
-  socials: 
-    handlers: [bot, bot_console]
-    level: INFO
-    propogate: false
   timed_messaged:
     handlers: [bot, bot_console]
     level: INFO

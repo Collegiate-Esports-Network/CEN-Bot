@@ -111,6 +111,7 @@ class welcome(commands.GroupCog, name='welcome'):
             channel = response[0]['welcome_channel']
         except PostgresError as e:
             logger.exception(e)
+            return
         except AttributeError:
             return
 
