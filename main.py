@@ -6,7 +6,6 @@ __status__ = 'Production'
 __doc__ = """Main file of the CEN Discord client"""
 
 # Python imports
-from asyncpg.exceptions import PostgresError
 from dotenv import load_dotenv
 from datetime import datetime
 from http.client import HTTPException
@@ -15,6 +14,9 @@ import logging.handlers
 import logging
 import yaml
 import os
+
+# Postgres imports
+from asyncpg.exceptions import PostgresError
 
 # Discord imports
 import discord

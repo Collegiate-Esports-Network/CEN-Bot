@@ -12,7 +12,7 @@ create table if not exists public.serverdata (
     welcome_message     text        not null    default 'Welcome to the server <new_member>!',
     -- starboard
     starboard_channel   bigint                  default null,
-    starboard_threshold small int   not null    default 5,
+    starboard_threshold smallint    not null    default 5,
     -- Constraints
     constraint pkey_serverdata primary key (guild_id)
 ) tablespace pg_default;

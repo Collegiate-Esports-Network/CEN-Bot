@@ -10,8 +10,6 @@ import os
 import asyncpg
 from datetime import datetime
 
-# Wavelink imports
-
 # Discord imports
 import discord
 from discord.ext import tasks
