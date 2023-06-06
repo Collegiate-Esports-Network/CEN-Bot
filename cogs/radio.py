@@ -45,7 +45,7 @@ class radio(commands.GroupCog, name='radio'):
     # Setup radio on cog load
     async def cog_load(self):
         try:
-            await wavelink.NodePool.connect(client=self.bot, nodes=[wavelink.Node(uri="https://lavalink.collegiateesportsnetwork.org:6543", password=os.getenv('LAVALINK_PASS'))])
+            await wavelink.NodePool.connect(client=self.bot, nodes=[wavelink.Node(uri=os.getenv('LAVALINK_ADDRESS'), password=os.getenv('LAVALINK_PASS'))])
         except wavelink.WavelinkException as e:
             logger.exception(e)
         else:
@@ -148,7 +148,8 @@ class radio(commands.GroupCog, name='radio'):
             return
 
         # Skip track
-        await player.seek(player.queue.get().duration)
+        await player.seek(player.current.duration)  # FIXME: Does not skip?
+        await interaction.response.send_message(f"``{player.current.title}`` skipped.", ephemeral=False)
 
     @app_commands.command(
         name='volume',
@@ -196,10 +197,16 @@ class radio(commands.GroupCog, name='radio'):
                 title="Radio Queue",
                 color=discord.Colour.blurple())
 
+            # Add current track
+            embed.add_field(name="Currently Playing", value=f"{player.current.title} | {datetime.timedelta(milliseconds=player.current.position)}/{datetime.timedelta(milliseconds=player.current.duration)}")
+
             # Populate
             i = 1
             for track in player.queue:
-                embed.add_field(name=f"#{i}", value=f"{track.title} | {datetime.timedelta(milliseconds=track.duration)}", inline=False)
+                if i == 1:
+                    embed.add_field(name="Up Next", value=f"{track.title} | {datetime.timedelta(milliseconds=track.duration)}", inline=False)
+                else:
+                    embed.add_field(name=f"#{i}", value=f"{track.title} | {datetime.timedelta(milliseconds=track.duration)}", inline=False)
                 i += 1
 
             # Send embed
