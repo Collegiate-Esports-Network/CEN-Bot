@@ -31,7 +31,7 @@ class welcome(commands.GroupCog, name='welcome'):
     @commands.has_role('bot manager')
     async def welcome_setchannel(self, interaction: discord.Interaction, channel: discord.TextChannel) -> None:
         try:
-            async with self.bot.pool.acquire() as con:
+            async with self.bot.db_pool.acquire() as con:
                 await con.execute("UPDATE serverdata SET welcome_channel=$2 WHERE guild_id=$1", interaction.guild.id, channel.id)
         except PostgresError as e:
             logger.exception(e)
@@ -52,7 +52,7 @@ class welcome(commands.GroupCog, name='welcome'):
     @commands.has_role('bot manager')
     async def welcome_setmessage(self, interaction: discord.Interaction, message: str) -> None:
         try:
-            async with self.bot.pool.acquire() as con:
+            async with self.bot.db_pool.acquire() as con:
                 await con.execute("UPDATE serverdata SET welcome_message=$2 WHERE guild_id=$1", interaction.guild.id, message)
         except PostgresError as e:
             logger.exception(e)
@@ -71,26 +71,23 @@ class welcome(commands.GroupCog, name='welcome'):
     async def welcome_testmessage(self, interaction: discord.Interaction):
         # Get welcome message
         try:
-            async with self.bot.pool.acquire() as con:
+            async with self.bot.db_pool.acquire() as con:
                 response = await con.fetch("SELECT welcome_channel FROM serverdata WHERE guild_id=$1", interaction.guild.id)
             channel = response[0]['welcome_channel']
         except PostgresError as e:
             logger.exception(e)
             await interaction.response.send_message("There was an error fetching your data, please try again later.", ephemeral=True)
-            return
         except AttributeError:
             await interaction.response.send_message("There is no welcome channel set.", ephemeral=True)
-            return
 
         # Get welcome message
         try:
-            async with self.bot.pool.acquire() as con:
+            async with self.bot.db_pool.acquire() as con:
                 response = await con.fetch("SELECT welcome_message FROM serverdata WHERE guild_id=$1", interaction.guild.id)
             message = response[0]['welcome_message']
         except PostgresError as e:
             logger.exception(e)
             await interaction.response.send_message("There was an error fetching your data, please try again later.", ephemeral=True)
-            return
 
         # Edit welcome message
         message = message.replace('<new_member>', interaction.user.mention)
@@ -106,7 +103,7 @@ class welcome(commands.GroupCog, name='welcome'):
     async def on_member_join(self, member: discord.Member) -> None:
         # Get welcome channel
         try:
-            async with self.bot.pool.acquire() as con:
+            async with self.bot.db_pool.acquire() as con:
                 response = await con.fetch("SELECT welcome_channel FROM serverdata WHERE guild_id=$1", member.guild.id)
             channel = response[0]['welcome_channel']
         except PostgresError as e:
@@ -121,7 +118,7 @@ class welcome(commands.GroupCog, name='welcome'):
 
         # Get welcome message
         try:
-            async with self.bot.pool.acquire() as con:
+            async with self.bot.db_pool.acquire() as con:
                 response = await con.fetch("SELECT welcome_message FROM serverdata WHERE guild_id=$1", member.guild.id)
         except PostgresError as e:
             logger.exception(e)

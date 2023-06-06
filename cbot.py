@@ -10,6 +10,8 @@ import os
 import asyncpg
 from datetime import datetime
 
+# Wavelink imports
+
 # Discord imports
 import discord
 from discord.ext import tasks
@@ -36,19 +38,24 @@ class cbot(Bot):
             description="The in-house developed CEN Bot",
             command_prefix="$$"
         )
-        self.version = '2.1.0'
+        self.version = '2.2.0'
 
         # Define the PostgreSQL connection once
-        password = os.getenv("POSTGRESQL_PASS")
+        password = os.getenv('POSTGRESQL_PASS')
         self.cnx_str = str(f"postgresql://cenbot:{password}@cenbot-do-user-12316711-0.b.db.ondigitalocean.com:25060/cenbot?sslmode=require")
-        self.pool = None
+        self.db_pool = None
 
     async def setup_hook(self) -> None:
         # Announce connectiong
         logger.info(f"{self.user.display_name} is connecting...")
 
         # Create DB Connection
-        self.pool = await asyncpg.create_pool(self.cnx_str)
+        try:
+            self.db_pool = await asyncpg.create_pool(self.cnx_str)
+        except:
+            logger.exception("Error connecting to database")
+        else:
+            logger.info("DB connection established")
 
         # Create extension lists
         found_extensions = []
@@ -93,7 +100,7 @@ class cbot(Bot):
 
         # Fetch all messages that need to be sent
         try:
-            async with self.pool.acquire() as con:
+            async with self.db_pool.acquire() as con:
                 response = await con.fetch("SELECT * FROM timedmessages WHERE time_hour=$1 AND time_minute=$2 AND (dow=$3 OR dow=0)", now.hour, now.minute, now.date().isoweekday())
         except PostgresError as e:
             logger.exception(e)

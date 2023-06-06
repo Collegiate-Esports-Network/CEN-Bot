@@ -47,29 +47,26 @@ class xp(commands.GroupCog, name='xp'):
 
         # Get xp records
         try:
-            async with self.bot.pool.acquire() as con:
+            async with self.bot.db_pool.acquire() as con:
                 record = await con.fetch(f"SELECT s_{ctx.guild.id} FROM xp WHERE user_id=$1", ctx.author.id)
             record = dict(record[0])
         except PostgresError as e:
             logger.exception(e)
             return
-
-        # Record check
-        try:
-            old_exp = record[f"s_{ctx.guild.id}"]
-        except KeyError:
+        except IndexError:
             # Add user to table
             try:
-                async with self.bot.pool.acquire() as con:
+                async with self.bot.db_pool.acquire() as con:
                     await con.execute("INSERT INTO xp (user_id) VALUES ($1)", ctx.author.id)
             except PostgresError as e:
                 logger.exception(e)
                 return
         else:
+            old_exp = record[f's_{ctx.guild.id}']
             # Add change in xp
             new_exp = old_exp + exp
             try:
-                async with self.bot.pool.acquire() as con:
+                async with self.bot.db_pool.acquire() as con:
                     await con.execute(f"UPDATE xp SET s_{ctx.guild.id}=$1 WHERE user_id=$2", new_exp, ctx.author.id)
             except PostgresError as e:
                 logger.exception(e)
@@ -82,16 +79,16 @@ class xp(commands.GroupCog, name='xp'):
     async def xp_xp(self, interaction: discord.Interaction) -> None:
         # Get xp records
         try:
-            async with self.bot.pool.acquire() as con:
+            async with self.bot.db_pool.acquire() as con:
                 record = await con.fetch(f"SELECT s_{interaction.guild.id} FROM xp WHERE user_id=$1", interaction.user.id)
             record = dict(record[0])
         except PostgresError as e:
             logger.exception(e)
-            interaction.response.send_message("There was an error fetching your data, please try again.", ephemeral=True)
+            await interaction.response.send_message("There was an error fetching your data, please try again.", ephemeral=True)
 
         # Record check
         try:
-            exp = record[f"s_{interaction.guild.id}"]
+            exp = record[f's_{interaction.guild.id}']
         except KeyError as e:
             logger.exception(e)
             await interaction.response.send_message("You haven't talked in this server yet.", ephemeral=True)
@@ -105,17 +102,15 @@ class xp(commands.GroupCog, name='xp'):
     async def xp_leaderboard(self, interaction: discord.Interaction) -> None:
         # Get xp data
         try:
-            async with self.bot.pool.acquire() as con:
+            async with self.bot.db_pool.acquire() as con:
                 record = await con.fetch(f"SELECT (user_id, s_{interaction.guild.id}) FROM xp ORDER BY user_id DESC")
             temp_records = []
             for r in record:
-                print(dict(r))
                 temp_records.append(dict(r)['row'])
             record = dict(temp_records)
         except PostgresError as e:
             logger.exception(e)
             await interaction.response.send_message("There was an error fetching the leaderboard, please try again.", ephemeral=True)
-            return
 
         # Init embed
         embed = discord.Embed(title='Top 20 xp Leaders')
@@ -149,12 +144,11 @@ class xp(commands.GroupCog, name='xp'):
     async def xp_sync(self, interaction: discord.Interaction):
         for guild in self.bot.guilds:
             try:
-                async with self.bot.pool.acquire() as con:
+                async with self.bot.db_pool.acquire() as con:
                     await con.execute(f"ALTER TABLE xp ADD COLUMN IF NOT EXISTS s_{guild.id} INT NOT NULL DEFAULT 0")
             except PostgresError as e:
                 logger.exception(e)
                 await interaction.response.send_message("There was an error syncing the xp table, please try again.", ephemeral=True)
-                return
 
         # Send response
         await interaction.response.send_message("The xp servers were synced succesfully.", ephemeral=False)

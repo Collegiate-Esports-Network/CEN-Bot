@@ -37,7 +37,7 @@ class log(commands.GroupCog, name='log'):
     @commands.has_role('bot manager')
     async def log_setlogchannel(self, interaction: discord.Interaction, channel: discord.TextChannel) -> None:
         try:
-            async with self.bot.pool.acquire() as con:
+            async with self.bot.db_pool.acquire() as con:
                 await con.execute("UPDATE serverdata SET log_channel=$2 WHERE guild_id=$1", interaction.guild.id, channel.id)
         except PostgresError as e:
             logger.exception(e)
@@ -56,7 +56,7 @@ class log(commands.GroupCog, name='log'):
     @commands.has_role('bot manager')
     async def log_setreportchannel(self, interaction: discord.Interaction, channel: discord.TextChannel) -> None:
         try:
-            async with self.bot.pool.acquire() as con:
+            async with self.bot.db_pool.acquire() as con:
                 await con.execute("UPDATE serverdata SET report_channel=$2 WHERE guild_id=$1", interaction.guild.id, channel.id)
         except PostgresError as e:
             logger.exception(e)
@@ -78,7 +78,7 @@ class log(commands.GroupCog, name='log'):
         # Convert data
         level = int(level[0:1])
         try:
-            async with self.bot.pool.acquire() as con:
+            async with self.bot.db_pool.acquire() as con:
                 await con.execute("UPDATE serverdata SET log_level=$2 WHERE guild_id=$1", interaction.guild.id, level)
         except PostgresError as e:
             logger.exception(e)
@@ -102,7 +102,7 @@ class log(commands.GroupCog, name='log'):
 
         # Get log channel
         try:
-            async with self.bot.pool.acquire() as con:
+            async with self.bot.db_pool.acquire() as con:
                 response = await con.fetch("SELECT log_channel FROM serverdata WHERE guild_id=$1", ctx_bef.guild.id)
             channel = response[0]['log_channel']
         except PostgresError as e:
@@ -114,7 +114,7 @@ class log(commands.GroupCog, name='log'):
 
         # Get log level
         try:
-            async with self.bot.pool.acquire() as con:
+            async with self.bot.db_pool.acquire() as con:
                 response = await con.fetch("SELECT log_level FROM serverdata WHERE guild_id=$1", ctx_bef.guild.id)
             level = response[0]['log_level']
         except PostgresError as e:
@@ -162,7 +162,7 @@ class log(commands.GroupCog, name='log'):
 
         # Get log channel
         try:
-            async with self.bot.pool.acquire() as con:
+            async with self.bot.db_pool.acquire() as con:
                 response = await con.fetch("SELECT log_channel FROM serverdata WHERE guild_id=$1", ctx.guild.id)
             channel = response[0]['log_channel']
         except PostgresError as e:
@@ -174,7 +174,7 @@ class log(commands.GroupCog, name='log'):
 
         # Get log level
         try:
-            async with self.bot.pool.acquire() as con:
+            async with self.bot.db_pool.acquire() as con:
                 response = await con.fetch("SELECT log_level FROM serverdata WHERE guild_id=$1", ctx.guild.id)
             level = response[0]['log_level']
         except PostgresError as e:
