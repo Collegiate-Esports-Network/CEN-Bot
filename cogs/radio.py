@@ -63,6 +63,7 @@ class radio(commands.GroupCog, name='radio'):
             except AttributeError as e:
                 logger.exception(e)
                 await interaction.response.send_message("Please join a voice channel first!", ephemeral=True)
+                return
             else:
                 await channel.connect(cls=wavelink.Player, self_deaf=True)
 
@@ -96,8 +97,10 @@ class radio(commands.GroupCog, name='radio'):
             except wavelink.WavelinkException as e:
                 logger.exception(e)
                 await interaction.response.send_message("There was an error disconnecting, please try again.", ephemeral=True)
+                return
         # Clear the queue
         player.queue.reset()
+        await interaction.response.send_message("Disconnected.")
 
     # Control commands
     @app_commands.command(
@@ -114,6 +117,7 @@ class radio(commands.GroupCog, name='radio'):
             except wavelink.WavelinkException as e:
                 logger.exception(e)
                 await interaction.response.send_message("There was an error resuming your track, please try again.", ephemeral=True)
+                return
             else:
                 await interaction.response.send_message(f"{player.current} | Resumed")
 
@@ -131,6 +135,7 @@ class radio(commands.GroupCog, name='radio'):
             except wavelink.WavelinkException as e:
                 logger.exception(e)
                 await interaction.response.send_message("There was an error pausing your track, please try again.", ephemeral=True)
+                return
             else:
                 await interaction.response.send_message(f"{player.current} | Paused")
 
@@ -179,6 +184,7 @@ class radio(commands.GroupCog, name='radio'):
         except wavelink.WavelinkException as e:
             logger.exception(e)
             await interaction.response.send_message("There was an error setting the volume, please try again.", ephemeral=True)
+            return
         else:
             await interaction.response.send_message(f"Volume set to {volume}.")
 
@@ -213,6 +219,11 @@ class radio(commands.GroupCog, name='radio'):
             await interaction.response.send_message(embed=embed)
         else:
             await interaction.response.send_message("The queue is currently empty. Use ``/radio play`` to search for one.", ephemeral=True)
+
+    @commands.Cog.listener()
+    async def on_wavelink_track_end(payload: wavelink.TrackEventPayload) -> None:
+        if payload.player.queue.is_empty():
+            await payload.player.disconnect()
 
 
 # Add to bot

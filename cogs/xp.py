@@ -52,7 +52,6 @@ class xp(commands.GroupCog, name='xp'):
             record = dict(record[0])
         except PostgresError as e:
             logger.exception(e)
-            return
         except IndexError:
             # Add user to table
             try:
@@ -60,7 +59,6 @@ class xp(commands.GroupCog, name='xp'):
                     await con.execute("INSERT INTO xp (user_id) VALUES ($1)", ctx.author.id)
             except PostgresError as e:
                 logger.exception(e)
-                return
         else:
             old_exp = record[f's_{ctx.guild.id}']
             # Add change in xp
@@ -85,6 +83,7 @@ class xp(commands.GroupCog, name='xp'):
         except PostgresError as e:
             logger.exception(e)
             await interaction.response.send_message("There was an error fetching your data, please try again.", ephemeral=True)
+            return
 
         # Record check
         try:
@@ -111,6 +110,7 @@ class xp(commands.GroupCog, name='xp'):
         except PostgresError as e:
             logger.exception(e)
             await interaction.response.send_message("There was an error fetching the leaderboard, please try again.", ephemeral=True)
+            return
 
         # Init embed
         embed = discord.Embed(title='Top 20 xp Leaders')
