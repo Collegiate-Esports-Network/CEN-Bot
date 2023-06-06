@@ -8,7 +8,6 @@ __doc__ = """xp Functions"""
 # Python imports
 import random
 import time
-from collections import Counter
 
 # Discord imports
 from cbot import cbot
@@ -49,7 +48,7 @@ class xp(commands.GroupCog, name='xp'):
         # Get xp records
         try:
             async with self.bot.pool.acquire() as con:
-                record = await con.fetch("SELECT * FROM xp (s_$1)", ctx.guild.id)
+                record = await con.fetch(f"SELECT s_{ctx.guild.id} FROM xp WHERE user_id=$1", ctx.author.id)
             record = dict(record[0])
         except PostgresError as e:
             logger.exception(e)
@@ -57,7 +56,7 @@ class xp(commands.GroupCog, name='xp'):
 
         # Record check
         try:
-            old_exp = record[ctx.author.id]
+            old_exp = record[f"s_{ctx.guild.id}"]
         except KeyError:
             # Add user to table
             try:
@@ -71,7 +70,7 @@ class xp(commands.GroupCog, name='xp'):
             new_exp = old_exp + exp
             try:
                 async with self.bot.pool.acquire() as con:
-                    await con.execute("UPDATE xp SET s_$1=$2 WHERE user_id=$3", ctx.guild.id, new_exp, ctx.author.id)
+                    await con.execute(f"UPDATE xp SET s_{ctx.guild.id}=$1 WHERE user_id=$2", new_exp, ctx.author.id)
             except PostgresError as e:
                 logger.exception(e)
                 return
@@ -84,7 +83,7 @@ class xp(commands.GroupCog, name='xp'):
         # Get xp records
         try:
             async with self.bot.pool.acquire() as con:
-                record = await con.fetch("SELECT * FROM xp (s_$1)", interaction.guild.id)
+                record = await con.fetch(f"SELECT s_{interaction.guild.id} FROM xp WHERE user_id=$1", interaction.user.id)
             record = dict(record[0])
         except PostgresError as e:
             logger.exception(e)
@@ -92,7 +91,7 @@ class xp(commands.GroupCog, name='xp'):
 
         # Record check
         try:
-            exp = record[interaction.user.id]
+            exp = record[f"s_{interaction.guild.id}"]
         except KeyError as e:
             logger.exception(e)
             await interaction.response.send_message("You haven't talked in this server yet.", ephemeral=True)
@@ -107,30 +106,26 @@ class xp(commands.GroupCog, name='xp'):
         # Get xp data
         try:
             async with self.bot.pool.acquire() as con:
-                record = await con.fetch("SELECT * FROM xp (s_$1)", interaction.guild.id)
-            record = dict(record[0])
+                record = await con.fetch(f"SELECT (user_id, s_{interaction.guild.id}) FROM xp ORDER BY user_id DESC")
+            temp_records = []
+            for r in record:
+                print(dict(r))
+                temp_records.append(dict(r)['row'])
+            record = dict(temp_records)
         except PostgresError as e:
             logger.exception(e)
-            interaction.response.send_message("There was an error fetching the leaderboard, please try again.", ephemeral=True)
+            await interaction.response.send_message("There was an error fetching the leaderboard, please try again.", ephemeral=True)
             return
-
-        # Remove guild from record
-        record.pop('user_id')
 
         # Init embed
         embed = discord.Embed(title='Top 20 xp Leaders')
 
-        # Get top 20
-        t20 = Counter(record)
-        t20 = t20.most_common()
-        i = 1
-
         # Build embed
+        i = 1
         text = "```\n"
-        for key, exp in t20:
-            # Convert to int
-            id = int(key[2:])
-            member = self.bot.get_user(id)
+        print(record)
+        for user_id, exp in record.items():
+            member = self.bot.get_user(user_id)
             if member is not None and exp != 0:
                 text += f"#{i}: {member.display_name} - {exp}\n"
 
@@ -144,6 +139,25 @@ class xp(commands.GroupCog, name='xp'):
 
         # Send response
         await interaction.response.send_message(embed=embed, ephemeral=False)
+
+    # Sync the xp
+    @app_commands.command(
+        name='sync',
+        description='Syncs xp servers with servers the bot is currently in. To be used only when restarting'
+    )
+    @commands.has_role('bot manager')
+    async def xp_sync(self, interaction: discord.Interaction):
+        for guild in self.bot.guilds:
+            try:
+                async with self.bot.pool.acquire() as con:
+                    await con.execute(f"ALTER TABLE xp ADD COLUMN IF NOT EXISTS s_{guild.id} INT NOT NULL DEFAULT 0")
+            except PostgresError as e:
+                logger.exception(e)
+                await interaction.response.send_message("There was an error syncing the xp table, please try again.", ephemeral=True)
+                return
+
+        # Send response
+        await interaction.response.send_message("The xp servers were synced succesfully.", ephemeral=False)
 
 
 # Add to bot

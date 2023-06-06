@@ -37,7 +37,6 @@ class cbot(Bot):
             command_prefix="$$"
         )
         self.version = '2.1.0'
-        self.first_time = True
 
         # Define the PostgreSQL connection once
         password = os.getenv("POSTGRESQL_PASS")
@@ -47,6 +46,7 @@ class cbot(Bot):
     async def setup_hook(self) -> None:
         # Announce connectiong
         logger.info(f"{self.user.display_name} is connecting...")
+
         # Create DB Connection
         self.pool = await asyncpg.create_pool(self.cnx_str)
 

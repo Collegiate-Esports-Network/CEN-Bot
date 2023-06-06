@@ -49,7 +49,7 @@ async def on_guild_join(guild: discord.Guild):
     try:
         async with bot.pool.acquire() as con:
             await con.execute("INSERT INTO serverdata (guild_id) VALUES ($1) ON CONFLICT DO NOTHING", guild.id)
-            await con.execute("ALTER TABLE xp ADD COLUMN s_$1, INT DEFAULT 0", guild.id)
+            await con.execute("ALTER TABLE xp ADD COLUMN IF NOT EXISTS s_$1 INT NOT NULL DEFAULT 0", guild.id)
     except PostgresError as e:
         logger.exception(e)
     except Exception as e:
@@ -62,11 +62,17 @@ async def on_guild_remove(guild: discord.Guild):
     try:
         async with bot.pool.acquire() as con:
             await con.execute("DELETE FROM serverdata WHERE guild_id=$1", guild.id)
-            await con.execute("ALTER TABLE xp DROP COLUMN s_$1", guild.id)
+            await con.execute(f"ALTER TABLE xp DROP COLUMN s_{guild.id}")
     except PostgresError as e:
         logger.exception(e)
     except Exception as e:
         logger.exception(e)
+
+
+# On thread create, join
+@bot.event
+async def on_thread_create(thread: discord.Thread):
+    await thread.join()
 
 
 # main
