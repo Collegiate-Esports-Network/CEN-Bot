@@ -8,6 +8,7 @@ __doc__ = """Logs activity in discord servers"""
 # Python imports
 import os
 import datetime
+import asyncio
 
 # Wavelink imports
 import wavelink
@@ -204,7 +205,7 @@ class radio(commands.GroupCog, name='radio'):
                 color=discord.Colour.blurple())
 
             # Add current track
-            embed.add_field(name="Currently Playing", value=f"{player.current.title} | {datetime.timedelta(milliseconds=player.current.position)}/{datetime.timedelta(milliseconds=player.current.duration)}")
+            embed.add_field(name="Currently Playing", value=f"{player.current.title} | {datetime.timedelta(milliseconds=player.current.duration)}")
 
             # Populate
             i = 1
@@ -221,8 +222,9 @@ class radio(commands.GroupCog, name='radio'):
             await interaction.response.send_message("The queue is currently empty. Use ``/radio play`` to search for one.", ephemeral=True)
 
     @commands.Cog.listener()
-    async def on_wavelink_track_end(payload: wavelink.TrackEventPayload) -> None:
-        if payload.player.queue.is_empty():
+    async def on_wavelink_track_end(self, payload: wavelink.TrackEventPayload) -> None:
+        if payload.player.queue.is_empty:
+            await asyncio.sleep(1)
             await payload.player.disconnect()
 
 
