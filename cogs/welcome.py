@@ -77,8 +77,10 @@ class welcome(commands.GroupCog, name='welcome'):
         except PostgresError as e:
             logger.exception(e)
             await interaction.response.send_message("There was an error fetching your data, please try again later.", ephemeral=True)
+            return
         except AttributeError:
             await interaction.response.send_message("There is no welcome channel set.", ephemeral=True)
+            return
 
         # Get welcome message
         try:
@@ -88,6 +90,7 @@ class welcome(commands.GroupCog, name='welcome'):
         except PostgresError as e:
             logger.exception(e)
             await interaction.response.send_message("There was an error fetching your data, please try again later.", ephemeral=True)
+            return
 
         # Edit welcome message
         message = message.replace('<new_member>', interaction.user.mention)
