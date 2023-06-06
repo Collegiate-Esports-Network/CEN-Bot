@@ -39,7 +39,7 @@ class react(commands.GroupCog, name='react'):
     @commands.has_role('bot manager')
     async def react_setchannel(self, interaction: discord.Interaction, channel: discord.TextChannel) -> None:
         try:
-            async with self.bot.pool.acquire() as con:
+            async with self.bot.db_pool.acquire() as con:
                 await con.execute("UPDATE serverdata SET react_channel=$1 WHERE guild_id=$2", channel.id, interaction.guild.id,)
         except PostgresError as e:
             logger.exception(e)
@@ -69,7 +69,7 @@ class react(commands.GroupCog, name='react'):
     async def react_updatecategory(self, interaction: discord.Interaction, cate_name: str, cate_desc: Optional[str], cate_name_new: Optional[str]) -> None:
         # Test if record already exists
         try:
-            async with self.bot.pool.acquire() as con:
+            async with self.bot.db_pool.acquire() as con:
                 response = await con.fetch("SELECT 1 FROM reactcategory WHERE guild_id=$1 AND cate_name=$2", interaction.guild.id, cate_name)
         except PostgresError as e:
             logger.exception(e)
@@ -82,7 +82,7 @@ class react(commands.GroupCog, name='react'):
         if len(response) == 0:
             # Insert data
             try:
-                async with self.bot.pool.acquire() as con:
+                async with self.bot.db_pool.acquire() as con:
                     await con.execute("INSERT INTO reactcategory (guild_id, cate_name, cate_desc) VALUES ($1, $2, $3)", interaction.guild.id, cate_name, cate_desc)
             except PostgresError as e:
                 logger.exception(e)
@@ -96,7 +96,7 @@ class react(commands.GroupCog, name='react'):
             # Update data
             if cate_name_new is not None:
                 try:
-                    async with self.bot.pool.acquire() as con:
+                    async with self.bot.db_pool.acquire() as con:
                         if cate_desc is not None:
                             await con.execute("UPDATE reactcategory SET cate_desc=$1, cate_name=$4 WHERE guild_id=$2 AND cate_name=$3", cate_desc, interaction.guild.id, cate_name, cate_name_new)
                         else:
@@ -111,7 +111,7 @@ class react(commands.GroupCog, name='react'):
                     await interaction.response.send_message(f"React category '{cate_name_new}' updated.", ephemeral=False)
             else:
                 try:
-                    async with self.bot.pool.acquire() as con:
+                    async with self.bot.db_pool.acquire() as con:
                         await con.execute("UPDATE reactcategory SET cate_desc=$1 WHERE guild_id=$2 AND cate_name=$3", cate_desc, interaction.guild.id, cate_name)
                 except PostgresError as e:
                     logger.exception(e)
@@ -137,7 +137,7 @@ class react(commands.GroupCog, name='react'):
     async def react_deletecategory(self, interaction: discord.Interaction, cate_name: str) -> None:
         # Fetch react channel
         try:
-            async with self.bot.pool.acquire() as con:
+            async with self.bot.db_pool.acquire() as con:
                 response = await con.fetch("SELECT react_channel FROM serverdata WHERE guild_id=$1", interaction.guild.id)
                 channel = response[0]['react_channel']
         except PostgresError as e:
@@ -151,7 +151,7 @@ class react(commands.GroupCog, name='react'):
 
         # Fetch embed
         try:
-            async with self.bot.pool.acquire() as con:
+            async with self.bot.db_pool.acquire() as con:
                 response = await con.fetch("SELECT message_id FROM reactcategory WHERE cate_name=$1 AND guild_id=$2", cate_name, interaction.guild.id)
                 message_id = response[0]['message_id']
         except PostgresError as e:
@@ -165,7 +165,7 @@ class react(commands.GroupCog, name='react'):
 
         # Delete category
         try:
-            async with self.bot.pool.acquire() as con:
+            async with self.bot.db_pool.acquire() as con:
                 await con.execute("DELETE FROM reactcategory WHERE cate_name=$1 AND guild_id=$2", cate_name, interaction.guild.id)
         except PostgresError as e:
             logger.exception(e)
@@ -199,7 +199,7 @@ class react(commands.GroupCog, name='react'):
 
         # Get category id from name
         try:
-            async with self.bot.pool.acquire() as con:
+            async with self.bot.db_pool.acquire() as con:
                 response = await con.fetch("SELECT category_id FROM reactcategory WHERE guild_id=$1 AND cate_name=$2", interaction.guild.id, cate_name)
             category_id = response[0]['category_id']
         except PostgresError as e:
@@ -229,7 +229,7 @@ class react(commands.GroupCog, name='react'):
 
         # Valid <25 existing reactions
         try:
-            async with self.bot.pool.acquire() as con:
+            async with self.bot.db_pool.acquire() as con:
                 response = await con.fetch("SELECT * FROM reactdata WHERE category_id=$1", category_id)
         except PostgresError as e:
             logger.exception(e)
@@ -245,7 +245,7 @@ class react(commands.GroupCog, name='react'):
 
         # Upsert data
         try:
-            async with self.bot.pool.acquire() as con:
+            async with self.bot.db_pool.acquire() as con:
                 response = await con.fetch("SELECT * FROM reactdata WHERE role_id=$1 AND category_id=$2", role.id, category_id)
         except PostgresError as e:
             logger.exception(e)
@@ -258,7 +258,7 @@ class react(commands.GroupCog, name='react'):
         if len(response) == 0:
             # Insert data
             try:
-                async with self.bot.pool.acquire() as con:
+                async with self.bot.db_pool.acquire() as con:
                     await con.execute("INSERT INTO reactdata (role_id, category_id, role_emoji) VALUES ($1, $2, $3)", role.id, category_id, emoji)
             except PostgresError as e:
                 logger.exception(e)
@@ -271,7 +271,7 @@ class react(commands.GroupCog, name='react'):
         else:
             # Update data
             try:
-                async with self.bot.pool.acquire() as con:
+                async with self.bot.db_pool.acquire() as con:
                     await con.execute("UPDATE reactdata SET category_id=$1, role_emoji=$2 WHERE role_id=$3", category_id, emoji, role.id)
             except PostgresError as e:
                 logger.exception(e)
@@ -294,7 +294,7 @@ class react(commands.GroupCog, name='react'):
     async def react_deletereaction(self, interaction: discord.Interaction, role: discord.Role) -> None:
         # Delete reaction
         try:
-            async with self.bot.pool.acquire() as con:
+            async with self.bot.db_pool.acquire() as con:
                 await con.execute("DELETE FROM reactdata WHERE role_id=$1", role.id)
         except PostgresError as e:
             logger.exception(e)
@@ -317,7 +317,7 @@ class react(commands.GroupCog, name='react'):
 
         # Get channel
         try:
-            async with self.bot.pool.acquire() as con:
+            async with self.bot.db_pool.acquire() as con:
                 response = await con.fetch("SELECT react_channel FROM serverdata WHERE guild_id=$1", interaction.guild.id)
             channel = response[0]['react_channel']
         except PostgresError as e:
@@ -330,7 +330,7 @@ class react(commands.GroupCog, name='react'):
 
         # Get all categories
         try:
-            async with self.bot.pool.acquire() as con:
+            async with self.bot.db_pool.acquire() as con:
                 categories = await con.fetch("SELECT * FROM reactcategory WHERE guild_id=$1 ORDER BY cate_name ASC", interaction.guild.id)
         except PostgresError as e:
             logger.exception(e)
@@ -378,7 +378,7 @@ class react(commands.GroupCog, name='react'):
 
             # Get all roles
             try:
-                async with self.bot.pool.acquire() as con:
+                async with self.bot.db_pool.acquire() as con:
                     roles = await con.fetch("SELECT * FROM reactdata WHERE category_id=$1", cate_id)
             except PostgresError as e:
                 logger.exception(e)
@@ -435,7 +435,7 @@ class react(commands.GroupCog, name='react'):
 
                 # Save message id
                 try:
-                    async with self.bot.pool.acquire() as con:
+                    async with self.bot.db_pool.acquire() as con:
                         await con.execute("UPDATE reactcategory SET message_id=$1 WHERE category_id=$2", message.id, cate_id)
                 except PostgresError as e:
                     logger.exception(e)

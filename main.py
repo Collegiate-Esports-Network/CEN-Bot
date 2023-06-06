@@ -18,6 +18,7 @@ import os
 
 # Discord imports
 import discord
+from discord.ext.commands import Context
 
 # Custom imports
 from cbot import cbot
@@ -36,7 +37,7 @@ bot = cbot()
 
 # Simple error handling
 @bot.event
-async def on_command_error(ctx, error):
+async def on_command_error(ctx: Context, error: discord.DiscordException):
     try:
         logger.error(f"{ctx.command.cog_name} threw an error: {error}")
     except AttributeError:
@@ -47,7 +48,7 @@ async def on_command_error(ctx, error):
 @bot.event
 async def on_guild_join(guild: discord.Guild):
     try:
-        async with bot.pool.acquire() as con:
+        async with bot.db_pool.acquire() as con:
             await con.execute("INSERT INTO serverdata (guild_id) VALUES ($1) ON CONFLICT DO NOTHING", guild.id)
             await con.execute("ALTER TABLE xp ADD COLUMN IF NOT EXISTS s_$1 INT NOT NULL DEFAULT 0", guild.id)
     except PostgresError as e:
@@ -60,7 +61,7 @@ async def on_guild_join(guild: discord.Guild):
 @bot.event
 async def on_guild_remove(guild: discord.Guild):
     try:
-        async with bot.pool.acquire() as con:
+        async with bot.db_pool.acquire() as con:
             await con.execute("DELETE FROM serverdata WHERE guild_id=$1", guild.id)
             await con.execute(f"ALTER TABLE xp DROP COLUMN s_{guild.id}")
     except PostgresError as e:
@@ -88,7 +89,7 @@ if __name__ == '__main__':
 
         # Get log channel
         try:
-            async with bot.pool.acquire() as con:
+            async with bot.db_pool.acquire() as con:
                 response = await con.fetch("SELECT report_channel FROM serverdata WHERE guild_id=$1", interaction.guild.id)
             channel = response[0]['report_channel']
         except PostgresError as e:
@@ -100,7 +101,7 @@ if __name__ == '__main__':
 
         # Get log level
         try:
-            async with bot.pool.acquire() as con:
+            async with bot.db_pool.acquire() as con:
                 response = await con.fetch("SELECT log_level FROM serverdata WHERE guild_id=$1", interaction.guild.id)
             level = response[0]['log_level']
         except PostgresError as e:

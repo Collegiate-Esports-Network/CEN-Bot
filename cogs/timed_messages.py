@@ -64,7 +64,7 @@ class timed_messages(commands.GroupCog, name='timed_messages'):
         # Add to/Update database
         if job_id is None:
             try:
-                async with self.bot.pool.acquire() as con:
+                async with self.bot.db_pool.acquire() as con:
                     await con.execute("INSERT INTO timedmessages (guild_id, channel_id, content, time_hour, time_minute, DoW) VALUES ($1, $2, $3, $4, $5, $6)", interaction.guild.id, channel.id, content, hour, minute, DoW)
             except PostgresError as e:
                 logger.exception(e)
@@ -76,7 +76,7 @@ class timed_messages(commands.GroupCog, name='timed_messages'):
                 await interaction.response.send_message("Message added.", ephemeral=False)
         else:
             try:
-                async with self.bot.pool.acquire() as con:
+                async with self.bot.db_pool.acquire() as con:
                     await con.execute("UPDATE timedmessages SET channel_id=$1, content=$2, time_hour=$3, time_minute=$4, DoW=$5 WHERE guild_id=$6 AND job_id=$7", channel.id, content, hour, minute, DoW, interaction.guild.id, job_id)
             except PostgresError as e:
                 logger.exception(e)
@@ -95,7 +95,7 @@ class timed_messages(commands.GroupCog, name='timed_messages'):
     @commands.has_role('bot manager')
     async def timed_messages_remove(self, interaction: discord.Interaction, job_id: int):
         try:
-            async with self.bot.pool.acquire() as con:
+            async with self.bot.db_pool.acquire() as con:
                 await con.execute("DELETE FROM timedmessages WHERE job_id=$1 AND guild_id=$2", job_id, interaction.guild.id)
         except PostgresError as e:
             logger.exception(e)
@@ -115,7 +115,7 @@ class timed_messages(commands.GroupCog, name='timed_messages'):
     async def timed_messages_get_jobs(self, interaction: discord.Interaction):
         # Get all messages
         try:
-            async with self.bot.pool.acquire() as con:
+            async with self.bot.db_pool.acquire() as con:
                 response = await con.fetch("SELECT * FROM timedmessages WHERE guild_id=$1", interaction.guild.id)
         except PostgresError as e:
             logger.exception(e)
