@@ -58,18 +58,24 @@ class radio(commands.GroupCog, name='radio'):
         description="Plays a song from YouTube, or adds one to the queue if one is already playing"
     )
     async def radio_play(self, interaction: discord.Interaction, search: str) -> None:
+        interaction.response.defer(ephemeral=True, thinking=True)
         if discord.utils.get(self.bot.voice_clients, guild=interaction.guild) is None:  # Create the player and connect
             try:
                 channel = interaction.user.voice.channel
             except AttributeError as e:
                 logger.exception(e)
-                await interaction.response.send_message("Please join a voice channel first!", ephemeral=True)
+                await interaction.followup.send("Please join a voice channel first!", ephemeral=True)
                 return
             else:
                 await channel.connect(cls=wavelink.Player, self_deaf=True)
 
         # Get the track
-        track = await wavelink.YouTubeTrack.search(search, return_first=True)
+        try:
+            track = await wavelink.YouTubeTrack.search(search, return_first=True)
+        except wavelink.WavelinkException as e:
+            logger.exception(e)
+            await interaction.followup.send("There was an erorr getting that song, please try again.", ephemeral=True)
+            return
 
         # Get the player
         player = self.get_vc(interaction.guild)
@@ -78,10 +84,10 @@ class radio(commands.GroupCog, name='radio'):
         # Play the track, or add to queue
         if player.is_playing():
             player.queue.put(track)
-            await interaction.response.send_message(f"Added ``{track.title}`` to the queue.")
+            await interaction.followup.send(f"Added ``{track.title}`` to the queue.")
         else:
             await player.play(track)
-            await interaction.response.send_message(f"Playing ``{track.title}``")
+            await interaction.followup.send(f"Playing ``{track.title}``")
 
     # Bot leaves channel
     @app_commands.command(
