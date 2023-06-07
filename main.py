@@ -80,7 +80,10 @@ async def on_thread_create(thread: discord.Thread):
 # main
 if __name__ == '__main__':
     # Load environment variables
-    TOKEN = os.getenv('TOKEN')
+    if os.name == 'posix':
+        TOKEN = os.getenv('TOKEN')
+    else:
+        TOEKN = os.getenv('TestToken')
 
     # Context menu message reporting (Level 1 logging)
     @bot.tree.context_menu(name='Report Message')

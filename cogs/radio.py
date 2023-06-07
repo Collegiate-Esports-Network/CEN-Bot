@@ -59,7 +59,7 @@ class radio(commands.GroupCog, name='radio'):
     )
     async def radio_play(self, interaction: discord.Interaction, search: str) -> None:
         # Defer the interaction
-        await interaction.response.defer(ephemeral=True, thinking=True)
+        await interaction.response.defer(ephemeral=False, thinking=True)
 
         if discord.utils.get(self.bot.voice_clients, guild=interaction.guild) is None:  # Create the player and connect
             try:
@@ -85,10 +85,10 @@ class radio(commands.GroupCog, name='radio'):
 
         # Play the track, or add to queue
         if player.is_playing():
-            await interaction.followup.send(f"Added ``{track.title}`` to the queue.", ephemeral=False)
+            await interaction.followup.send(f"Added ``{track.title}`` to the queue.")
             player.queue.put(track)
         else:
-            await interaction.followup.send(f"Playing ``{track.title}``", ephemeral=False)
+            await interaction.followup.send(f"Playing ``{track.title}``")
             await player.play(track)
 
     # Bot leaves channel
@@ -213,7 +213,8 @@ class radio(commands.GroupCog, name='radio'):
                 color=discord.Colour.blurple())
 
             # Add current track
-            embed.add_field(name="Currently Playing", value=f"{player.current.title} | {datetime.timedelta(milliseconds=player.current.duration)}")
+            embed.add_field(name="Currently Playing",
+                            value=f"{player.current.title} |{datetime.timedelta(milliseconds=player.position)}/{datetime.timedelta(milliseconds=player.current.duration)}")
 
             # Populate
             i = 1
