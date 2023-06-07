@@ -58,7 +58,9 @@ class radio(commands.GroupCog, name='radio'):
         description="Plays a song from YouTube, or adds one to the queue if one is already playing"
     )
     async def radio_play(self, interaction: discord.Interaction, search: str) -> None:
-        interaction.response.defer(ephemeral=True, thinking=True)
+        # Defer the interaction
+        await interaction.response.defer(ephemeral=True, thinking=True)
+
         if discord.utils.get(self.bot.voice_clients, guild=interaction.guild) is None:  # Create the player and connect
             try:
                 channel = interaction.user.voice.channel
