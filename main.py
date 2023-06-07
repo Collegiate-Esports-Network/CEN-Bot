@@ -83,7 +83,7 @@ if __name__ == '__main__':
     if os.name == 'posix':
         TOKEN = os.getenv('TOKEN')
     else:
-        TOEKN = os.getenv('TestToken')
+        TOKEN = os.getenv('TestToken')
 
     # Context menu message reporting (Level 1 logging)
     @bot.tree.context_menu(name='Report Message')
