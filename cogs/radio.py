@@ -66,7 +66,7 @@ class radio(commands.GroupCog, name='radio'):
                 channel = interaction.user.voice.channel
             except AttributeError as e:
                 logger.exception(e)
-                await interaction.followup.send("Please join a voice channel first!", ephemeral=True)
+                await interaction.followup.send("Please join a voice channel first!")
                 return
             else:
                 await channel.connect(cls=wavelink.Player, self_deaf=True)
@@ -76,7 +76,7 @@ class radio(commands.GroupCog, name='radio'):
             track = await wavelink.YouTubeTrack.search(search, return_first=True)
         except wavelink.WavelinkException as e:
             logger.exception(e)
-            await interaction.followup.send("There was an erorr getting that song, please try again.", ephemeral=True)
+            await interaction.followup.send("There was an erorr getting that song, please try again.")
             return
 
         # Get the player
@@ -85,10 +85,10 @@ class radio(commands.GroupCog, name='radio'):
 
         # Play the track, or add to queue
         if player.is_playing():
-            await interaction.followup.send(f"Added ``{track.title}`` to the queue.")
+            await interaction.followup.send(f"Added ``{track.title}`` to the queue.", ephemeral=False)
             player.queue.put(track)
         else:
-            await interaction.followup.send(f"Playing ``{track.title}``")
+            await interaction.followup.send(f"Playing ``{track.title}``", ephemeral=False)
             await player.play(track)
 
     # Bot leaves channel
