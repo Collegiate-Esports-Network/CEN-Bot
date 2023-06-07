@@ -81,7 +81,7 @@ async def on_thread_create(thread: discord.Thread):
 if __name__ == '__main__':
     # Load environment variables
     sys_name = os.name
-    logger.info(f"{sys_name} detected")
+    logger.info(f"{sys_name} system detected")
     if sys_name == 'posix':
         TOKEN = os.getenv('TOKEN')
     else:
