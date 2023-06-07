@@ -83,11 +83,11 @@ class radio(commands.GroupCog, name='radio'):
 
         # Play the track, or add to queue
         if player.is_playing():
-            player.queue.put(track)
             await interaction.followup.send(f"Added ``{track.title}`` to the queue.")
+            player.queue.put(track)
         else:
-            await player.play(track)
             await interaction.followup.send(f"Playing ``{track.title}``")
+            await player.play(track)
 
     # Bot leaves channel
     @app_commands.command(
