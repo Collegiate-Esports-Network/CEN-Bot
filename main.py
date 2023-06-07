@@ -77,7 +77,6 @@ async def on_guild_remove(guild: discord.Guild):
 async def on_thread_create(thread: discord.Thread):
     await thread.join()
 
-
 # main
 if __name__ == '__main__':
     # Load environment variables
