@@ -21,9 +21,10 @@ logger = logging.getLogger("starboard")
 class starboard(commands.GroupCog, name="starboard"):
     """These are the starboard functions."""
 
-    def __init__(self, bot: cbot) -> None:
+    def __init__(self, bot: cbot, channel_id) -> None:
         self.bot = bot
         super().__init__()
+        self.channel_id = channel_id
 
 
 # Add to bot
@@ -40,6 +41,37 @@ client = discord.Client()
 @client.event
 async def on_ready():
     print(f"Logged in as {client.user.name}")
+
+def get_starboard_channel_id(guild):
+    # You'll need to implement your own logic to fetch the starboard channel ID
+    # from a database or any other storage mechanism
+    # This is just a placeholder example
+    channel_id = channel_id.guild
+    return channel_id
+
+def set_starboard_channel_id(guild, channel_id):
+    # You'll need to implement your own logic to update the starboard channel ID
+    # in a database or any other storage mechanism
+    # This is just a placeholder example
+    channel_id = channel_id
+    pass 
+
+
+@bot.command()
+async def set_starboard(ctx, channel: discord.TextChannel):
+    guild = ctx.guild
+
+    # Fetch the starboard channel if it already exists
+    starboard_channel_id = get_starboard_channel_id(guild)
+
+    if starboard_channel_id == channel.id:
+        await ctx.send('This channel is already set as the starboard channel.')
+        return
+
+    # Update the starboard channel
+    set_starboard_channel_id(guild, channel.id)
+
+    await ctx.send(f'Successfully set {channel.mention} as the starboard channel.')
 
 
 @client.event
@@ -66,7 +98,7 @@ async def on_reaction_remove(reaction, user):
 
 
 async def add_to_starboard(message):
-    starboard_channel_id = YOUR_STARBOARD_CHANNEL_ID
+    starboard_channel_id = channel_id
 
     # Get starboard channel
     starboard_channel = client.get_channel(starboard_channel_id)
@@ -79,7 +111,7 @@ async def add_to_starboard(message):
 
 
 async def remove_from_starboard(message):
-    starboard_channel_id = YOUR_STARBOARD_CHANNEL_ID
+    starboard_channel_id = channel_id
 
     # Get starboard channel
     starboard_channel = client.get_channel(starboard_channel_id)
@@ -96,7 +128,7 @@ async def remove_from_starboard(message):
 
 
 async def update_star_count(message):
-    starboard_channel_id = YOUR_STARBOARD_CHANNEL_ID
+    starboard_channel_id = channel_id
 
     # Get starboard channel
     starboard_channel = client.get_channel(starboard_channel_id)
@@ -119,7 +151,7 @@ async def update_star_count(message):
 def meets_starboard_criteria(message):
     # Implement your criteria for qualifying a message for the starboard
     # For example, minimum star count, channel restrictions, etc.
-    return get_star_count(message) >= YOUR_STAR_COUNT_THRESHOLD
+    return get_star_count(message) >= channel_id
 
 
 def get_star_count(message):
