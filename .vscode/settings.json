@@ -9,5 +9,9 @@
 
     // VSCode settings
     "python.analysis.typeCheckingMode": "off",
-    "python.languageServer": "Pylance"
+    "python.languageServer": "Pylance",
+    "[python]": {
+        "editor.defaultFormatter": "ms-python.black-formatter"
+    },
+    "python.formatting.provider": "none"
 }
