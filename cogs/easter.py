@@ -20,7 +20,7 @@ class easter(commands.Cog, name='easter'):
 
     @commands.Cog.listener()
     async def on_message(self, ctx: discord.Message) -> None:
-        if ctx.author != self.bot.user and 'crazy' in ctx.content:
+        if ctx.author != self.bot.user and 'crazy' in ctx.content.lower():
             await ctx.reply("Crazy? I was crazy once. They locked me in a room. A rubber room. A rubber room with rats, and rats make me crazy.\nCrazy? I was crazy once...")
 
 
