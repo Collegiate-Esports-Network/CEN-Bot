@@ -102,7 +102,7 @@ class xp(commands.GroupCog, name='xp'):
         # Get xp data
         try:
             async with self.bot.db_pool.acquire() as con:
-                record = await con.fetch(f"SELECT (user_id, s_{interaction.guild.id}) FROM xp ORDER BY user_id DESC")
+                record = await con.fetch(f"SELECT (user_id, s_{interaction.guild.id}) FROM xp")
             temp_records = []
             for r in record:
                 temp_records.append(dict(r)['row'])
@@ -115,10 +115,13 @@ class xp(commands.GroupCog, name='xp'):
         # Init embed
         embed = discord.Embed(title='Top 20 xp Leaders')
 
-        # Build embed
-        i = 1
-        text = "```\n"
+        # Sort record in descending order
+        record = dict(sorted(record.items(), key=lambda x: x[1], reverse=True))
         print(record)
+
+        # Fill embed
+        text = "```\n"
+        i = 1
         for user_id, exp in record.items():
             member = self.bot.get_user(user_id)
             if member is not None and exp != 0:
