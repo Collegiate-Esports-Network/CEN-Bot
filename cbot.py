@@ -36,7 +36,7 @@ class cbot(Bot):
             description="The in-house developed CEN Bot",
             command_prefix="$$"
         )
-        self.version = '2.2.0'
+        self.version = '2.3.1'
 
         # Define the PostgreSQL connection once
         password = os.getenv('POSTGRESQL_PASS')
