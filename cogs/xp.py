@@ -7,7 +7,7 @@ __doc__ = """xp Functions"""
 
 # Python imports
 import random
-import time
+from time import time
 
 # Discord imports
 from cbot import cbot
@@ -35,7 +35,7 @@ class xp(commands.GroupCog, name='xp'):
             return
 
         # Generate random number between 1 and 100 and assign xp
-        random.seed(round(time.time() * 1000))
+        random.seed(round(time() * 1000))
         num = random.randint(1, 100)
         exp = 0
         if num < 70:
@@ -117,7 +117,6 @@ class xp(commands.GroupCog, name='xp'):
 
         # Sort record in descending order
         record = dict(sorted(record.items(), key=lambda x: x[1], reverse=True))
-        print(record)
 
         # Fill embed
         text = "```\n"

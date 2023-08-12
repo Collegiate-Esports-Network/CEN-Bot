@@ -7,7 +7,7 @@ __doc__ = """Utility Functions"""
 
 # Python imports
 import sys
-import time
+from time import time
 import random
 
 # Discord imports
@@ -61,13 +61,11 @@ class utility(commands.Cog):
         description="Flips a coin"
     )
     async def flip(self, interaction: discord.Interaction) -> None:
-        # Set seed
-        random.seed(round(time.time() * 1000))
+        # Choose heads or tails
+        random.seed(round(time() * 1000))
+        heads = random.randint(0, 1)
 
-        # Choose a number
-        num = random.randint(0, 1)
-
-        if num:
+        if heads:
             await interaction.response.send_message(f"{interaction.user.mention} the coin is Heads")
         else:
             await interaction.response.send_message(f"{interaction.user.mention} the flip is Tails")

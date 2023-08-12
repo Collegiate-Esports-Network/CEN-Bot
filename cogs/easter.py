@@ -3,7 +3,11 @@ __copyright__ = 'Copyright CEN'
 __credits__ = 'Justin Panchula'
 __version__ = '2.0.0'
 __status__ = 'Production'
-__doc__ = """Logs activity in discord servers"""
+__doc__ = """Easter Eggies"""
+
+# Python imports
+import random
+from time import time
 
 # Discord imports
 from cbot import cbot
@@ -20,7 +24,11 @@ class easter(commands.Cog, name='easter'):
 
     @commands.Cog.listener()
     async def on_message(self, ctx: discord.Message) -> None:
-        if ctx.author != self.bot.user and 'crazy' in ctx.content.lower():
+        # Choose a random number
+        random.seed(round(time() * 1000))
+        num = random.randint(1, 100)
+
+        if ctx.author != self.bot.user and num > 90 and 'crazy' in ctx.content.lower():
             await ctx.reply("Crazy? I was crazy once. They locked me in a room. A rubber room. A rubber room with rats, and rats make me crazy.\nCrazy? I was crazy once...")
 
 
