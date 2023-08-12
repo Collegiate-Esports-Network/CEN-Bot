@@ -7,6 +7,8 @@ __doc__ = """Utility Functions"""
 
 # Python imports
 import sys
+from time import time
+import random
 
 # Discord imports
 from cbot import cbot
@@ -52,6 +54,21 @@ class utility(commands.Cog):
         embed.set_footer(text=f"Information requested by: {interaction.user}")
 
         await interaction.response.send_message(file=icon, embed=embed, ephemeral=True)
+
+    # Flip a coin
+    @app_commands.command(
+        name='flip',
+        description="Flips a coin"
+    )
+    async def flip(self, interaction: discord.Interaction) -> None:
+        # Choose heads or tails
+        random.seed(round(time() * 1000))
+        heads = random.randint(0, 1)
+
+        if heads:
+            await interaction.response.send_message(f"{interaction.user.mention} the coin is Heads")
+        else:
+            await interaction.response.send_message(f"{interaction.user.mention} the flip is Tails")
 
 
 class admin(commands.GroupCog, name='admin'):

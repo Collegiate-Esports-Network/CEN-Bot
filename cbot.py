@@ -36,11 +36,12 @@ class cbot(Bot):
             description="The in-house developed CEN Bot",
             command_prefix="$$"
         )
-        self.version = '2.2.0'
+        self.version = '2.3.1'
 
         # Define the PostgreSQL connection once
-        password = os.getenv('POSTGRESQL_PASS')
-        self.cnx_str = str(f"postgresql://cenbot:{password}@cenbot-do-user-12316711-0.b.db.ondigitalocean.com:25060/cenbot?sslmode=require")
+        HOST = os.getenv('POSTGRESQL_HOST')
+        PASSWORD = os.getenv('POSTGRESQL_PASS')
+        self.cnx_str = str(f"postgresql://cenbot:{PASSWORD}@{HOST}:25060/cenbot?sslmode=require")
         self.db_pool = None
 
     async def setup_hook(self) -> None:
