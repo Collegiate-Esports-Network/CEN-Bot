@@ -66,7 +66,7 @@ class starboard(commands.GroupCog, name='starboard'):
     @commands.Cog.listener()
     async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
         # Parse payload
-        message = discord.utils.get
+        message = discord.utils. ()
         guild = payload.guild_id
         emoji = payload.emoji
 

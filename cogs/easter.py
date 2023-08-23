@@ -14,6 +14,10 @@ from cbot import cbot
 import discord
 from discord.ext import commands
 
+# Logging
+import logging
+logger = logging.getLogger('easter')
+
 
 class easter(commands.Cog, name='easter'):
     """These are all the hidden easter egg commands
