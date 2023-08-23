@@ -43,6 +43,10 @@ loggers:
     handlers: [bot, bot_console]
     level: DEBUG
     propogate: false
+  admin: 
+    handlers: [bot, bot_console]
+    level: INFO
+    propogate: false
   easter: 
     handlers: [bot, bot_console]
     level: INFO

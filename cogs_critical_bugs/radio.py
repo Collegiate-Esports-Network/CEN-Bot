@@ -49,7 +49,6 @@ class radio(commands.GroupCog, name='radio'):
             await wavelink.NodePool.connect(client=self.bot, nodes=[wavelink.Node(uri=os.getenv('LAVALINK_ADDRESS'), password=os.getenv('LAVALINK_PASS'))])
         except wavelink.WavelinkException as e:
             logger.exception(e)
-            self.bot.unload_extension('radio')
         else:
             logger.info("Lavalink connection established")
 
