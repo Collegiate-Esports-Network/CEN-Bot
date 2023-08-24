@@ -74,6 +74,7 @@ class xp(commands.GroupCog, name='xp'):
         name='xp',
         description="Returns your current xp."
     )
+    @commands.guild_only()
     async def xp_xp(self, interaction: discord.Interaction) -> None:
         # Get xp records
         try:
@@ -98,6 +99,7 @@ class xp(commands.GroupCog, name='xp'):
         name='leaderboard',
         description="Returns the top 20 xp leaders."
     )
+    @commands.guild_only()
     async def xp_leaderboard(self, interaction: discord.Interaction) -> None:
         # Get xp data
         try:
@@ -136,24 +138,6 @@ class xp(commands.GroupCog, name='xp'):
 
         # Send response
         await interaction.response.send_message(embed=embed, ephemeral=False)
-
-    # Sync the xp
-    @app_commands.command(
-        name='sync',
-        description='Syncs xp servers with servers the bot is currently in. To be used only when restarting'
-    )
-    @commands.has_role('bot manager')
-    async def xp_sync(self, interaction: discord.Interaction):
-        for guild in self.bot.guilds:
-            try:
-                async with self.bot.db_pool.acquire() as con:
-                    await con.execute(f"ALTER TABLE xp ADD COLUMN IF NOT EXISTS s_{guild.id} INT NOT NULL DEFAULT 0")
-            except PostgresError as e:
-                logger.exception(e)
-                await interaction.response.send_message("There was an error syncing the xp table, please try again.", ephemeral=True)
-
-        # Send response
-        await interaction.response.send_message("The xp servers were synced succesfully.", ephemeral=False)
 
 
 # Add to bot

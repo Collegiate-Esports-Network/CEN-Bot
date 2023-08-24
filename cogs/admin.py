@@ -13,6 +13,7 @@ from discord import app_commands
 
 # Logging
 import logging
+from asyncpg import PostgresError
 logger = logging.getLogger('admin')
 
 
@@ -44,8 +45,21 @@ class admin(commands.GroupCog, name='admin'):
     async def admin_sync(self, interaction: discord.Interaction) -> None:
         await interaction.response.defer()
         await self.bot.tree.sync()
+
+        # Sync the xp
+        for guild in self.bot.guilds:
+            try:
+                async with self.bot.db_pool.acquire() as con:
+                    await con.execute(f"ALTER TABLE xp ADD COLUMN IF NOT EXISTS s_{guild.id} INT NOT NULL DEFAULT 0")
+            except PostgresError as e:
+                logger.exception(e)
+                await interaction.response.send_message("There was an error syncing the xp table, please try again.", ephemeral=True)
+
+        # Log
         logger.info("The bot was forcibly synced")
-        await interaction.followup.send("The bot was synced.", ephemeral=True)
+
+        # Send response
+        await interaction.response.send_message("The bot was forcibly synced.", ephemeral=False)
 
     # load cogs
     @app_commands.command(
@@ -99,7 +113,13 @@ class admin(commands.GroupCog, name='admin'):
     )
     @commands.is_owner()
     async def admin_annouce(self, interaction: discord.Interaction, msg: str) -> None:
-        return
+        # For each guild, create DM with owner with the annoucement
+        for guild in self.bot.guilds:
+            channel = await guild.owner.create_dm()
+            await channel.send(f"{msg}\n\n-{interaction.user.name}")
+
+        await interaction.response.send_message("Messages Sent", ephemeral=True)
+
 
 # Add to bot
 async def setup(bot: cbot) -> None:
