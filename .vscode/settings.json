@@ -1,12 +1,4 @@
 {
-    // Linter Settings
-    "python.linting.pylintEnabled": false,
-    "python.linting.flake8Enabled": true,
-    "python.linting.enabled": true,
-    "python.linting.flake8Args": [
-        "--ignore=E127, E501, E722, W292"
-    ],
-
     // VSCode settings
     "python.analysis.typeCheckingMode": "off",
     "python.languageServer": "Pylance"

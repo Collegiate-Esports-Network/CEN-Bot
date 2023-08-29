@@ -45,7 +45,7 @@ class radio(commands.GroupCog, name='radio'):
     # Setup radio on cog load
     async def cog_load(self):
         try:
-            await wavelink.NodePool.connect(client=self.bot, nodes=[wavelink.Node(uri=os.getenv('LAVALINK_ADDRESS'), password=os.getenv('LAVALINK_PASS'))])
+            await wavelink.NodePool.connect(client=self.bot, nodes=[wavelink.Node(uri=os.getenv('LAVALINK_ADDRESS'), password=os.getenv('LAVALINK_PASS'), use_http=True)])
         except wavelink.WavelinkException as e:
             logger.exception(e)
         else:
