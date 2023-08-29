@@ -73,7 +73,8 @@ class radio(commands.GroupCog, name='radio'):
 
         # Get the track
         try:
-            track = await wavelink.YouTubeTrack.search(search, return_first=True)
+            search = await wavelink.YouTubeTrack.search(search)
+            track = search[0]
         except wavelink.WavelinkException as e:
             logger.exception(e)
             await interaction.followup.send("There was an erorr getting that song, please try again.")
