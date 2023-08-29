@@ -28,7 +28,7 @@ class starboard(commands.GroupCog, name='starboard'):
         super().__init__()
 
     def create_embed(self, message: discord.Message, awarder: str) -> discord.Embed:
-        embed = discord.Embed(color=discord.Color.gold(), title="Starboard Message")
+        embed = discord.Embed(color=discord.Color.from_str('#FF5733'), title="Starboard Message")
         embed.set_author(name=message.author.name, icon_url=message.author.display_avatar)
         embed.add_field(name='Message', value=f"{message.content}\n[View Message]({message.jump_url})", inline=False)
         embed.add_field(name="Awarded By", value=awarder, inline=False)
@@ -41,6 +41,7 @@ class starboard(commands.GroupCog, name='starboard'):
         description="Sets the Starboard channel."
     )
     @commands.has_role('bot manager')
+    @commands.guild_only()
     async def starboard_setchannel(self, interaction: discord.Interaction, channel: discord.TextChannel):
         try:
             async with self.bot.db_pool.acquire() as con:
@@ -60,6 +61,7 @@ class starboard(commands.GroupCog, name='starboard'):
         description="Sets the Starboard threshold"
     )
     @commands.has_role('bot manager')
+    @commands.guild_only()
     async def starboard_setthreshold(self, interaction: discord.Interaction, threshold: int):
         try:
             async with self.bot.db_pool.acquire() as con:
