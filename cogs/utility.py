@@ -41,6 +41,7 @@ class utility(commands.Cog):
         name='about',
         description="Returns the current bot information",
     )
+    @commands.guild_only()
     async def about(self, interaction: discord.Interaction) -> None:
         embed = discord.Embed(title='Bot Info', description="Here is the most up-to-date information on the bot.", color=0x2374a5)
         icon = discord.File('L1.png', filename='L1.png')
@@ -60,6 +61,7 @@ class utility(commands.Cog):
         name='flip',
         description="Flips a coin"
     )
+    @commands.guild_only()
     async def flip(self, interaction: discord.Interaction) -> None:
         # Choose heads or tails
         random.seed(round(time() * 1000))

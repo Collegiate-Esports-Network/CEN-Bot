@@ -56,6 +56,7 @@ class timed_messages(commands.GroupCog, name='timed_messages'):
         DoW='day_of_week'
     )
     @commands.has_role('bot mangaer')
+    @commands.guild_only()
     async def timed_mesages_update(self, interaction: discord.Interaction, channel: discord.TextChannel, content: str, hour: int, minute: int,
                                    DoW: Literal['0: Everyday', '1: Monday', '2: Tuesday', '3: Wednesday', '4: Thursday', '5: Friday', '6: Saturday', '7: Sunday'], job_id: Optional[int]):
         # Convert day of week to int
@@ -93,6 +94,7 @@ class timed_messages(commands.GroupCog, name='timed_messages'):
         description="Removes a timed message"
     )
     @commands.has_role('bot manager')
+    @commands.guild_only()
     async def timed_messages_remove(self, interaction: discord.Interaction, job_id: int):
         try:
             async with self.bot.db_pool.acquire() as con:
@@ -112,6 +114,7 @@ class timed_messages(commands.GroupCog, name='timed_messages'):
         description="Gets all jobs associated with this guild"
     )
     @commands.has_role('bot manager')
+    @commands.guild_only()
     async def timed_messages_get_jobs(self, interaction: discord.Interaction):
         # Get all messages
         try:
@@ -144,6 +147,6 @@ class timed_messages(commands.GroupCog, name='timed_messages'):
             await interaction.response.send_message(message, ephemeral=True)
 
 
-# Add to bo0t
+# Add to bot
 async def setup(bot: commands.Bot) -> None:
     await bot.add_cog(timed_messages(bot))
