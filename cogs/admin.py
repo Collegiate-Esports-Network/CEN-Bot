@@ -11,6 +11,9 @@ import discord
 from discord.ext import commands
 from discord import app_commands
 
+# Custom imports
+from helpers.forasync import forasync
+
 # Logging
 import logging
 from asyncpg import PostgresError
@@ -113,12 +116,14 @@ class admin(commands.GroupCog, name='admin'):
     )
     @commands.is_owner()
     async def admin_annouce(self, interaction: discord.Interaction, msg: str) -> None:
+        await interaction.response.defer(ephemeral=False)
         # For each guild, create DM with owner with the annoucement
-        for guild in self.bot.guilds:
-            channel = await guild.owner.create_dm()
-            await channel.send(f"{msg}\n\n-{interaction.user.name}")
+        async for guild in forasync(self.bot.guilds):
+            if not await self.bot.is_owner(guild.owner):
+                channel = await guild.owner.create_dm()
+                await channel.send(msg)
 
-        await interaction.response.send_message("Messages Sent", ephemeral=True)
+        await interaction.followup.send(f"Annoucement \"{msg}\" sent.")
 
 
 # Add to bot
