@@ -213,3 +213,62 @@ class log(commands.GroupCog, name='log'):
 # Add to bot
 async def setup(bot: cbot) -> None:
     await bot.add_cog(log(bot))
+
+# # Context menu message reporting (Level 1 logging)
+# @bot.tree.context_menu(
+#     name='Report Message',
+# )
+# async def log_reportmessage(interaction: discord.Interaction, message: discord.Message) -> None:
+#     # Defer response
+#     await interaction.response.defer(ephemeral=True)
+
+#     # Get log channel
+#     try:
+#         async with bot.db_pool.acquire() as con:
+#             response = await con.fetch("SELECT report_channel FROM serverdata WHERE guild_id=$1", interaction.guild.id)
+#         channel = response[0]['report_channel']
+#     except PostgresError as e:
+#         logger.exception(e)
+#         return
+#     except AttributeError as e:
+#         logger.exception(e)
+#         return
+
+#     # Get log level
+#     try:
+#         async with bot.db_pool.acquire() as con:
+#             response = await con.fetch("SELECT log_level FROM serverdata WHERE guild_id=$1", interaction.guild.id)
+#         level = response[0]['log_level']
+#     except PostgresError as e:
+#         logger.exception(e)
+#         return
+#     except AttributeError as e:
+#         logger.exception(e)
+#         return
+
+#     # Check log level
+#     if level < 1:
+#         return
+
+#     # Reported message embed
+#     embed = discord.Embed(colour=discord.Colour.red())
+#     embed.set_author(name=message.author.name, icon_url=message.author.display_avatar)
+#     embed.add_field(name='Reported Message', value=f"A message sent by {message.author.mention} was reported in {message.channel.mention}", inline=False)
+
+#     # Ignore impossible message
+#     try:
+#         embed.add_field(name='Content', value=message.content, inline=False)
+#     except discord.errors.HTTPException as e:
+#         logger.exception(e)
+#         return
+#     except HTTPException as e:
+#         logger.exception(e)
+#         return
+#     else:
+#         embed.set_footer(text=f"{datetime.now().strftime('%d/%m/%y - %H:%M:%S')}")
+
+#     # Send to channel
+#     await bot.get_channel(channel).send(embed=embed)
+
+#     # Respond
+#     await interaction.followup.send("Message reported.")

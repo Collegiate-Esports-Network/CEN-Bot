@@ -1,7 +1,7 @@
 __author__ = 'Justin Panchula'
 __copyright__ = 'Copyright CEN'
 __credits__ = 'Justin Panchula'
-__version__ = '2.0.0'
+__version__ = '3'
 __status__ = 'Production'
 __doc__ = """Welcome message functions"""
 
@@ -48,7 +48,7 @@ class welcome(commands.GroupCog, name='welcome'):
         description="Sets the welcome message."
     )
     @app_commands.describe(
-        message="The welcome message. Use '<new_member>' to mention the member."
+        message="The welcome message. Use ``<new_member>`` to mention the member."
     )
     @commands.has_role('bot manager')
     @commands.guild_only()
@@ -75,34 +75,24 @@ class welcome(commands.GroupCog, name='welcome'):
         # Get welcome message
         try:
             async with self.bot.db_pool.acquire() as con:
-                response = await con.fetch("SELECT welcome_channel FROM serverdata WHERE guild_id=$1", interaction.guild.id)
+                response = await con.fetch("SELECT welcome_channel, welcome_message FROM serverdata WHERE guild_id=$1", interaction.guild.id)
             channel = response[0]['welcome_channel']
+            message = response[0]['welcome_message']  # Always present as it's defaulted into database
         except PostgresError as e:
             logger.exception(e)
             await interaction.response.send_message("There was an error fetching your data, please try again later.", ephemeral=True)
             return
-        except AttributeError:
-            await interaction.response.send_message("There is no welcome channel set.", ephemeral=True)
-            return
-
-        # Get welcome message
-        try:
-            async with self.bot.db_pool.acquire() as con:
-                response = await con.fetch("SELECT welcome_message FROM serverdata WHERE guild_id=$1", interaction.guild.id)
-            message = response[0]['welcome_message']
-        except PostgresError as e:
-            logger.exception(e)
-            await interaction.response.send_message("There was an error fetching your data, please try again later.", ephemeral=True)
-            return
-
-        # Edit welcome message
-        message = message.replace('<new_member>', interaction.user.mention)
 
         # Send welcome message
-        await self.bot.get_channel(channel).send(message)
-
-        # Respond
-        await interaction.response.send_message("Test sent.", ephemeral=True)
+        try:
+            await self.bot.get_channel(channel).send(message.replace('<new_member>', interaction.user.mention))
+        except AttributeError as e:
+            logger.exception(e)
+            await interaction.response.send_message("There is no welcome channel set.", ephemeral=True)
+            return
+        finally:
+            # Respond
+            await interaction.response.send_message("Test sent.", ephemeral=True)
 
     # Sends a message on user join
     @commands.Cog.listener()
@@ -110,34 +100,18 @@ class welcome(commands.GroupCog, name='welcome'):
         # Get welcome channel
         try:
             async with self.bot.db_pool.acquire() as con:
-                response = await con.fetch("SELECT welcome_channel FROM serverdata WHERE guild_id=$1", member.guild.id)
+                response = await con.fetch("SELECT welcome_channel, welcome_message FROM serverdata WHERE guild_id=$1", member.guild.id)
             channel = response[0]['welcome_channel']
-        except PostgresError as e:
-            logger.exception(e)
-            return
-        except AttributeError:
-            return
-
-        # Test for valid channel
-        channel = self.bot.get_channel(channel)
-        if channel is None:
-            return
-
-        # Get welcome message
-        try:
-            async with self.bot.db_pool.acquire() as con:
-                response = await con.fetch("SELECT welcome_message FROM serverdata WHERE guild_id=$1", member.guild.id)
-        except PostgresError as e:
-            logger.exception(e)
-            return
-        else:
             message = response[0]['welcome_message']
-
-        # Edit welcome message
-        message = message.replace('<new_member>', member.mention)
+        except PostgresError as e:
+            logger.exception(e)
+            return
 
         # Send welcome message
-        await channel.send(message)
+        try:
+            await self.bot.get_channel(channel).send(message.replace('<new_member>', member.mention))
+        except AttributeError as e:
+            logger.exception(e)
 
 
 # Add to bot

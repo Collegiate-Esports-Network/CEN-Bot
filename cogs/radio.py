@@ -109,6 +109,7 @@ class radio(commands.GroupCog, name='radio'):
                 logger.exception(e)
                 await interaction.response.send_message("There was an error disconnecting, please try again.", ephemeral=True)
                 return
+
         # Clear the queue
         player.queue.reset()
         await interaction.response.send_message("Disconnected.")
@@ -237,6 +238,7 @@ class radio(commands.GroupCog, name='radio'):
         else:
             await interaction.response.send_message("The queue is currently empty. Use ``/radio play`` to search for one.", ephemeral=True)
 
+    # Wavelink autoleave if end of queue
     @commands.Cog.listener()
     async def on_wavelink_track_end(self, payload: wavelink.TrackEventPayload) -> None:
         if payload.player.queue.is_empty:
