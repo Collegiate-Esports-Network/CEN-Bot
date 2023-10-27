@@ -1,8 +1,8 @@
-__author__ = 'Justin Panchula'
-__copyright__ = 'Copyright CEN'
-__credits__ = 'Justin Panchula'
-__version__ = '3'
-__status__ = 'Production'
+__author__ = "Justin Panchula"
+__copyright__ = "Copyright CEN"
+__credits__ = "Justin Panchula"
+__version__ = "3"
+__status__ = "Production"
 __doc__ = """Main file of the CEN Discord client"""
 
 # Python imports

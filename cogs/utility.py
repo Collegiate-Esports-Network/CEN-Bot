@@ -1,8 +1,8 @@
-__author__ = 'Justin Panchula'
-__copyright__ = 'Copyright CEN'
-__credits__ = 'Justin Panchula'
-__version__ = '3'
-__status__ = 'Production'
+__author__ = "Justin Panchula"
+__copyright__ = "Copyright CEN"
+__credits__ = "Justin Panchula"
+__version__ = "3"
+__status__ = "Production"
 __doc__ = """Utility Functions"""
 
 # Python imports
@@ -127,6 +127,7 @@ class View_Setup(discord.ui.View):
         self.stop()
 
 
+@commands.guild_only()
 class utility(commands.Cog):
     """Simple commands for all.
     """
@@ -138,7 +139,6 @@ class utility(commands.Cog):
         name='ping',
         description="Replies with Pong! (and the bots ping)",
     )
-    @commands.guild_only()
     async def ping(self, interaction: discord.Interaction):
         await interaction.response.send_message(f"Pong! ({round(self.bot.latency * 1000, 4)} ms)", ephemeral=True)
 
@@ -146,7 +146,6 @@ class utility(commands.Cog):
         name='about',
         description="Returns the current bot information",
     )
-    @commands.guild_only()
     async def about(self, interaction: discord.Interaction) -> None:
         # Create embed
         embed = discord.Embed(title='Bot Info', description="Here is the most up-to-date information on the bot.", color=0x2374A5)
@@ -166,7 +165,6 @@ class utility(commands.Cog):
         description="Initializes the server and sets up the bot"
     )
     @commands.has_guild_permissions(administrator=True)
-    @app_commands.guild_only()
     async def utility_setup(self, interaction: discord.Interaction) -> None:
         # Create bot manager role
         try:
@@ -198,7 +196,6 @@ class utility(commands.Cog):
         name='flip',
         description="Flips a coin"
     )
-    @commands.guild_only()
     async def flip(self, interaction: discord.Interaction) -> None:
         # Choose heads or tails
         random.seed(round(time() * 1000))

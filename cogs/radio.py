@@ -1,8 +1,8 @@
-__author__ = 'Justin Panchula'
-__copyright__ = 'Copyright CEN'
-__credits__ = 'Justin Panchula'
-__version__ = '2.0.0'
-__status__ = 'Production'
+__author__ = "Justin Panchula"
+__copyright__ = "Copyright CEN"
+__credits__ = "Justin Panchula"
+__version__ = "2"
+__status__ = "Production"
 __doc__ = """Radio player for discord servers"""
 
 # Python imports
@@ -24,6 +24,7 @@ import logging
 logger = logging.getLogger('radio')
 
 
+@commands.guild_only()
 class radio(commands.GroupCog, name='radio'):
     """These are all the radio commands
     """
@@ -56,7 +57,6 @@ class radio(commands.GroupCog, name='radio'):
         name='play',
         description="Plays a song from YouTube, or adds one to the queue if one is already playing"
     )
-    @commands.guild_only()
     async def radio_play(self, interaction: discord.Interaction, search: str) -> None:
         # Defer the interaction
         await interaction.response.defer(ephemeral=False, thinking=True)
@@ -97,7 +97,6 @@ class radio(commands.GroupCog, name='radio'):
         name='leave',
         description="Has the bot leave the currently connected voice channel"
     )
-    @commands.guild_only()
     async def radio_leave(self, interaction: discord.Interaction) -> None:
         # Get player
         player = self.get_vc(interaction.guild)
@@ -119,7 +118,6 @@ class radio(commands.GroupCog, name='radio'):
         name='resume',
         description="Resumes the currently paused audio"
     )
-    @commands.guild_only()
     async def radio_resume(self, interaction: discord.Interaction) -> None:
         # Get the player
         player = self.get_vc(interaction.guild)
@@ -138,7 +136,6 @@ class radio(commands.GroupCog, name='radio'):
         name='pause',
         description="Pauses the currently playing audio"
     )
-    @commands.guild_only()
     async def radio_pause(self, interaction: discord.Interaction) -> None:
         # Get the player
         player = self.get_vc(interaction.guild)
@@ -157,7 +154,6 @@ class radio(commands.GroupCog, name='radio'):
         name='skip',
         description="Skips the currently playing track"
     )
-    @commands.guild_only()
     async def radio_skip(self, interaction: discord.Interaction) -> None:
         # Get the player
         player = self.get_vc(interaction.guild)
@@ -178,7 +174,6 @@ class radio(commands.GroupCog, name='radio'):
     @app_commands.describe(
         volume="The volume of the music player"
     )
-    @commands.guild_only()
     async def radio_volume(self, interaction: discord.Interaction, volume: int) -> None:
         # Keep volume between 0 and 100
         if volume > 100:
@@ -209,7 +204,6 @@ class radio(commands.GroupCog, name='radio'):
         name='queue',
         description="Displays the radio queue"
     )
-    @commands.guild_only()
     async def radio_queue(self, interaction: discord.Interaction) -> None:
         # Get the player
         player = self.get_vc(interaction.guild)

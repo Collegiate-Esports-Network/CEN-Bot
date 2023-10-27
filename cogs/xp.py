@@ -1,8 +1,8 @@
-__author__ = 'Justin Panchula'
-__copyright__ = 'Copyright CEN'
-__credits__ = 'Justin Panchula'
-__version__ = '2.0.0'
-__status__ = 'Production'
+__author__ = "Justin Panchula"
+__copyright__ = "Copyright CEN"
+__credits__ = "Justin Panchula"
+__version__ = "2"
+__status__ = "Production"
 __doc__ = """xp Functions"""
 
 # Python imports
@@ -21,6 +21,7 @@ from asyncpg.exceptions import PostgresError
 logger = logging.getLogger('xp')
 
 
+@commands.guild_only()
 class xp(commands.GroupCog, name='xp'):
     """ These are all functions related to the xp function of the bot.
     """
@@ -74,7 +75,6 @@ class xp(commands.GroupCog, name='xp'):
         name='xp',
         description="Returns your current xp."
     )
-    @commands.guild_only()
     async def xp_xp(self, interaction: discord.Interaction) -> None:
         # Get xp records
         try:
@@ -99,7 +99,6 @@ class xp(commands.GroupCog, name='xp'):
         name='leaderboard',
         description="Returns the top 20 xp leaders."
     )
-    @commands.guild_only()
     async def xp_leaderboard(self, interaction: discord.Interaction) -> None:
         # Get xp data
         try:

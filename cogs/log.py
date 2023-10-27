@@ -1,8 +1,8 @@
-__author__ = 'Justin Panchula'
-__copyright__ = 'Copyright CEN'
-__credits__ = 'Justin Panchula'
-__version__ = '2.0.0'
-__status__ = 'Production'
+__author__ = "Justin Panchula"
+__copyright__ = "Copyright CEN"
+__credits__ = "Justin Panchula"
+__version__ = "3"
+__status__ = "Production"
 __doc__ = """Logs activity in discord servers"""
 
 # Python imports
@@ -22,6 +22,7 @@ from asyncpg.exceptions import PostgresError
 logger = logging.getLogger('log')
 
 
+@commands.guild_only()
 class log(commands.GroupCog, name='log'):
     """These are all the logging functions.
     """
@@ -35,7 +36,6 @@ class log(commands.GroupCog, name='log'):
         description="Sets the channel server logs will be sent to."
     )
     @commands.has_role('bot manager')
-    @commands.guild_only()
     async def log_setlogchannel(self, interaction: discord.Interaction, channel: discord.TextChannel) -> None:
         try:
             async with self.bot.db_pool.acquire() as con:
@@ -55,7 +55,6 @@ class log(commands.GroupCog, name='log'):
         description="Sets the channel server reports will be sent to."
     )
     @commands.has_role('bot manager')
-    @commands.guild_only()
     async def log_setreportchannel(self, interaction: discord.Interaction, channel: discord.TextChannel) -> None:
         try:
             async with self.bot.db_pool.acquire() as con:
@@ -75,7 +74,6 @@ class log(commands.GroupCog, name='log'):
         description="Sets the level server logs will track."
     )
     @commands.has_role('bot manager')
-    @commands.guild_only()
     async def log_setlevel(self, interaction: discord.Interaction,
                            level: Literal['0: None', '1: Default (Reports Only)', '2: Message Edits', '3: All Messages', '4: All Activity']) -> None:
         # Convert data

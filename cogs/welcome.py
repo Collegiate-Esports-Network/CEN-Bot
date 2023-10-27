@@ -1,8 +1,8 @@
-__author__ = 'Justin Panchula'
-__copyright__ = 'Copyright CEN'
-__credits__ = 'Justin Panchula'
-__version__ = '3'
-__status__ = 'Production'
+__author__ = "Justin Panchula"
+__copyright__ = "Copyright CEN"
+__credits__ = "Justin Panchula"
+__version__ = "3"
+__status__ = "Production"
 __doc__ = """Welcome message functions"""
 
 # Discord imports
@@ -17,6 +17,7 @@ from asyncpg.exceptions import PostgresError
 logger = logging.getLogger('welcome')
 
 
+@commands.guild_only()
 class welcome(commands.GroupCog, name='welcome'):
     """These are the welcome message functions.
     """
@@ -29,7 +30,6 @@ class welcome(commands.GroupCog, name='welcome'):
         description="Sets the welcome channel."
     )
     @commands.has_role('bot manager')
-    @commands.guild_only()
     async def welcome_setchannel(self, interaction: discord.Interaction, channel: discord.TextChannel) -> None:
         try:
             async with self.bot.db_pool.acquire() as con:
@@ -51,7 +51,6 @@ class welcome(commands.GroupCog, name='welcome'):
         message="The welcome message. Use ``<new_member>`` to mention the member."
     )
     @commands.has_role('bot manager')
-    @commands.guild_only()
     async def welcome_setmessage(self, interaction: discord.Interaction, message: str) -> None:
         try:
             async with self.bot.db_pool.acquire() as con:
@@ -70,7 +69,6 @@ class welcome(commands.GroupCog, name='welcome'):
         description="Tests the welcome message."
     )
     @commands.has_role('bot manager')
-    @commands.guild_only()
     async def welcome_testmessage(self, interaction: discord.Interaction):
         # Get welcome message
         try:

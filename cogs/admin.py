@@ -21,6 +21,7 @@ from discord.ext.commands import ExtensionAlreadyLoaded, ExtensionNotLoaded, Ext
 logger = logging.getLogger('admin')
 
 
+@commands.is_owner()
 class admin(commands.GroupCog, name='admin'):
     """These are all the admin functions of the bot.
     """
