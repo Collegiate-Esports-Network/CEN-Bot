@@ -1,8 +1,8 @@
-__author__ = 'Justin Panchula'
-__copyright__ = 'Copyright CEN'
-__credits__ = 'Justin Panchula'
-__version__ = '2.0.0'
-__status__ = 'Production'
+__author__ = "Justin Panchula"
+__copyright__ = "Copyright CEN"
+__credits__ = "Justin Panchula"
+__version__ = "3"
+__status__ = "Production"
 __doc__ = """Logs activity in discord servers"""
 
 # Python imports
@@ -22,6 +22,7 @@ from asyncpg.exceptions import PostgresError
 logger = logging.getLogger('log')
 
 
+@commands.guild_only()
 class log(commands.GroupCog, name='log'):
     """These are all the logging functions.
     """
@@ -35,7 +36,6 @@ class log(commands.GroupCog, name='log'):
         description="Sets the channel server logs will be sent to."
     )
     @commands.has_role('bot manager')
-    @commands.guild_only()
     async def log_setlogchannel(self, interaction: discord.Interaction, channel: discord.TextChannel) -> None:
         try:
             async with self.bot.db_pool.acquire() as con:
@@ -55,7 +55,6 @@ class log(commands.GroupCog, name='log'):
         description="Sets the channel server reports will be sent to."
     )
     @commands.has_role('bot manager')
-    @commands.guild_only()
     async def log_setreportchannel(self, interaction: discord.Interaction, channel: discord.TextChannel) -> None:
         try:
             async with self.bot.db_pool.acquire() as con:
@@ -75,7 +74,6 @@ class log(commands.GroupCog, name='log'):
         description="Sets the level server logs will track."
     )
     @commands.has_role('bot manager')
-    @commands.guild_only()
     async def log_setlevel(self, interaction: discord.Interaction,
                            level: Literal['0: None', '1: Default (Reports Only)', '2: Message Edits', '3: All Messages', '4: All Activity']) -> None:
         # Convert data
@@ -213,3 +211,62 @@ class log(commands.GroupCog, name='log'):
 # Add to bot
 async def setup(bot: cbot) -> None:
     await bot.add_cog(log(bot))
+
+# # Context menu message reporting (Level 1 logging)
+# @bot.tree.context_menu(
+#     name='Report Message',
+# )
+# async def log_reportmessage(interaction: discord.Interaction, message: discord.Message) -> None:
+#     # Defer response
+#     await interaction.response.defer(ephemeral=True)
+
+#     # Get log channel
+#     try:
+#         async with bot.db_pool.acquire() as con:
+#             response = await con.fetch("SELECT report_channel FROM serverdata WHERE guild_id=$1", interaction.guild.id)
+#         channel = response[0]['report_channel']
+#     except PostgresError as e:
+#         logger.exception(e)
+#         return
+#     except AttributeError as e:
+#         logger.exception(e)
+#         return
+
+#     # Get log level
+#     try:
+#         async with bot.db_pool.acquire() as con:
+#             response = await con.fetch("SELECT log_level FROM serverdata WHERE guild_id=$1", interaction.guild.id)
+#         level = response[0]['log_level']
+#     except PostgresError as e:
+#         logger.exception(e)
+#         return
+#     except AttributeError as e:
+#         logger.exception(e)
+#         return
+
+#     # Check log level
+#     if level < 1:
+#         return
+
+#     # Reported message embed
+#     embed = discord.Embed(colour=discord.Colour.red())
+#     embed.set_author(name=message.author.name, icon_url=message.author.display_avatar)
+#     embed.add_field(name='Reported Message', value=f"A message sent by {message.author.mention} was reported in {message.channel.mention}", inline=False)
+
+#     # Ignore impossible message
+#     try:
+#         embed.add_field(name='Content', value=message.content, inline=False)
+#     except discord.errors.HTTPException as e:
+#         logger.exception(e)
+#         return
+#     except HTTPException as e:
+#         logger.exception(e)
+#         return
+#     else:
+#         embed.set_footer(text=f"{datetime.now().strftime('%d/%m/%y - %H:%M:%S')}")
+
+#     # Send to channel
+#     await bot.get_channel(channel).send(embed=embed)
+
+#     # Respond
+#     await interaction.followup.send("Message reported.")
