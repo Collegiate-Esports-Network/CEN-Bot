@@ -1,8 +1,8 @@
-__author__ = 'Chris Taylor'
-__copyright__ = 'Copyright CEN'
-__credits__ = 'Chris Taylor, Justin Panchula'
-__version__ = '1.0.0'
-__status__ = 'Production'
+__author__ = "Chris Taylor"
+__copyright__ = "Copyright CEN"
+__credits__ = "Chris Taylor, Justin Panchula"
+__version__ = "1"
+__status__ = "Production"
 __doc__ = """Starboard functions"""
 
 # Python imports
@@ -20,6 +20,7 @@ from asyncpg.exceptions import PostgresError
 logger = logging.getLogger('starboard')
 
 
+@commands.guild_only()
 class starboard(commands.GroupCog, name='starboard'):
     """These are the starboard functions.
     """
@@ -41,7 +42,6 @@ class starboard(commands.GroupCog, name='starboard'):
         description="Sets the Starboard channel."
     )
     @commands.has_role('bot manager')
-    @commands.guild_only()
     async def starboard_setchannel(self, interaction: discord.Interaction, channel: discord.TextChannel):
         try:
             async with self.bot.db_pool.acquire() as con:
@@ -61,7 +61,6 @@ class starboard(commands.GroupCog, name='starboard'):
         description="Sets the Starboard threshold"
     )
     @commands.has_role('bot manager')
-    @commands.guild_only()
     async def starboard_setthreshold(self, interaction: discord.Interaction, threshold: int):
         try:
             async with self.bot.db_pool.acquire() as con:

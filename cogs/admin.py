@@ -11,12 +11,17 @@ import discord
 from discord.ext import commands
 from discord import app_commands
 
+# Custom imports
+from helpers.forasync import forasync
+
 # Logging
 import logging
 from asyncpg import PostgresError
+from discord.ext.commands import ExtensionAlreadyLoaded, ExtensionNotLoaded, ExtensionError
 logger = logging.getLogger('admin')
 
 
+@commands.is_owner()
 class admin(commands.GroupCog, name='admin'):
     """These are all the admin functions of the bot.
     """
@@ -43,23 +48,24 @@ class admin(commands.GroupCog, name='admin'):
     )
     @commands.is_owner()
     async def admin_sync(self, interaction: discord.Interaction) -> None:
-        await interaction.response.defer()
+        await interaction.response.defer(ephemeral=False, thinking=True)
         await self.bot.tree.sync()
 
         # Sync the xp
-        for guild in self.bot.guilds:
+        for guild in self.bot.guilds:  # FIXME: Should be asynchronous
             try:
                 async with self.bot.db_pool.acquire() as con:
                     await con.execute(f"ALTER TABLE xp ADD COLUMN IF NOT EXISTS s_{guild.id} INT NOT NULL DEFAULT 0")
             except PostgresError as e:
                 logger.exception(e)
-                await interaction.response.send_message("There was an error syncing the xp table, please try again.", ephemeral=True)
+                await interaction.followup.send("There was an error syncing the xp table, please try again.")
+                return
 
         # Log
         logger.info("The bot was forcibly synced")
 
         # Send response
-        await interaction.response.send_message("The bot was forcibly synced.", ephemeral=False)
+        await interaction.followup.send("The bot was forcibly synced.")
 
     # load cogs
     @app_commands.command(
@@ -71,9 +77,14 @@ class admin(commands.GroupCog, name='admin'):
     )
     @commands.is_owner()
     async def admin_load(self, interaction: discord.Interaction, cog: str) -> None:
-        await self.bot.load_extension(f'cogs.{cog}')
-        logger.info(f"'{cog}' was loaded")
-        await interaction.response.send_message(f"'{cog}' was loaded.", ephemeral=True)
+        try:
+            await self.bot.load_extension(f'cogs.{cog}')
+        except ExtensionAlreadyLoaded as e:
+            logger.error(e)
+            await interaction.response.send_message(f"'{cog}' already loaded.", ephemeral=True)
+        else:
+            logger.info(f"'{cog}' was loaded")
+            await interaction.response.send_message(f"'{cog}' was loaded.", ephemeral=True)
 
     # Reload cogs
     @app_commands.command(
@@ -85,9 +96,14 @@ class admin(commands.GroupCog, name='admin'):
     )
     @commands.is_owner()
     async def admin_reload(self, interaction: discord.Interaction, cog: str) -> None:
-        await self.bot.reload_extension(f'cogs.{cog}')
-        logger.info(f"'{cog}' was reloaded")
-        await interaction.response.send_message(f"'{cog}' was reloaded.", ephemeral=True)
+        try:
+            await self.bot.reload_extension(f'cogs.{cog}')
+        except ExtensionError as e:
+            logger.error(e)
+            await interaction.response.send_message(f"'{cog}' was unable to be reloaded.", ephemeral=True)
+        else:
+            logger.info(f"'{cog}' was reloaded")
+            await interaction.response.send_message(f"'{cog}' was reloaded.", ephemeral=True)
 
     # Unload cogs
     @app_commands.command(
@@ -99,9 +115,14 @@ class admin(commands.GroupCog, name='admin'):
     )
     @commands.is_owner()
     async def admin_unload(self, interaction: discord.Interaction, cog: str) -> None:
-        await self.bot.unload_extension(f'cogs.{cog}')
-        logger.info(f"'{cog}' was unloaded")
-        await interaction.response.send_message(f"'{cog}' was unloaded", ephemeral=True)
+        try:
+            await self.bot.unload_extension(f'cogs.{cog}')
+        except ExtensionNotLoaded as e:
+            logger.error(e)
+            await interaction.response.send_message(f"'{cog}' cannot be unloaded as it was never loaded.", ephemeral=True)
+        else:
+            logger.info(f"'{cog}' was unloaded")
+            await interaction.response.send_message(f"'{cog}' was unloaded", ephemeral=True)
 
     # Make an annoucement to server owners
     @app_commands.command(
@@ -113,12 +134,14 @@ class admin(commands.GroupCog, name='admin'):
     )
     @commands.is_owner()
     async def admin_annouce(self, interaction: discord.Interaction, msg: str) -> None:
+        await interaction.response.defer(ephemeral=False)
         # For each guild, create DM with owner with the annoucement
-        for guild in self.bot.guilds:
-            channel = await guild.owner.create_dm()
-            await channel.send(f"{msg}\n\n-{interaction.user.name}")
+        async for guild in forasync(self.bot.guilds):
+            if not await self.bot.is_owner(guild.owner):
+                channel = await guild.owner.create_dm()
+                await channel.send(msg)
 
-        await interaction.response.send_message("Messages Sent", ephemeral=True)
+        await interaction.followup.send(f"Annoucement \"{msg}\" sent.")
 
 
 # Add to bot

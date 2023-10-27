@@ -1,23 +1,25 @@
-__author__ = 'Justin Panchula'
-__copyright__ = 'Copyright CEN'
-__credits__ = 'Justin Panchula'
-__version__ = '2.0.0'
-__status__ = 'Production'
+__author__ = "Justin Panchula"
+__copyright__ = "Copyright CEN"
+__credits__ = "Justin Panchula"
+__version__ = "3"
+__status__ = "Production"
 __doc__ = """Custom Bot class"""
 
 # Python imports
+from asyncio import sleep
 import os
-import asyncpg
-from datetime import datetime
 
 # Discord imports
 import discord
-from discord.ext import tasks
 from discord.ext.commands import Bot
+
+# Database imports
+import asyncpg
 
 # Logging
 import logging
-from asyncpg.exceptions import PostgresError
+from asyncpg.exceptions import ConnectionFailureError
+from discord.ext.commands import ExtensionError, ExtensionNotFound
 logger = logging.getLogger('CENBot')
 
 # Init intents
@@ -27,90 +29,53 @@ intents.members = True
 intents.message_content = True
 
 
-# Create custom bot subclass
 class cbot(Bot):
+    """Custom bot subclass, allowing for creation of paramters in setup
+
+    Args:
+        Bot (discord.ext.commands.Bot): Bot class from discord.ext.commands.Bot
+    """
     def __init__(self) -> None:
         super().__init__(
             intents=intents,
             activity=discord.Activity(type=discord.ActivityType.playing, name='big brother'),
-            description="The in-house developed CEN Bot",
-            command_prefix="$$"
+            description="Hello! I'm the CEN Bot, a customized bot built and maintained by the Collegiate Esports Network.",
+            command_prefix="$$",
+            owner_id=0
         )
-        self.version = '2.3.1'
-
-        # Define the PostgreSQL connection once
-        self.cnx_str = os.getenv('POSTGRESQL_CONN')
-        self.db_pool = None
+        self.version = '3.0.0'
 
     async def setup_hook(self) -> None:
-        # Announce connectiong
+        """Runs setup before the bot completes login
+        """
         logger.info(f"{self.user.display_name} is connecting...")
 
-        # Create DB Connection
-        try:
-            self.db_pool = await asyncpg.create_pool(self.cnx_str)
-        except:
-            logger.exception("Error connecting to database")
-        else:
-            logger.info("DB connection established")
+        # Create DB connection
+        while True:
+            try:
+                self.db_pool = await asyncpg.create_pool(os.getenv('POSTGRESQL_CONN'))
+            except ConnectionFailureError as e:
+                logger.exception("Error connecting to database, retrying in 60 seconds")
+                logger.error(e)
+                sleep(60)
+            else:
+                logger.info("DB connection established")
+                break
 
-        # Create extension lists
-        found_extensions = []
-        loaded_extensions = []
-        failed_extensions = []
-
-        # Scrape for extensions
+        # Load extensions from cogs folder
         for file in os.listdir('./cogs'):
             if file.endswith('.py'):
-                found_extensions.append(f'cogs.{file[:-3]}')
-
-        # Load extensions
-        for extension in found_extensions:
-            try:
-                await self.load_extension(extension)
-            except Exception as e:
-                failed_extensions.append(extension)
-                logger.warning(e)
-            else:
-                loaded_extensions.append(extension)
-
-        # Log extensions
-        logger.info(f"{loaded_extensions} loaded")
-        if len(failed_extensions) != 0:
-            logger.warning(f"{failed_extensions} not loaded")
+                try:
+                    await self.load_extension(f"cogs.{file[:-3]}")
+                except ExtensionNotFound as e:
+                    logger.warning(f"cog '{e.name}' not found")
+                except ExtensionError as e:
+                    logger.warning(f"cog {e.name} not loaded properly")
+                else:
+                    logger.info(f"cog '{file[:-3]}' loaded succesfully")
 
         # Force command sync
         await self.tree.sync()
 
-        # Start tasks
-        logger.info("Starting tasks")
-        self.timed_messages_send.start()
-
     async def on_ready(self) -> None:
         logger.info(f"{self.user.display_name} has logged in")
-
-    # Timed messages send loop
-    @tasks.loop(seconds=60)
-    async def timed_messages_send(self):
-        # Get current datetime
-        now = datetime.now()
-
-        # Fetch all messages that need to be sent
-        try:
-            async with self.db_pool.acquire() as con:
-                response = await con.fetch("SELECT * FROM timedmessages WHERE time_hour=$1 AND time_minute=$2 AND (dow=$3 OR dow=0)", now.hour, now.minute, now.date().isoweekday())
-        except PostgresError as e:
-            logger.exception(e)
-        except Exception as e:
-            logger.exception(e)
-        else:
-            # Send all messages
-            for record in response:
-                channel_id = record['channel_id']
-                content = record['content']
-
-                await self.get_channel(channel_id).send(content)
-
-    @timed_messages_send.before_loop
-    async def before_loop(self):
-        await self.wait_until_ready()
