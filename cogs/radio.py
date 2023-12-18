@@ -21,7 +21,7 @@ from discord import app_commands
 
 # Logging
 import logging
-logger = logging.getLogger('radio')
+log = logging.getLogger('CENBot.radio')
 
 
 @commands.guild_only()
@@ -48,9 +48,9 @@ class radio(commands.GroupCog, name='radio'):
         try:
             await wavelink.NodePool.connect(client=self.bot, nodes=[wavelink.Node(uri=os.getenv('LAVALINK_ADDRESS'), password=os.getenv('LAVALINK_PASS'), use_http=True)])
         except wavelink.WavelinkException as e:
-            logger.exception(e)
+            log.exception(e)
         else:
-            logger.info("Lavalink connection established")
+            log.info("Lavalink connection established")
 
     # Bot plays from YouTube
     @app_commands.command(
@@ -65,7 +65,7 @@ class radio(commands.GroupCog, name='radio'):
             try:
                 channel = interaction.user.voice.channel
             except AttributeError as e:
-                logger.exception(e)
+                log.exception(e)
                 await interaction.followup.send("Please join a voice channel first!")
                 return
             else:
@@ -76,7 +76,7 @@ class radio(commands.GroupCog, name='radio'):
             search = await wavelink.YouTubeTrack.search(search)
             track = search[0]
         except wavelink.WavelinkException as e:
-            logger.exception(e)
+            log.exception(e)
             await interaction.followup.send("There was an erorr getting that song, please try again.")
             return
 
@@ -105,7 +105,7 @@ class radio(commands.GroupCog, name='radio'):
             try:
                 await player.disconnect()
             except wavelink.WavelinkException as e:
-                logger.exception(e)
+                log.exception(e)
                 await interaction.response.send_message("There was an error disconnecting, please try again.", ephemeral=True)
                 return
 
@@ -126,7 +126,7 @@ class radio(commands.GroupCog, name='radio'):
             try:
                 await player.resume()
             except wavelink.WavelinkException as e:
-                logger.exception(e)
+                log.exception(e)
                 await interaction.response.send_message("There was an error resuming your track, please try again.", ephemeral=True)
                 return
             else:
@@ -144,7 +144,7 @@ class radio(commands.GroupCog, name='radio'):
             try:
                 await player.pause()
             except wavelink.WavelinkException as e:
-                logger.exception(e)
+                log.exception(e)
                 await interaction.response.send_message("There was an error pausing your track, please try again.", ephemeral=True)
                 return
             else:
@@ -193,7 +193,7 @@ class radio(commands.GroupCog, name='radio'):
         try:
             await player.set_volume(volume)
         except wavelink.WavelinkException as e:
-            logger.exception(e)
+            log.exception(e)
             await interaction.response.send_message("There was an error setting the volume, please try again.", ephemeral=True)
             return
         else:

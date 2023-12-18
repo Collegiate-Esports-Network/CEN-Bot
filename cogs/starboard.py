@@ -17,7 +17,7 @@ from discord import app_commands
 # Logging
 import logging
 from asyncpg.exceptions import PostgresError
-logger = logging.getLogger('starboard')
+log = logging.getLogger('CENBot.starboard')
 
 
 @commands.guild_only()
@@ -47,10 +47,10 @@ class starboard(commands.GroupCog, name='starboard'):
             async with self.bot.db_pool.acquire() as con:
                 await con.execute("UPDATE serverdata SET starboard_channel=$2 WHERE guild_id=$1", interaction.guild.id, channel.id)
         except PostgresError as e:
-            logger.exception(e)
+            log.exception(e)
             await interaction.response.send_message("There was an error updating your data, please try again.", ephemeral=True)
         except Exception as e:
-            logger.exception(e)
+            log.exception(e)
             await interaction.response.send_message("There was an error, please try again.", ephemeral=True)
         else:
             await interaction.response.send_message("Starboard channel set.", ephemeral=False)
@@ -66,10 +66,10 @@ class starboard(commands.GroupCog, name='starboard'):
             async with self.bot.db_pool.acquire() as con:
                 await con.execute("UPDATE serverdata SET starboard_threshold=$2 WHERE guild_id=$1", interaction.guild.id, threshold)
         except PostgresError as e:
-            logger.exception(e)
+            log.exception(e)
             await interaction.response.send_message("There was an error updating your data, please try again.", ephemeral=True)
         except Exception as e:
-            logger.exception(e)
+            log.exception(e)
             await interaction.response.send_message("There was an error, please try again.", ephemeral=True)
         else:
             await interaction.response.send_message("Starboard threshold set.", ephemeral=False)
@@ -94,12 +94,12 @@ class starboard(commands.GroupCog, name='starboard'):
                 response = await con.fetch("SELECT starboard_channel FROM serverdata WHERE guild_id=$1", guild.id)
                 channel = await self.bot.fetch_channel(response[0]['starboard_channel'])
         except PostgresError as e:
-            logger.exception(e)
+            log.exception(e)
             return
         except AttributeError as e:
-            logger.exception(e)
+            log.exception(e)
         except discord.DiscordException as e:
-            logger.exception(e)
+            log.exception(e)
 
         # Get starboard threshold
         try:
@@ -107,10 +107,10 @@ class starboard(commands.GroupCog, name='starboard'):
                 response = await con.fetch("SELECT starboard_threshold FROM serverdata WHERE guild_id=$1", guild.id)
                 threshold = response[0]['starboard_threshold']
         except PostgresError as e:
-            logger.exception(e)
+            log.exception(e)
             return
         except AttributeError as e:
-            logger.exception(e)
+            log.exception(e)
             return
 
         # Logic

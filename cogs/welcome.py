@@ -14,7 +14,7 @@ from discord import app_commands
 # Logging
 import logging
 from asyncpg.exceptions import PostgresError
-logger = logging.getLogger('welcome')
+log = logging.getLogger('CENBot.welcome')
 
 
 @commands.guild_only()
@@ -35,10 +35,10 @@ class welcome(commands.GroupCog, name='welcome'):
             async with self.bot.db_pool.acquire() as con:
                 await con.execute("UPDATE serverdata SET welcome_channel=$2 WHERE guild_id=$1", interaction.guild.id, channel.id)
         except PostgresError as e:
-            logger.exception(e)
+            log.exception(e)
             await interaction.response.send_message("There was an error updating your data, please try again.", ephemeral=True)
         except Exception as e:
-            logger.exception(e)
+            log.exception(e)
             await interaction.response.send_message("There was an error, please try again.", ephemeral=True)
         else:
             await interaction.response.send_message("Welcome channel set.", ephemeral=False)
@@ -56,10 +56,10 @@ class welcome(commands.GroupCog, name='welcome'):
             async with self.bot.db_pool.acquire() as con:
                 await con.execute("UPDATE serverdata SET welcome_message=$2 WHERE guild_id=$1", interaction.guild.id, message)
         except PostgresError as e:
-            logger.exception(e)
+            log.exception(e)
             await interaction.response.send_message("There was an error updating your data, please try again.", ephemeral=True)
         except Exception as e:
-            logger.exception(e)
+            log.exception(e)
             await interaction.response.send_message("There was an error, please try again.", ephemeral=True)
         else:
             await interaction.response.send_message("Welcome message set.", ephemeral=False)
@@ -77,7 +77,7 @@ class welcome(commands.GroupCog, name='welcome'):
             channel = response[0]['welcome_channel']
             message = response[0]['welcome_message']  # Always present as it's defaulted into database
         except PostgresError as e:
-            logger.exception(e)
+            log.exception(e)
             await interaction.response.send_message("There was an error fetching your data, please try again later.", ephemeral=True)
             return
 
@@ -85,7 +85,7 @@ class welcome(commands.GroupCog, name='welcome'):
         try:
             await self.bot.get_channel(channel).send(message.replace('<new_member>', interaction.user.mention))
         except AttributeError as e:
-            logger.exception(e)
+            log.exception(e)
             await interaction.response.send_message("There is no welcome channel set.", ephemeral=True)
             return
         finally:
@@ -102,14 +102,14 @@ class welcome(commands.GroupCog, name='welcome'):
             channel = response[0]['welcome_channel']
             message = response[0]['welcome_message']
         except PostgresError as e:
-            logger.exception(e)
+            log.exception(e)
             return
 
         # Send welcome message
         try:
             await self.bot.get_channel(channel).send(message.replace('<new_member>', member.mention))
         except AttributeError as e:
-            logger.exception(e)
+            log.exception(e)
 
 
 # Add to bot

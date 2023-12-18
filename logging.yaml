@@ -43,7 +43,18 @@ loggers:
     handlers: [bot, bot_console]
     level: DEBUG
     propogate: false
-  CENBot.cog:
-    handlers: [bot, bot_console]
+  CENBot.admin:
+    level: DEBUG
+    propogate: true
+  CENBot.easter:
+    level: DEBUG
+    propogate: true
+  CENBot.logging:
+    level: DEBUG
+    propogate: true
+  CENBot.radio:
+    level: DEBUG
+    propogate: true
+  CENBot.starboard:
     level: DEBUG
     propogate: true

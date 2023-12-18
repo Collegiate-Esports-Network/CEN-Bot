@@ -16,7 +16,7 @@ from discord.ext import commands
 
 # Logging
 import logging
-logger = logging.getLogger('easter')
+log = logging.getLogger('CENBot.easter')
 
 
 class easter(commands.Cog, name='easter'):

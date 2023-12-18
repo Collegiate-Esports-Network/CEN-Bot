@@ -18,7 +18,7 @@ from discord import app_commands
 # Logging
 import logging
 from asyncpg.exceptions import PostgresError
-logger = logging.getLogger('xp')
+log = logging.getLogger('CENBot.xp')
 
 
 @commands.guild_only()
@@ -52,14 +52,14 @@ class xp(commands.GroupCog, name='xp'):
                 record = await con.fetch(f"SELECT s_{ctx.guild.id} FROM xp WHERE user_id=$1", ctx.author.id)
             record = dict(record[0])
         except PostgresError as e:
-            logger.exception(e)
+            log.exception(e)
         except IndexError:
             # Add user to table
             try:
                 async with self.bot.db_pool.acquire() as con:
                     await con.execute("INSERT INTO xp (user_id) VALUES ($1)", ctx.author.id)
             except PostgresError as e:
-                logger.exception(e)
+                log.exception(e)
         else:
             old_exp = record[f's_{ctx.guild.id}']
             # Add change in xp
@@ -68,7 +68,7 @@ class xp(commands.GroupCog, name='xp'):
                 async with self.bot.db_pool.acquire() as con:
                     await con.execute(f"UPDATE xp SET s_{ctx.guild.id}=$1 WHERE user_id=$2", new_exp, ctx.author.id)
             except PostgresError as e:
-                logger.exception(e)
+                log.exception(e)
                 return
 
     @app_commands.command(
@@ -82,7 +82,7 @@ class xp(commands.GroupCog, name='xp'):
                 record = await con.fetch(f"SELECT s_{interaction.guild.id} FROM xp WHERE user_id=$1", interaction.user.id)
             record = dict(record[0])
         except PostgresError as e:
-            logger.exception(e)
+            log.exception(e)
             await interaction.response.send_message("There was an error fetching your data, please try again.", ephemeral=True)
             return
 
@@ -90,7 +90,7 @@ class xp(commands.GroupCog, name='xp'):
         try:
             exp = record[f's_{interaction.guild.id}']
         except KeyError as e:
-            logger.exception(e)
+            log.exception(e)
             await interaction.response.send_message("You haven't talked in this server yet.", ephemeral=True)
         else:
             await interaction.response.send_message(f"Your xp in this server is: {exp}.", ephemeral=True)
@@ -109,7 +109,7 @@ class xp(commands.GroupCog, name='xp'):
                 temp_records.append(dict(r)['row'])
             record = dict(temp_records)
         except PostgresError as e:
-            logger.exception(e)
+            log.exception(e)
             await interaction.response.send_message("There was an error fetching the leaderboard, please try again.", ephemeral=True)
             return
 
