@@ -19,7 +19,7 @@ from discord import app_commands
 
 # Logging
 import logging
-logger = logging.getLogger('utility')
+log = logging.getLogger('CENBot.utility')
 
 
 class View_Setup(discord.ui.View):
@@ -175,11 +175,11 @@ class utility(commands.Cog):
                 reason="Required role for bot interaction"
             )
         except discord.Forbidden as e:
-            logger.exception(e)
+            log.exception(e)
             await interaction.response.send_message("I do not have the necessary permissions to auto-setup.", ephemeral=True)
             return
         except discord.HTTPException as e:
-            logger.exception(e)
+            log.exception(e)
             await interaction.response.send_message("There was an error creating the role, please try again.", ephemeral=True)
             return
 

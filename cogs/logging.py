@@ -17,13 +17,13 @@ from discord.ext import commands
 from discord import app_commands
 
 # Logging
-import logging
+from logging import getLogger
 from asyncpg.exceptions import PostgresError
-logger = logging.getLogger('log')
+log = getLogger('CENBot.logging')
 
 
 @commands.guild_only()
-class log(commands.GroupCog, name='log'):
+class logging(commands.GroupCog, name='logging'):
     """These are all the logging functions.
     """
     def __init__(self, bot: cbot):
@@ -41,10 +41,10 @@ class log(commands.GroupCog, name='log'):
             async with self.bot.db_pool.acquire() as con:
                 await con.execute("UPDATE serverdata SET log_channel=$2 WHERE guild_id=$1", interaction.guild.id, channel.id)
         except PostgresError as e:
-            logger.exception(e)
+            log.exception(e)
             await interaction.response.send_message("There was an error updating your data, please try again.", ephemeral=True)
         except Exception as e:
-            logger.exception(e)
+            log.exception(e)
             await interaction.response.send_message("There was an error, please try again.", ephemeral=True)
         else:
             await interaction.response.send_message("Log channel set.", ephemeral=False)
@@ -60,10 +60,10 @@ class log(commands.GroupCog, name='log'):
             async with self.bot.db_pool.acquire() as con:
                 await con.execute("UPDATE serverdata SET report_channel=$2 WHERE guild_id=$1", interaction.guild.id, channel.id)
         except PostgresError as e:
-            logger.exception(e)
+            log.exception(e)
             await interaction.response.send_message("There was an error updating your data, please try again.", ephemeral=True)
         except Exception as e:
-            logger.exception(e)
+            log.exception(e)
             await interaction.response.send_message("There was an error, please try again.", ephemeral=True)
         else:
             await interaction.response.send_message("Log channel set.", ephemeral=False)
@@ -82,10 +82,10 @@ class log(commands.GroupCog, name='log'):
             async with self.bot.db_pool.acquire() as con:
                 await con.execute("UPDATE serverdata SET log_level=$2 WHERE guild_id=$1", interaction.guild.id, level)
         except PostgresError as e:
-            logger.exception(e)
+            log.exception(e)
             await interaction.response.send_message("There was an error updating your data, please try again.", ephemeral=True)
         except Exception as e:
-            logger.exception(e)
+            log.exception(e)
             await interaction.response.send_message("There was an error, please try again.", ephemeral=True)
         else:
             await interaction.response.send_message("Log level set.", ephemeral=False)
@@ -107,10 +107,10 @@ class log(commands.GroupCog, name='log'):
                 response = await con.fetch("SELECT log_channel FROM serverdata WHERE guild_id=$1", ctx_bef.guild.id)
             channel = response[0]['log_channel']
         except PostgresError as e:
-            logger.exception(e)
+            log.exception(e)
             return
         except AttributeError as e:
-            logger.exception(e)
+            log.exception(e)
             return
 
         # Get log level
@@ -119,10 +119,10 @@ class log(commands.GroupCog, name='log'):
                 response = await con.fetch("SELECT log_level FROM serverdata WHERE guild_id=$1", ctx_bef.guild.id)
             level = response[0]['log_level']
         except PostgresError as e:
-            logger.exception(e)
+            log.exception(e)
             return
         except AttributeError as e:
-            logger.exception(e)
+            log.exception(e)
             return
 
         # Check log level
@@ -138,10 +138,10 @@ class log(commands.GroupCog, name='log'):
         try:
             embed.add_field(name='Before', value=ctx_bef.content, inline=False)
         except discord.errors.HTTPException as e:
-            logger.exception(e)
+            log.exception(e)
             return
         except HTTPException as e:
-            logger.exception(e)
+            log.exception(e)
             return
         else:
             embed.add_field(name='After', value=ctx_aft.content, inline=False)
@@ -167,10 +167,10 @@ class log(commands.GroupCog, name='log'):
                 response = await con.fetch("SELECT log_channel FROM serverdata WHERE guild_id=$1", ctx.guild.id)
             channel = response[0]['log_channel']
         except PostgresError as e:
-            logger.exception(e)
+            log.exception(e)
             return
         except AttributeError as e:
-            logger.exception(e)
+            log.exception(e)
             return
 
         # Get log level
@@ -179,10 +179,10 @@ class log(commands.GroupCog, name='log'):
                 response = await con.fetch("SELECT log_level FROM serverdata WHERE guild_id=$1", ctx.guild.id)
             level = response[0]['log_level']
         except PostgresError as e:
-            logger.exception(e)
+            log.exception(e)
             return
         except AttributeError as e:
-            logger.exception(e)
+            log.exception(e)
             level = 0
 
         # Check log level
@@ -197,10 +197,10 @@ class log(commands.GroupCog, name='log'):
         try:
             embed.add_field(name='Content', value=ctx.content)
         except discord.errors.HTTPException as e:
-            logger.exception(e)
+            log.exception(e)
             return
         except HTTPException as e:
-            logger.exception(e)
+            log.exception(e)
             return
         embed.set_footer(text=f'{datetime.now().strftime("%d/%m/%y - %H:%M:%S")}')
 
@@ -210,7 +210,7 @@ class log(commands.GroupCog, name='log'):
 
 # Add to bot
 async def setup(bot: cbot) -> None:
-    await bot.add_cog(log(bot))
+    await bot.add_cog(logging(bot))
 
 # # Context menu message reporting (Level 1 logging)
 # @bot.tree.context_menu(
@@ -226,10 +226,10 @@ async def setup(bot: cbot) -> None:
 #             response = await con.fetch("SELECT report_channel FROM serverdata WHERE guild_id=$1", interaction.guild.id)
 #         channel = response[0]['report_channel']
 #     except PostgresError as e:
-#         logger.exception(e)
+#         log.exception(e)
 #         return
 #     except AttributeError as e:
-#         logger.exception(e)
+#         log.exception(e)
 #         return
 
 #     # Get log level
@@ -238,10 +238,10 @@ async def setup(bot: cbot) -> None:
 #             response = await con.fetch("SELECT log_level FROM serverdata WHERE guild_id=$1", interaction.guild.id)
 #         level = response[0]['log_level']
 #     except PostgresError as e:
-#         logger.exception(e)
+#         log.exception(e)
 #         return
 #     except AttributeError as e:
-#         logger.exception(e)
+#         log.exception(e)
 #         return
 
 #     # Check log level
@@ -257,10 +257,10 @@ async def setup(bot: cbot) -> None:
 #     try:
 #         embed.add_field(name='Content', value=message.content, inline=False)
 #     except discord.errors.HTTPException as e:
-#         logger.exception(e)
+#         log.exception(e)
 #         return
 #     except HTTPException as e:
-#         logger.exception(e)
+#         log.exception(e)
 #         return
 #     else:
 #         embed.set_footer(text=f"{datetime.now().strftime('%d/%m/%y - %H:%M:%S')}")
