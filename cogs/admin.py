@@ -107,7 +107,7 @@ class admin(commands.GroupCog, name='admin'):
     # Make an annoucement to server owners
     @commands.command(
         name='announce',
-        description="Annouces something to server owners"
+        description="Annouces something to server owners."
     )
     @commands.is_owner()
     @commands.dm_only()

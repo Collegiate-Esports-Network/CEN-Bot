@@ -1,11 +1,11 @@
 ---
 version: 1
-formatters: 
-  default: 
-    format: '%(asctime)s | %(name)-8s: %(levelname)-8s %(message)s'
-    datefmt: '%Y-%m-%d %H:%M:%S'
+formatters:
   client:
-    format: '%(asctime)s | discord : %(levelname)-8s %(message)s'
+    format: '%(asctime)s | %(name)-16s : %(levelname)-8s %(message)s'
+    datefmt: '%Y-%m-%d %H:%M:%S'
+  default: 
+    format: '%(asctime)s | %(name)-16s: %(levelname)-8s %(message)s'
     datefmt: '%Y-%m-%d %H:%M:%S'
 handlers: 
   bot: 
@@ -19,7 +19,7 @@ handlers:
   bot_console:
     class: logging.StreamHandler
     formatter: default
-    level: DEBUG
+    level: INFO
     stream: ext://sys.stdout
   client:
     class: logging.handlers.TimedRotatingFileHandler
@@ -32,7 +32,7 @@ handlers:
   client_console:
     class: logging.StreamHandler
     formatter: client
-    level: DEBUG
+    level: INFO
     stream: ext://sys.stdout
 loggers:
   discord:
@@ -53,6 +53,9 @@ loggers:
     level: DEBUG
     propogate: true
   CENBot.radio:
+    level: DEBUG
+    propogate: true
+  CENBot.socials:
     level: DEBUG
     propogate: true
   CENBot.starboard:
