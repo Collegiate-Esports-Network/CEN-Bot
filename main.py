@@ -35,10 +35,10 @@ bot = cbot()
 
 @bot.event
 async def on_guild_join(guild: discord.Guild) -> None:
-    """When the bot joins a guild, add the necessary db columns
+    """When the bot joins a guild, add the necessary db columns.
 
     Args:
-        guild (discord.Guild): The guild joined
+        guild (discord.Guild): The guild joined.
     """
     try:
         async with bot.db_pool.acquire() as con:
@@ -52,10 +52,10 @@ async def on_guild_join(guild: discord.Guild) -> None:
 
 @bot.event
 async def on_guild_remove(guild: discord.Guild):
-    """Remove server data when the bot is removed from the server
+    """Remove server data when the bot is removed from the server.
 
     Args:
-        guild (discord.Guild): The guild left
+        guild (discord.Guild): The guild left.
     """
     try:
         async with bot.db_pool.acquire() as con:
@@ -69,10 +69,10 @@ async def on_guild_remove(guild: discord.Guild):
 
 @bot.event
 async def on_thread_create(thread: discord.Thread):
-    """On thread create, join
+    """On thread create, join.
 
     Args:
-        thread (discord.Thread): The thread created
+        thread (discord.Thread): The thread created.
     """
     await thread.join()
 
