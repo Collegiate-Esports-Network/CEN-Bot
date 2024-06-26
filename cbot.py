@@ -6,7 +6,6 @@ __status__ = "Production"
 __doc__ = """Custom Bot class"""
 
 # Python imports
-from asyncio import sleep
 import os
 
 # Discord imports
@@ -30,10 +29,10 @@ intents.message_content = True
 
 
 class cbot(Bot):
-    """Custom bot subclass, allowing for creation of paramters in setup
+    """Custom bot subclass, allowing for creation of paramters in setup.
 
     Args:
-        Bot (discord.ext.commands.Bot): Bot class from discord.ext.commands.Bot
+        Bot (discord.ext.commands.Bot): Bot class from discord.ext.commands.Bot.
     """
     def __init__(self) -> None:
         super().__init__(
@@ -69,10 +68,10 @@ class cbot(Bot):
             if file.endswith('.py'):
                 try:
                     await self.load_extension(f"cogs.{file[:-3]}")
-                except ExtensionNotFound as e:
-                    log.warning(f"cog '{e.name}' not found")
-                except ExtensionError as e:
-                    log.warning(f"cog {e.name} not loaded properly")
+                except ExtensionNotFound:
+                    log.warning(f"cog '{file[:-3]}' not found")
+                except ExtensionError:
+                    log.warning(f"cog '{file[:-3]}' not loaded properly")
                 else:
                     log.info(f"cog '{file[:-3]}' loaded succesfully")
 

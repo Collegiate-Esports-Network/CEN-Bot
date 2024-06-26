@@ -31,8 +31,12 @@ class xp(commands.GroupCog, name='xp'):
 
     @commands.Cog.listener()
     async def on_message(self, ctx: discord.Message) -> None:
-        # Ignore messages from test server
+        # Ignore messages from self
         if self.bot.user == ctx.author:
+            return
+
+        # Ignore DM messages
+        if ctx.channel.type == discord.ChannelType.private:
             return
 
         # Generate random number between 1 and 100 and assign xp
@@ -104,10 +108,7 @@ class xp(commands.GroupCog, name='xp'):
         try:
             async with self.bot.db_pool.acquire() as con:
                 record = await con.fetch(f"SELECT (user_id, s_{interaction.guild.id}) FROM xp")
-            temp_records = []
-            for r in record:
-                temp_records.append(dict(r)['row'])
-            record = dict(temp_records)
+            record = dict([dict(r)['row'] for r in record])
         except PostgresError as e:
             log.exception(e)
             await interaction.response.send_message("There was an error fetching the leaderboard, please try again.", ephemeral=True)
