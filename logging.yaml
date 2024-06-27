@@ -52,12 +52,18 @@ loggers:
   CENBot.logging:
     level: DEBUG
     propogate: true
-  CENBot.radio:
+  CENBot.twitch:
     level: DEBUG
     propogate: true
-  CENBot.socials:
+  CENBot.utility:
     level: DEBUG
     propogate: true
-  CENBot.starboard:
+  CENBot.welcome:
+    level: DEBUG
+    propogate: true
+  CENBot.xp:
+    level: DEBUG
+    propogate: true
+  CENBot.youtube:
     level: DEBUG
     propogate: true
