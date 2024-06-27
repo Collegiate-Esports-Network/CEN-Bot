@@ -21,7 +21,7 @@ from asyncpg.exceptions import PostgresError
 log = logging.getLogger('CENBot.xp')
 
 
-@commands.guild_only()
+@app_commands.guild_only()
 class xp(commands.GroupCog, name='xp'):
     """ These are all functions related to the xp function of the bot.
     """

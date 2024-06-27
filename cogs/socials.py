@@ -25,7 +25,7 @@ from asyncpg.exceptions import PostgresError
 log = logging.getLogger('CENBot.socials')
 
 
-@commands.guild_only()
+@app_commands.guild_only()
 class socials(commands.GroupCog, name='socials'):
     """These are all the social media function.
     """
@@ -58,9 +58,9 @@ class socials(commands.GroupCog, name='socials'):
         else:
             await interaction.response.send_message("News channel set.", ephemeral=False)
 
-    # Add YoutTube channel
+    # Add YouTube channel
     @app_commands.command(
-        name="addyoutubechannel",
+        name="youtube_addchannel",
         description="Adds a YouTube channel to pull data from."
     )
     @commands.has_role('bot manager')
@@ -111,11 +111,11 @@ class socials(commands.GroupCog, name='socials'):
 
     # Remove YouTube channel
     @app_commands.command(
-        name="removeyoutubechannel",
+        name="youtube_removechannel",
         description="Removes a YouTube channel."
     )
     @commands.has_role('bot manager')
-    async def socials_removeyoutubechannels(self, interaction: discord.Interaction, channel_link: str):
+    async def socials_removeyoutubechannel(self, interaction: discord.Interaction, channel_link: str):
         try:
             async with self.bot.db_pool.acquire() as con:
                 await con.execute("UPDATE serverdata SET youtube_channels=ARRAY_REMOVE(youtube_channels, $2) WHERE guild_id=$1", interaction.guild.id, channel_link)
@@ -187,6 +187,7 @@ class socials(commands.GroupCog, name='socials'):
                                 video_id = content['items'][0]['snippet']['resourceId']['videoId']
                             else:
                                 log.debug(f"Query {resp.url} returned {resp.status}")
+                                continue
                 except aiohttp.ClientError as e:
                     log.error(e)
                     return
@@ -211,6 +212,12 @@ class socials(commands.GroupCog, name='socials'):
                     except PostgresError as e:
                         log.exception(e)
                         continue
+                    except UnboundLocalError as e:
+                        log.exception(e)
+                        continue
+
+                    # Log
+                    log.debug(f"New video found: ID={video_id}")
 
                     # Send new upload
                     if channel is not None:

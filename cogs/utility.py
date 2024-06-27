@@ -127,7 +127,7 @@ class View_Setup(discord.ui.View):
         self.stop()
 
 
-@commands.guild_only()
+@app_commands.guild_only()
 class utility(commands.Cog):
     """Simple commands for all.
     """
