@@ -2,7 +2,7 @@
 version: 1
 formatters:
   client:
-    format: '%(asctime)s | %(name)-16s : %(levelname)-8s %(message)s'
+    format: '%(asctime)s | discord         : %(levelname)-8s %(message)s'
     datefmt: '%Y-%m-%d %H:%M:%S'
   default: 
     format: '%(asctime)s | %(name)-16s: %(levelname)-8s %(message)s'

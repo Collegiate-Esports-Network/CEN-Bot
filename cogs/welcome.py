@@ -17,7 +17,7 @@ from asyncpg.exceptions import PostgresError
 log = logging.getLogger('CENBot.welcome')
 
 
-@commands.guild_only()
+@app_commands.guild_only()
 class welcome(commands.GroupCog, name='welcome'):
     """These are the welcome message functions.
     """

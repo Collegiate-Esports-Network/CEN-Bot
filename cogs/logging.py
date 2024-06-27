@@ -22,7 +22,7 @@ from asyncpg.exceptions import PostgresError
 log = getLogger('CENBot.logging')
 
 
-@commands.guild_only()
+@app_commands.guild_only()
 class logging(commands.GroupCog, name='logging'):
     """These are all the logging functions.
     """
