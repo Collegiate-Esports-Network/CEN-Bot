@@ -42,7 +42,7 @@ class cbot(Bot):
             command_prefix="$$",
             owner_id=0
         )
-        self.version = '3.0.0'
+        self.version = '3.2.0'
 
     async def setup_hook(self) -> None:
         """Runs setup before the bot completes login

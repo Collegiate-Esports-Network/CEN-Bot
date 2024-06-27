@@ -35,9 +35,10 @@ class admin(commands.GroupCog, name='admin'):
     @commands.is_owner()
     @commands.dm_only()
     async def admin_sync(self, ctx: commands.Context) -> None:
+        # Sync commands
         await self.bot.tree.sync()
 
-        # Sync the xp
+        # Sync the xp table
         async for guild in forasync(self.bot.guilds):
             try:
                 async with self.bot.db_pool.acquire() as con:
