@@ -105,10 +105,10 @@ class admin(commands.GroupCog, name='admin'):
             log.info(f"'{cog}' was unloaded")
             await ctx.reply(f"'{cog}' was unloaded")
 
-    # Make an annoucement to server owners
+    # Make an annoucement to guild owners
     @commands.command(
         name='announce',
-        description="Annouces something to server owners."
+        description="Annouces something to guild owners."
     )
     @commands.is_owner()
     @commands.dm_only()

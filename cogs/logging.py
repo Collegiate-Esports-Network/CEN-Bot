@@ -3,7 +3,7 @@ __copyright__ = "Copyright CEN"
 __credits__ = "Justin Panchula"
 __version__ = "3"
 __status__ = "Production"
-__doc__ = """Logs activity in discord servers"""
+__doc__ = """Logs activity in discord guilds"""
 
 # Python imports
 from datetime import datetime
@@ -33,13 +33,13 @@ class logging(commands.GroupCog, name='logging'):
     # Set log channel
     @app_commands.command(
         name='setlogchannel',
-        description="Sets the channel server logs will be sent to."
+        description="Sets the channel guild logs will be sent to."
     )
     @commands.has_role('bot manager')
     async def log_setlogchannel(self, interaction: discord.Interaction, channel: discord.TextChannel) -> None:
         try:
             async with self.bot.db_pool.acquire() as con:
-                await con.execute("UPDATE serverdata SET log_channel=$2 WHERE guild_id=$1", interaction.guild.id, channel.id)
+                await con.execute("UPDATE guild_data SET log_channel=$2 WHERE guild_id=$1", interaction.guild.id, channel.id)
         except PostgresError as e:
             log.exception(e)
             await interaction.response.send_message("There was an error updating your data, please try again.", ephemeral=True)
@@ -52,13 +52,13 @@ class logging(commands.GroupCog, name='logging'):
     # Set report channel
     @app_commands.command(
         name='setreportchannel',
-        description="Sets the channel server reports will be sent to."
+        description="Sets the channel guild reports will be sent to."
     )
     @commands.has_role('bot manager')
     async def log_setreportchannel(self, interaction: discord.Interaction, channel: discord.TextChannel) -> None:
         try:
             async with self.bot.db_pool.acquire() as con:
-                await con.execute("UPDATE serverdata SET report_channel=$2 WHERE guild_id=$1", interaction.guild.id, channel.id)
+                await con.execute("UPDATE guild_data SET report_channel=$2 WHERE guild_id=$1", interaction.guild.id, channel.id)
         except PostgresError as e:
             log.exception(e)
             await interaction.response.send_message("There was an error updating your data, please try again.", ephemeral=True)
@@ -71,7 +71,7 @@ class logging(commands.GroupCog, name='logging'):
     # Set log level
     @app_commands.command(
         name='setlevel',
-        description="Sets the level server logs will track."
+        description="Sets the level guild logs will track."
     )
     @commands.has_role('bot manager')
     async def log_setlevel(self, interaction: discord.Interaction,
@@ -80,7 +80,7 @@ class logging(commands.GroupCog, name='logging'):
         level = int(level[0:1])
         try:
             async with self.bot.db_pool.acquire() as con:
-                await con.execute("UPDATE serverdata SET log_level=$2 WHERE guild_id=$1", interaction.guild.id, level)
+                await con.execute("UPDATE guild_data SET log_level=$2 WHERE guild_id=$1", interaction.guild.id, level)
         except PostgresError as e:
             log.exception(e)
             await interaction.response.send_message("There was an error updating your data, please try again.", ephemeral=True)
@@ -104,7 +104,7 @@ class logging(commands.GroupCog, name='logging'):
         # Get log channel
         try:
             async with self.bot.db_pool.acquire() as con:
-                response = await con.fetch("SELECT log_channel FROM serverdata WHERE guild_id=$1", ctx_bef.guild.id)
+                response = await con.fetch("SELECT log_channel FROM guild_data WHERE guild_id=$1", ctx_bef.guild.id)
             channel = response[0]['log_channel']
         except PostgresError as e:
             log.exception(e)
@@ -116,7 +116,7 @@ class logging(commands.GroupCog, name='logging'):
         # Get log level
         try:
             async with self.bot.db_pool.acquire() as con:
-                response = await con.fetch("SELECT log_level FROM serverdata WHERE guild_id=$1", ctx_bef.guild.id)
+                response = await con.fetch("SELECT log_level FROM guild_data WHERE guild_id=$1", ctx_bef.guild.id)
             level = response[0]['log_level']
         except PostgresError as e:
             log.exception(e)
@@ -164,7 +164,7 @@ class logging(commands.GroupCog, name='logging'):
         # Get log channel
         try:
             async with self.bot.db_pool.acquire() as con:
-                response = await con.fetch("SELECT log_channel FROM serverdata WHERE guild_id=$1", ctx.guild.id)
+                response = await con.fetch("SELECT log_channel FROM guild_data WHERE guild_id=$1", ctx.guild.id)
             channel = response[0]['log_channel']
         except PostgresError as e:
             log.exception(e)
@@ -176,7 +176,7 @@ class logging(commands.GroupCog, name='logging'):
         # Get log level
         try:
             async with self.bot.db_pool.acquire() as con:
-                response = await con.fetch("SELECT log_level FROM serverdata WHERE guild_id=$1", ctx.guild.id)
+                response = await con.fetch("SELECT log_level FROM guild_data WHERE guild_id=$1", ctx.guild.id)
             level = response[0]['log_level']
         except PostgresError as e:
             log.exception(e)
@@ -223,7 +223,7 @@ async def setup(bot: cbot) -> None:
 #     # Get log channel
 #     try:
 #         async with bot.db_pool.acquire() as con:
-#             response = await con.fetch("SELECT report_channel FROM serverdata WHERE guild_id=$1", interaction.guild.id)
+#             response = await con.fetch("SELECT report_channel FROM guild_data WHERE guild_id=$1", interaction.guild.id)
 #         channel = response[0]['report_channel']
 #     except PostgresError as e:
 #         log.exception(e)
@@ -235,7 +235,7 @@ async def setup(bot: cbot) -> None:
 #     # Get log level
 #     try:
 #         async with bot.db_pool.acquire() as con:
-#             response = await con.fetch("SELECT log_level FROM serverdata WHERE guild_id=$1", interaction.guild.id)
+#             response = await con.fetch("SELECT log_level FROM guild_data WHERE guild_id=$1", interaction.guild.id)
 #         level = response[0]['log_level']
 #     except PostgresError as e:
 #         log.exception(e)
