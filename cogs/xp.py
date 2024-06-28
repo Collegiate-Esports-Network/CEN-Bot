@@ -95,9 +95,9 @@ class xp(commands.GroupCog, name='xp'):
             exp = record[f's_{interaction.guild.id}']
         except KeyError as e:
             log.exception(e)
-            await interaction.response.send_message("You haven't talked in this server yet.", ephemeral=True)
+            await interaction.response.send_message("You haven't talked in this guild yet.", ephemeral=True)
         else:
-            await interaction.response.send_message(f"Your xp in this server is: {exp}.", ephemeral=True)
+            await interaction.response.send_message(f"Your xp in this guild is: {exp}.", ephemeral=True)
 
     @app_commands.command(
         name='leaderboard',

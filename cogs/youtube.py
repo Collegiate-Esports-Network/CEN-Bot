@@ -48,7 +48,7 @@ class youtube(commands.GroupCog, name='youtube'):
     async def youtube_setnewschannel(self, interaction: discord.Interaction, channel: discord.TextChannel) -> None:
         try:
             async with self.bot.db_pool.acquire() as con:
-                await con.execute("UPDATE serverdata SET news_channel=$2 WHERE guild_id=$1", interaction.guild.id, channel.id)
+                await con.execute("UPDATE guild_data SET youtube_news_channel=$2 WHERE guild_id=$1", interaction.guild.id, channel.id)
         except PostgresError as e:
             log.exception(e)
             await interaction.response.send_message("There was an error updating your data, please try again.", ephemeral=True)
@@ -111,11 +111,11 @@ class youtube(commands.GroupCog, name='youtube'):
             except aiohttp.ClientError as e:
                 log.error(e)
 
-            # Add channel and server
+            # Add channel and guild
             try:
                 async with self.bot.db_pool.acquire() as con:
                     await con.execute("INSERT INTO youtube_channels (channel_link, channel_id, upload_playlist_id) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING", channel_link, channel_id, upload_playlist_id)
-                    await con.execute("UPDATE youtube_channels SET guild_ids=ARRAY_ADD(server, $1) where channel_link=$2", interaction.guild.id, channel_link)
+                    await con.execute("UPDATE youtube_channels SET guild_ids=ARRAY_ADD(guilds_ids, $1) where channel_link=$2", interaction.guild.id, channel_link)
             except PostgresError as e:
                 log.exception(e)
                 await interaction.response.send_message("There was an error updating your data, please try again.", ephemeral=True)
@@ -127,7 +127,8 @@ class youtube(commands.GroupCog, name='youtube'):
         else:
             # Add guild
             try:
-                await con.execute("UPDATE youtube_channels SET guild_ids=ARRAY_ADD(server, $1) where channel_link=$2", interaction.guild.id, channel_link)
+                async with self.bot.db_pool.acquire() as con:
+                    await con.execute("UPDATE youtube_channels SET guild_ids=ARRAY_ADD(guilds_ids, $1) where channel_link=$2", interaction.guild.id, channel_link)
             except PostgresError as e:
                 log.exception(e)
                 await interaction.response.send_message("There was an error updating your data, please try again.", ephemeral=True)
@@ -237,12 +238,12 @@ class youtube(commands.GroupCog, name='youtube'):
                     # log
                     log.debug(f"New video found: ID={video_id}")
 
-                    # For each server listed, send new upload alert
+                    # For each guild listed, send new upload alert
                     async for guild_id in forasync(rec['guild_ids']):
                         # Get YouTube news channel
                         try:
                             async with self.bot.db_pool.acquire() as con:
-                                record = await con.fetch("SELECT youtube_news_channel FROM serverdata WHERE guild_id=$1", guild_id)
+                                record = await con.fetch("SELECT youtube_news_channel FROM guild_data WHERE guild_id=$1", guild_id)
                             channel_id = record[0]['youtube_news_channel']
                         except PostgresError as e:
                             log.exception(e)
