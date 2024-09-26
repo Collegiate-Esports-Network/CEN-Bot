@@ -1,7 +1,7 @@
 __author__ = "Justin Panchula"
 __copyright__ = "Copyright CEN"
 __credits__ = "Justin Panchula"
-__version__ = "3"
+__version__ = "3.0.0"
 __status__ = "Production"
 __doc__ = """Utility Functions"""
 
