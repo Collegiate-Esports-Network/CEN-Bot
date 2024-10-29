@@ -49,6 +49,9 @@ loggers:
   CENBot.easter:
     level: DEBUG
     propogate: true
+  CENBot.functional:
+    level: DEBUG
+    propogate: true
   CENBot.logging:
     level: DEBUG
     propogate: true

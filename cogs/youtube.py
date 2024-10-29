@@ -39,10 +39,10 @@ class youtube(commands.GroupCog, name='youtube'):
     def cog_unload(self):
         self.check_youtube.stop()
 
-    # Set news channel
+    # Set YouTube annoucement channel
     @app_commands.command(
         name='setnewschannel',
-        description="Sets the channel social news will be sent to."
+        description="Sets the channel YouTube annoucements will be sent to."
     )
     @commands.has_role('bot manager')
     async def youtube_setnewschannel(self, interaction: discord.Interaction, channel: discord.TextChannel) -> None:
@@ -56,7 +56,7 @@ class youtube(commands.GroupCog, name='youtube'):
             log.exception(e)
             await interaction.response.send_message("There was an error, please try again.", ephemeral=True)
         else:
-            await interaction.response.send_message("News channel set.", ephemeral=False)
+            await interaction.response.send_message("YouTube announcement channel set.", ephemeral=False)
 
     # Add YouTube channel
     @app_commands.command(

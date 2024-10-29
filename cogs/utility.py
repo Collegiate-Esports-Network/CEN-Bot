@@ -1,15 +1,16 @@
 __author__ = "Justin Panchula"
 __copyright__ = "Copyright CEN"
 __credits__ = "Justin Panchula"
-__version__ = "3"
+__version__ = "3.0.0"
 __status__ = "Production"
 __doc__ = """Utility Functions"""
 
 # Python imports
 import sys
-from time import time
 import random
 import asyncpg
+from datetime import datetime
+import pytz
 
 # Discord imports
 from cbot import cbot
@@ -198,13 +199,23 @@ class utility(commands.Cog):
     )
     async def flip(self, interaction: discord.Interaction) -> None:
         # Choose heads or tails
-        random.seed(round(time() * 1000))
+        random.seed(round(discord.utils.utcnow() * 1000))
         heads = random.randint(0, 1)
 
         if heads:
             await interaction.response.send_message(f"{interaction.user.mention} the coin is Heads.")
         else:
             await interaction.response.send_message(f"{interaction.user.mention} the coin is Tails.")
+
+    @app_commands.command(
+        name='timestamp',
+        description="Converts the input to a relative timestamp (eastern time)"
+    )
+    async def timestamp(self, interaction: discord.Interaction, year: int, month: int, day: int, hour: int, minute: int) -> None:
+        # Convert inputs to datetimes
+        user_time = datetime(year, month, day, hour, minute, 0, 0, pytz.timezone('US/Eastern'))
+
+        print(user_time)
 
 
 # Add to bot

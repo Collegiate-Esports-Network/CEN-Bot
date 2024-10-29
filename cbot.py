@@ -1,7 +1,7 @@
 __author__ = "Justin Panchula"
 __copyright__ = "Copyright CEN"
 __credits__ = "Justin Panchula"
-__version__ = "3"
+__version__ = "3.0.0"
 __status__ = "Production"
 __doc__ = """Custom Bot class"""
 
@@ -39,10 +39,10 @@ class cbot(Bot):
             intents=intents,
             activity=discord.Activity(type=discord.ActivityType.playing, name='big brother'),
             description="Hello! I'm the CEN Bot, a customized bot built and maintained by the Collegiate Esports Network.",
-            command_prefix="$$",
+            command_prefix="!!",
             owner_id=0
         )
-        self.version = '3.2.0'
+        self.version = '3.3.0'
 
     async def setup_hook(self) -> None:
         """Runs setup before the bot completes login
