@@ -1,7 +1,7 @@
 __author__ = "Justin Panchula"
 __copyright__ = "Copyright CEN"
 __credits__ = "Justin Panchula"
-__version__ = "2"
+__version__ = "2.0.0"
 __status__ = "Production"
 __doc__ = """Radio player for discord servers"""
 

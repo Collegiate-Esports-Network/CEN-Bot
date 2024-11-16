@@ -49,10 +49,10 @@ loggers:
   CENBot.easter:
     level: DEBUG
     propogate: true
-  CENBot.functional:
+  CENBot.logging:
     level: DEBUG
     propogate: true
-  CENBot.logging:
+  CENBot.quickstart:
     level: DEBUG
     propogate: true
   CENBot.radio:
