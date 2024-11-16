@@ -19,7 +19,7 @@ from discord.ext.commands import ExtensionAlreadyLoaded, ExtensionNotLoaded, Ext
 log = logging.getLogger('CENBot.admin')
 
 
-class admin(commands.GroupCog, name='admin'):
+class admin(commands.Cog, name='admin'):
     """These are all the admin functions of the bot.
     """
     # Init
@@ -35,9 +35,10 @@ class admin(commands.GroupCog, name='admin'):
     @commands.is_owner()
     @commands.dm_only()
     async def admin_sync(self, ctx: commands.Context) -> None:
+        # Sync commands
         await self.bot.tree.sync()
 
-        # Sync the xp
+        # Sync the xp table
         async for guild in forasync(self.bot.guilds):
             try:
                 async with self.bot.db_pool.acquire() as con:
@@ -104,10 +105,10 @@ class admin(commands.GroupCog, name='admin'):
             log.info(f"'{cog}' was unloaded")
             await ctx.reply(f"'{cog}' was unloaded")
 
-    # Make an annoucement to server owners
+    # Make an annoucement to guild owners
     @commands.command(
         name='announce',
-        description="Annouces something to server owners."
+        description="Annouces something to guild owners."
     )
     @commands.is_owner()
     @commands.dm_only()

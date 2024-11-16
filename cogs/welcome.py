@@ -17,7 +17,7 @@ from asyncpg.exceptions import PostgresError
 log = logging.getLogger('CENBot.welcome')
 
 
-@commands.guild_only()
+@app_commands.guild_only()
 class welcome(commands.GroupCog, name='welcome'):
     """These are the welcome message functions.
     """
@@ -33,7 +33,7 @@ class welcome(commands.GroupCog, name='welcome'):
     async def welcome_setchannel(self, interaction: discord.Interaction, channel: discord.TextChannel) -> None:
         try:
             async with self.bot.db_pool.acquire() as con:
-                await con.execute("UPDATE serverdata SET welcome_channel=$2 WHERE guild_id=$1", interaction.guild.id, channel.id)
+                await con.execute("UPDATE guild_data SET welcome_channel=$2 WHERE guild_id=$1", interaction.guild.id, channel.id)
         except PostgresError as e:
             log.exception(e)
             await interaction.response.send_message("There was an error updating your data, please try again.", ephemeral=True)
@@ -54,7 +54,7 @@ class welcome(commands.GroupCog, name='welcome'):
     async def welcome_setmessage(self, interaction: discord.Interaction, message: str) -> None:
         try:
             async with self.bot.db_pool.acquire() as con:
-                await con.execute("UPDATE serverdata SET welcome_message=$2 WHERE guild_id=$1", interaction.guild.id, message)
+                await con.execute("UPDATE guild_data SET welcome_message=$2 WHERE guild_id=$1", interaction.guild.id, message)
         except PostgresError as e:
             log.exception(e)
             await interaction.response.send_message("There was an error updating your data, please try again.", ephemeral=True)
@@ -73,7 +73,7 @@ class welcome(commands.GroupCog, name='welcome'):
         # Get welcome message
         try:
             async with self.bot.db_pool.acquire() as con:
-                response = await con.fetch("SELECT welcome_channel, welcome_message FROM serverdata WHERE guild_id=$1", interaction.guild.id)
+                response = await con.fetch("SELECT welcome_channel, welcome_message FROM guild_data WHERE guild_id=$1", interaction.guild.id)
             channel = response[0]['welcome_channel']
             message = response[0]['welcome_message']  # Always present as it's defaulted into database
         except PostgresError as e:
@@ -98,7 +98,7 @@ class welcome(commands.GroupCog, name='welcome'):
         # Get welcome channel
         try:
             async with self.bot.db_pool.acquire() as con:
-                response = await con.fetch("SELECT welcome_channel, welcome_message FROM serverdata WHERE guild_id=$1", member.guild.id)
+                response = await con.fetch("SELECT welcome_channel, welcome_message FROM guild_data WHERE guild_id=$1", member.guild.id)
             channel = response[0]['welcome_channel']
             message = response[0]['welcome_message']
         except PostgresError as e:
