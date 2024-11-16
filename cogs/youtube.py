@@ -39,10 +39,10 @@ class youtube(commands.GroupCog, name='youtube'):
     def cog_unload(self):
         self.check_youtube.stop()
 
-    # Set news channel
+    # Set YouTube annoucement channel
     @app_commands.command(
         name='setnewschannel',
-        description="Sets the channel social news will be sent to."
+        description="Sets the channel YouTube annoucements will be sent to."
     )
     @commands.has_role('bot manager')
     async def youtube_setnewschannel(self, interaction: discord.Interaction, channel: discord.TextChannel) -> None:
@@ -56,7 +56,7 @@ class youtube(commands.GroupCog, name='youtube'):
             log.exception(e)
             await interaction.response.send_message("There was an error, please try again.", ephemeral=True)
         else:
-            await interaction.response.send_message("News channel set.", ephemeral=False)
+            await interaction.response.send_message("YouTube announcement channel set.", ephemeral=False)
 
     # Add YouTube channel
     @app_commands.command(
@@ -84,7 +84,7 @@ class youtube(commands.GroupCog, name='youtube'):
             await interaction.response.send_message("There was an error, please try again.", ephemeral=True)
 
         # If channel doesn't exist
-        if record is None:
+        if not record:
             # Get YouTube channel id
             try:
                 params = {'key': os.getenv("YOUTUBE_KEY"), 'part': "Id", 'forHandle': channel_name}
@@ -98,7 +98,10 @@ class youtube(commands.GroupCog, name='youtube'):
                             interaction.response.send_message("There was an error retrieving channel data. Please try again.")
             except aiohttp.ClientError as e:
                 log.error(e)
-                await interaction.response.send_message("There was an error finding the channel, please try again.")
+                await interaction.response.send_message("There was an error connecting to YouTube, please try again.")
+            except KeyError as e:
+                log.error(e)
+                await interaction.response.send_message("There are no channels by that handle, please try again.")
 
             # Get upload playlist Id
             try:
@@ -115,7 +118,7 @@ class youtube(commands.GroupCog, name='youtube'):
             try:
                 async with self.bot.db_pool.acquire() as con:
                     await con.execute("INSERT INTO youtube_channels (channel_link, channel_id, upload_playlist_id) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING", channel_link, channel_id, upload_playlist_id)
-                    await con.execute("UPDATE youtube_channels SET guild_ids=ARRAY_ADD(guilds_ids, $1) where channel_link=$2", interaction.guild.id, channel_link)
+                    await con.execute("UPDATE youtube_channels SET guild_ids=ARRAY_APPEND(guild_ids, $1) where channel_link=$2", interaction.guild.id, channel_link)
             except PostgresError as e:
                 log.exception(e)
                 await interaction.response.send_message("There was an error updating your data, please try again.", ephemeral=True)
@@ -128,7 +131,7 @@ class youtube(commands.GroupCog, name='youtube'):
             # Add guild
             try:
                 async with self.bot.db_pool.acquire() as con:
-                    await con.execute("UPDATE youtube_channels SET guild_ids=ARRAY_ADD(guilds_ids, $1) where channel_link=$2", interaction.guild.id, channel_link)
+                    await con.execute("UPDATE youtube_channels SET guild_ids=ARRAY_APPEND(guild_ids, $1) where channel_link=$2", interaction.guild.id, channel_link)
             except PostgresError as e:
                 log.exception(e)
                 await interaction.response.send_message("There was an error updating your data, please try again.", ephemeral=True)

@@ -19,7 +19,7 @@ from discord.ext.commands import ExtensionAlreadyLoaded, ExtensionNotLoaded, Ext
 log = logging.getLogger('CENBot.admin')
 
 
-class admin(commands.GroupCog, name='admin'):
+class admin(commands.Cog, name='admin'):
     """These are all the admin functions of the bot.
     """
     # Init
