@@ -9,6 +9,7 @@ __doc__ = """Utility Functions"""
 import sys
 import random
 from datetime import datetime
+from typing import Literal
 import pytz
 
 # Discord imports
@@ -73,14 +74,19 @@ class utility(commands.Cog):
         name='utc',
         description="Converts the input (eastern time) to a relative timestamp"
     )
-    async def timestamp(self, interaction: discord.Interaction, year: int, month: int, day: int, hour: int, minute: int) -> None:
+    async def timestamp(self, interaction: discord.Interaction, style: Literal["Relative", "Fixed"], year: int, month: int, day: int, hour: int, minute: int) -> None:
         try:
             user_time = datetime(year, month, day, hour, minute+4, 0, 0, pytz.timezone('US/Eastern'))
         except ValueError as e:
             await interaction.response.send_message(f"{e}", ephemeral=True)
             return
 
-        await interaction.response.send_message(f"Relative datetime: ``<t:{int(user_time.timestamp())}:R>``", ephemeral=True)
+        if style == "Relative":
+            await interaction.response.send_message(f"Relative datetime: ``<t:{int(user_time.timestamp())}:R>``", ephemeral=True)
+        elif style == "Fixed":
+            await interaction.response.send_message(f"Relative datetime: ``<t:{int(user_time.timestamp())}:F>``", ephemeral=True)
+        else:
+            await interaction.response.send_message("Invalid timestamp format specified.", ephemeral=True)
 
 
 # Add to bot
