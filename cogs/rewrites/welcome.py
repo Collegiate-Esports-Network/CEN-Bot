@@ -6,7 +6,7 @@ __status__ = "Production"
 __doc__ = """Welcome message functions"""
 
 # Discord imports
-from cbot import cbot
+from start import cenbot
 import discord
 from discord.ext import commands
 from discord import app_commands
@@ -21,7 +21,7 @@ log = logging.getLogger('CENBot.welcome')
 class welcome(commands.GroupCog, name='welcome'):
     """These are the welcome message functions.
     """
-    def __init__(self, bot: cbot) -> None:
+    def __init__(self, bot: cenbot) -> None:
         self.bot = bot
         super().__init__()
 
@@ -113,5 +113,5 @@ class welcome(commands.GroupCog, name='welcome'):
 
 
 # Add to bot
-async def setup(bot: cbot) -> None:
+async def setup(bot: cenbot) -> None:
     await bot.add_cog(welcome(bot))
