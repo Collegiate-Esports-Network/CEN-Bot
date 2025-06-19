@@ -1,20 +1,19 @@
 __author__ = "Justin Panchula"
 __copyright__ = "Copyright CEN"
 __credits__ = "Justin Panchula"
-__version__ = "2"
+__version__ = "1.0.0"
 __status__ = "Production"
 __doc__ = """Admin functions"""
 
-# Discord imports
-from cbot import cbot
-from discord.ext import commands
+# Helpers
+from modules.async_for import forasync
 
-# Custom imports
-from helpers.forasync import forasync
+# Discord imports
+from start import cenbot
+from discord.ext import commands
 
 # Logging
 import logging
-from asyncpg import PostgresError
 from discord.ext.commands import ExtensionAlreadyLoaded, ExtensionNotLoaded, ExtensionError
 log = logging.getLogger('CENBot.admin')
 
@@ -22,31 +21,18 @@ log = logging.getLogger('CENBot.admin')
 class admin(commands.Cog, name='admin'):
     """These are all the admin functions of the bot.
     """
-    # Init
-    def __init__(self, bot: cbot) -> None:
+    def __init__(self, bot: cenbot) -> None:
         self.bot = bot
-        super().__init__()
 
-    # Force bot sync
+    @commands.is_owner()
+    @commands.dm_only()
     @commands.command(
         name='sync',
         description="Forces the bot to sync commands."
     )
-    @commands.is_owner()
-    @commands.dm_only()
-    async def admin_sync(self, ctx: commands.Context) -> None:
+    async def sync(self, ctx: commands.Context) -> None:
         # Sync commands
         await self.bot.tree.sync()
-
-        # Sync the xp table
-        async for guild in forasync(self.bot.guilds):
-            try:
-                async with self.bot.db_pool.acquire() as con:
-                    await con.execute(f"ALTER TABLE xp ADD COLUMN IF NOT EXISTS s_{guild.id} INT NOT NULL DEFAULT 0")
-            except PostgresError as e:
-                log.exception(e)
-                await ctx.reply("There was an error syncing the xp table, please try again.")
-                return
 
         # Log
         log.info("The bot was forcibly synced")
@@ -54,14 +40,13 @@ class admin(commands.Cog, name='admin'):
         # Send response
         await ctx.reply("The bot was forcibly synced.")
 
-    # load cogs
+    @commands.is_owner()
+    @commands.dm_only()
     @commands.command(
         name='load',
         description="Loads an available cog.",
     )
-    @commands.is_owner()
-    @commands.dm_only()
-    async def admin_load(self, ctx: commands.Context, *, cog: str) -> None:
+    async def load(self, ctx: commands.Context, *, cog: str) -> None:
         try:
             await self.bot.load_extension(f'cogs.{cog}')
         except ExtensionAlreadyLoaded as e:
@@ -71,14 +56,13 @@ class admin(commands.Cog, name='admin'):
             log.info(f"'{cog}' was loaded")
             await ctx.reply(f"'{cog}' was loaded.")
 
-    # Reload cogs
+    @commands.is_owner()
+    @commands.dm_only()
     @commands.command(
         name='reload',
         description="Reloads an available cog.",
     )
-    @commands.is_owner()
-    @commands.dm_only()
-    async def admin_reload(self, ctx: commands.Context, *, cog: str) -> None:
+    async def reload(self, ctx: commands.Context, *, cog: str) -> None:
         try:
             await self.bot.reload_extension(f'cogs.{cog}')
         except ExtensionError as e:
@@ -88,14 +72,13 @@ class admin(commands.Cog, name='admin'):
             log.info(f"'{cog}' was reloaded")
             await ctx.reply(f"'{cog}' was reloaded.")
 
-    # Unload cogs
+    @commands.is_owner()
+    @commands.dm_only()
     @commands.command(
         name='unload',
         description="Unloads an available cog.",
     )
-    @commands.is_owner()
-    @commands.dm_only()
-    async def admin_unload(self, ctx: commands.Context, *, cog: str) -> None:
+    async def unload(self, ctx: commands.Context, *, cog: str) -> None:
         try:
             await self.bot.unload_extension(f'cogs.{cog}')
         except ExtensionNotLoaded as e:
@@ -105,14 +88,13 @@ class admin(commands.Cog, name='admin'):
             log.info(f"'{cog}' was unloaded")
             await ctx.reply(f"'{cog}' was unloaded")
 
-    # Make an annoucement to guild owners
+    @commands.is_owner()
+    @commands.dm_only()
     @commands.command(
         name='announce',
         description="Annouces something to guild owners."
     )
-    @commands.is_owner()
-    @commands.dm_only()
-    async def admin_annouce(self, ctx: commands.Context, *, msg: str) -> None:
+    async def annouce(self, ctx: commands.Context, *, msg: str) -> None:
         # For each guild, create DM with owner with the annoucement
         async for guild in forasync(self.bot.guilds):
             if not await self.bot.is_owner(guild.owner):
@@ -123,5 +105,5 @@ class admin(commands.Cog, name='admin'):
 
 
 # Add to bot
-async def setup(bot: cbot) -> None:
+async def setup(bot: cenbot) -> None:
     await bot.add_cog(admin(bot))

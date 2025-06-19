@@ -17,7 +17,7 @@ from discord.ext import commands, tasks
 from discord import app_commands
 
 # Custom imports
-from helpers.forasync import forasync
+from modules.forasync import forasync
 
 # Logging
 import logging

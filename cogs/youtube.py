@@ -1,9 +1,12 @@
-__author__ = 'Justin Panchula'
-__copyright__ = 'Copyright CEN'
-__credits__ = 'Justin Panchula'
-__version__ = '1.1.0'
-__status__ = 'Production'
-__doc__ = """Uses YouTube's API to pull uploads from YouTube"""
+__author__ = "Justin Panchula"
+__copyright__ = "Copyright CEN"
+__credits__ = "Justin Panchula"
+__version__ = "1.0.0"
+__status__ = "Production"
+__doc__ = """Uses YouTube"s API to pull uploads from YouTube"""
+
+# Helpers
+from modules.async_for import forasync
 
 # Python imports
 import os
@@ -11,27 +14,25 @@ import aiohttp
 from datetime import datetime
 
 # Discord imports
-from cbot import cbot
+from start import cenbot
 import discord
 from discord.ext import commands, tasks
 from discord import app_commands
 
-# Custom imports
-from helpers.forasync import forasync
-
 # Logging
-import logging
 from asyncpg.exceptions import PostgresError
-log = logging.getLogger('CENBot.youtube')
+from logging import getLogger
+log = getLogger('CENBot.youtube')
 
 
 @app_commands.guild_only()
-class youtube(commands.GroupCog, name='youtube'):
-    """These are all the YouTube functions.
+class youtube(commands.GroupCog, name="youtube"):
+    """YouTube operations.
     """
-    def __init__(self, bot: cbot):
+    def __init__(self, bot: cenbot):
         self.bot = bot
-        super().__init__()
+        self.base_url = "https://youtube.googleapis.com/youtube/v3/"
+        self.api_key = os.getenv("YOUTUBE_KEY")
 
     def cog_load(self):
         self.check_youtube.start()
@@ -39,16 +40,25 @@ class youtube(commands.GroupCog, name='youtube'):
     def cog_unload(self):
         self.check_youtube.stop()
 
-    # Set YouTube annoucement channel
+    @app_commands.checks.has_role("CENBot Admin")
     @app_commands.command(
-        name='setnewschannel',
-        description="Sets the channel YouTube annoucements will be sent to."
+        name="set_channel"
     )
-    @commands.has_role('bot manager')
-    async def youtube_setnewschannel(self, interaction: discord.Interaction, channel: discord.TextChannel) -> None:
+    async def set_channel(self, interaction: discord.Interaction, channel: discord.TextChannel):
+        """Sets the channel to send YouTube alerts to.
+
+        :param interaction: the discord interaction
+        :type interaction: discord.Interaction
+        :param channel: the channel to send YouTube alerts to
+        :type channel: discord.TextChannel
+        """
         try:
             async with self.bot.db_pool.acquire() as con:
-                await con.execute("UPDATE guild_data SET youtube_news_channel=$2 WHERE guild_id=$1", interaction.guild.id, channel.id)
+                await con.execute("""
+                                  UPDATE cenbot.guilds
+                                  SET youtube_alert_channel=$1
+                                  WHERE guild_id=$2
+                                  """, channel.id, interaction.guild.id)
         except PostgresError as e:
             log.exception(e)
             await interaction.response.send_message("There was an error updating your data, please try again.", ephemeral=True)
@@ -56,214 +66,225 @@ class youtube(commands.GroupCog, name='youtube'):
             log.exception(e)
             await interaction.response.send_message("There was an error, please try again.", ephemeral=True)
         else:
-            await interaction.response.send_message("YouTube announcement channel set.", ephemeral=False)
+            await interaction.response.send_message(f"YouTube alert channel set to {channel.mention}.", ephemeral=True)
 
-    # Add YouTube channel
+    @app_commands.checks.has_role("CENBot Admin")
     @app_commands.command(
-        name="addchannel",
-        description="Adds a YouTube channel to pull data from."
+        name="add_alert"
     )
-    @commands.has_role('bot manager')
-    async def youtube_addchannel(self, interaction: discord.Interaction, channel_link: str):
-        # Parse input (find channel name)
-        at_loc = channel_link.find('@')
-        if at_loc != -1:
-            channel_name = channel_link[at_loc:]
-        else:
-            await interaction.response.send_message(f"Invalid YouTube channel URL: {channel_link}. Please try again.")
+    async def add_alert(self, interaction: discord.Interaction, channel_handle: str):
+        """Subscribes a guild to a YouTube channel alert.
 
-        # Get records to see if YouTube channel in database already
+        :param interaction: the discord interaction
+        :type interaction: discord.Interaction
+        :param channel_handle: the YouTube channel handle to subscribe to (@<channel_name>)
+        :type channel: discord.TextChannel
+        """
+        # Defer response
+        await interaction.response.defer(ephemeral=True, thinking=True)
+
+        # Validate
+        if '@' not in channel_handle:
+            await interaction.followup.send("Invalid form, YouTube handle must include ``@``. Please try again.")
+            return
+
+        # Get YouTube channel information
         try:
-            async with self.bot.db_pool.acquire() as con:
-                record = await con.fetch("SELECT * FROM youtube_channels WHERE channel_link=$1", channel_link)
-        except PostgresError as e:
+            async with aiohttp.ClientSession() as session:
+                params = {'key': self.api_key, 'part': "Id, contentDetails", 'forHandle': channel_handle}
+                async with session.get(self.base_url + "channels", params=params) as response:
+                    if response.status == 200:
+                        data = await response.json()
+                        channel_id = data['items'][0]['id']
+                        upload_playlist_id = data['items'][0]['contentDetails']['relatedPlaylists']['uploads']
+                    else:
+                        log.error(f"YouTube query {response.url} returned {response.status}: {data['error']['errors'][0]['reason']}")
+                        await interaction.followup.send("There was an error with the YouTube API, please try again.")
+        except aiohttp.ClientError as e:
             log.exception(e)
-            await interaction.response.send_message("There was an error updating your data, please try again.", ephemeral=True)
+            interaction.followup.send("There was an error with retieving the channel, please try again.")
+
+        # Update YouTube data
+        try:
+            async with self.bot.db_pool.acquire() as conn:
+                await conn.execute("""
+                                   INSERT INTO cenbot.youtube (channel_id, upload_playlist_id)
+                                   VALUES ($1, $2)
+                                   ON CONFLICT DO NOTHING
+                                   """, channel_id, upload_playlist_id)
+                await conn.execute("""
+                                   UPDATE cenbot.youtube
+                                   SET subscribed_guilds=ARRAY_APPEND(subscribed_guilds, $1)
+                                   WHERE channel_id=$2
+                                   """, interaction.guild.id, channel_id)
         except Exception as e:
             log.exception(e)
-            await interaction.response.send_message("There was an error, please try again.", ephemeral=True)
-
-        # If channel doesn't exist
-        if not record:
-            # Get YouTube channel id
-            try:
-                params = {'key': os.getenv("YOUTUBE_KEY"), 'part': "Id", 'forHandle': channel_name}
-                async with aiohttp.ClientSession() as session:
-                    async with session.get("https://youtube.googleapis.com/youtube/v3/channels", params=params) as resp:
-                        if resp.status == 200:
-                            content = await resp.json()
-                            channel_id = content['items'][0]['id']
-                        else:
-                            log.error(f"Query {resp.url} returned {resp.status}: {content['error']['errors'][0]['reason']}")
-                            interaction.response.send_message("There was an error retrieving channel data. Please try again.")
-            except aiohttp.ClientError as e:
-                log.error(e)
-                await interaction.response.send_message("There was an error connecting to YouTube, please try again.")
-            except KeyError as e:
-                log.error(e)
-                await interaction.response.send_message("There are no channels by that handle, please try again.")
-
-            # Get upload playlist Id
-            try:
-                params = {'key': os.getenv("YOUTUBE_KEY"), 'part': "contentDetails", 'id': channel_id}
-                async with aiohttp.ClientSession() as session:
-                    async with session.get("https://youtube.googleapis.com/youtube/v3/channels", params=params) as resp:
-                        if resp.status == 200:
-                            content = await resp.json()
-                            upload_playlist_id = content['items'][0]['contentDetails']['relatedPlaylists']['uploads']
-            except aiohttp.ClientError as e:
-                log.error(e)
-
-            # Add channel and guild
-            try:
-                async with self.bot.db_pool.acquire() as con:
-                    await con.execute("INSERT INTO youtube_channels (channel_link, channel_id, upload_playlist_id) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING", channel_link, channel_id, upload_playlist_id)
-                    await con.execute("UPDATE youtube_channels SET guild_ids=ARRAY_APPEND(guild_ids, $1) where channel_link=$2", interaction.guild.id, channel_link)
-            except PostgresError as e:
-                log.exception(e)
-                await interaction.response.send_message("There was an error updating your data, please try again.", ephemeral=True)
-            except Exception as e:
-                log.exception(e)
-                await interaction.response.send_message("There was an error, please try again.", ephemeral=True)
-            else:
-                await interaction.response.send_message(f"Channel ``{channel_link}`` added.", ephemeral=False)
+            await interaction.followup.send(f"There was an error adding ``{channel_handle}`` to your subscriptions, please try again.")
         else:
-            # Add guild
-            try:
-                async with self.bot.db_pool.acquire() as con:
-                    await con.execute("UPDATE youtube_channels SET guild_ids=ARRAY_APPEND(guild_ids, $1) where channel_link=$2", interaction.guild.id, channel_link)
-            except PostgresError as e:
-                log.exception(e)
-                await interaction.response.send_message("There was an error updating your data, please try again.", ephemeral=True)
-            except Exception as e:
-                log.exception(e)
-                await interaction.response.send_message("There was an error, please try again.", ephemeral=True)
-            else:
-                await interaction.response.send_message(f"Channel ``{channel_link}`` added.", ephemeral=False)
+            await interaction.followup.send(f"``{channel_handle}`` has been added to your subscriptions.")
 
-    # Remove YouTube channel
+    @app_commands.checks.has_role("CENBot Admin")
     @app_commands.command(
-        name="removechannel",
-        description="Removes a YouTube channel."
+        name="remove_alert"
     )
-    @commands.has_role('bot manager')
-    async def socials_youtube_removechannel(self, interaction: discord.Interaction, channel_link: str):
-        # Remove YouTube channel
+    async def remove_alert(self, interaction: discord.Interaction, channel_handle: str):
+        """Removes a guild from a YouTube channel alert.
+
+        :param interaction: the discord interaction
+        :type interaction: discord.Interaction
+        :param channel_handle: the YouTube channel handle to unsubscribe to (@<channel_name>)
+        :type channel: discord.TextChannel
+        """
+        # Defer response
+        await interaction.response.defer(ephemeral=True, thinking=True)
+
+        # Validate
+        if '@' not in channel_handle:
+            await interaction.followup.send("Invalid form, YouTube handle must include ``@``. Please try again.")
+            return
+
+        # Get YouTube channel information
         try:
-            async with self.bot.db_pool.acquire() as con:
-                await con.execute("UPDATE youtube_channels SET guild_ids=ARRAY_REMOVE(guild_ids, $1) WHERE channel_link=$2", interaction.guild.id, channel_link)
-        except PostgresError as e:
+            async with aiohttp.ClientSession() as session:
+                params = {'key': self.api_key, 'part': "Id", 'forHandle': channel_handle}
+                async with session.get(self.base_url + "channels", params=params) as response:
+                    if response.status == 200:
+                        data = await response.json()
+                        channel_id = data['items'][0]['id']
+                    else:
+                        log.error(f"YouTube query {response.url} returned {response.status}: {data['error']['errors'][0]['reason']}")
+                        await interaction.followup.send("There was an error with the YouTube API, please try again.")
+        except aiohttp.ClientError as e:
             log.exception(e)
-            await interaction.response.send_message("There was an error updating your data, please try again.", ephemeral=True)
+            interaction.followup.send("There was an error with retieving the channel, please try again.")
+
+        # Update YouTube data
+        try:
+            async with self.bot.db_pool.acquire() as conn:
+                await conn.execute("""
+                                   UPDATE cenbot.youtube
+                                   SET subscribed_guilds=ARRAY_REMOVE(subscribed_guilds, $1)
+                                   WHERE channel_id=$2
+                                   """, interaction.guild.id, channel_id)
         except Exception as e:
             log.exception(e)
-            await interaction.response.send_message("There was an error, please try again.", ephemeral=True)
+            await interaction.followup.send(f"There was an error removing {channel_handle} from your subscriptions, please try again.")
         else:
-            await interaction.response.send_message(f"Channel ``{channel_link}`` removed.", ephemeral=False)
+            await interaction.followup.send(f"``{channel_handle}`` has been removed to your subscriptions.")
 
-    # Check YouTube every 10m
+    @app_commands.checks.has_role("CENBot Admin")
+    @app_commands.command(
+        name="remove_all_alerts"
+    )
+    async def remove_all_alerts(self, interaction: discord.Interaction):
+        """Removes a guild from a YouTube channel alert.
+
+        :param interaction: the discord interaction
+        :type interaction: discord.Interaction
+        :param channel_handle: the YouTube channel handle to unsubscribe to (@<channel_name>)
+        :type channel: discord.TextChannel
+        """
+        # Defer response
+        await interaction.response.defer(ephemeral=True, thinking=True)
+
+        # Update YouTube data
+        try:
+            async with self.bot.db_pool.acquire() as conn:
+                await conn.execute("""
+                                   UPDATE cenbot.youtube
+                                   SET subscribed_guilds=ARRAY_REMOVE(subscribed_guilds, $1)
+                                   """, interaction.guild.id)
+        except Exception as e:
+            log.exception(e)
+            await interaction.followup.send("There was an error removing all your subscriptions, please try again.")
+        else:
+            await interaction.followup.send("All subscriptions removeds.")
+
     @tasks.loop(minutes=10)
     async def check_youtube(self):
-        # Annouce run
         log.info("Checking YouTube channels for new uploads...")
 
-        # Get all available YouTube channels
+        # Get all YouTube channels
         try:
-            async with self.bot.db_pool.acquire() as con:
-                record = await con.fetch("SELECT * FROM youtube_channels")
-        except PostgresError as e:
+            async with self.bot.db_pool.acquire() as conn:
+                records = await conn.fetch("SELECT * FROM cenbot.youtube")
+        except Exception as e:
             log.exception(e)
             return
 
         # Avoid null dataset
-        if record is None:
+        if records is None:
             log.info("No YouTube channels to check")
             return
 
-        # Get and send latest uploads for each guild
-        async for rec in forasync(record):
-            # Remove empty guild records from table
-            if rec['guild_ids'] is None:
+        # Iterate through Database
+        async for record in forasync(records):
+            # Get latest upload
+            try:
+                async with aiohttp.ClientSession() as session:
+                    params = {'key': self.api_key, 'part': "contentDetails, snippet", 'playlistId': record['upload_playlist_id'], 'maxResults': 1, 'order': "date"}
+                    async with session.get(self.base_url + "playlistItems", params=params) as response:
+                        if response.status == 200:
+                            data = await response.json()
+                            youtube_channel_name = data['items'][0]['snippet']['channelTitle']
+                            video_title = data['items'][0]['snippet']['title']
+                            date_published = datetime.fromisoformat(data['items'][0]['snippet']['publishedAt'])
+                            video_id = data['items'][0]['snippet']['resourceId']['videoId']
+                        else:
+                            log.error(f"YouTube query {response.url} returned {response.status}: {data['error']['errors'][0]['reason']}")
+            except aiohttp.ClientError as e:
+                log.exception(e)
+
+            # Compare upload dates
+            if record['last_upload_date'] is None or record['last_upload_date'] < date_published:
+                # Update database
                 try:
-                    async with self.bot.db_pool.acquire() as con:
-                        await con.execute("DELETE FROM youtube_channels WHERE channel_id=$1", rec['channel_id'])
-                except PostgresError as e:
+                    async with self.bot.db_pool.acquire() as conn:
+                        await conn.execute("""
+                                           UPDATE cenbot.youtube
+                                           SET last_upload_date=$1
+                                           WHERE channel_id=$2
+                                           """, date_published, record['channel_id'])
+                except Exception as e:
                     log.exception(e)
                     continue
-                except AttributeError as e:
-                    log.error(e)
-                    continue
-                except:
-                    continue
-            else:
-                # Get latest upload date
-                try:
-                    params = {'key': os.getenv("YOUTUBE_KEY"), 'part': "contentDetails, snippet", 'playlistId': rec['upload_playlist_id'], 'maxResults': 1, 'order': "date"}
-                    async with aiohttp.ClientSession() as session:
-                        async with session.get("https://youtube.googleapis.com/youtube/v3/playlistItems", params=params) as resp:
-                            content = await resp.json()
-                            if resp.status == 200:
-                                youtube_channel_name = content['items'][0]['snippet']['channelTitle']
-                                video_title = content['items'][0]['snippet']['title']
-                                date_published = datetime.fromisoformat(content['items'][0]['snippet']['publishedAt'])
-                                video_id = content['items'][0]['snippet']['resourceId']['videoId']
-                            else:
-                                log.error(f"Query {resp.url} returned {resp.status}: {content['error']['errors'][0]['reason']}")
-                                continue
-                except aiohttp.ClientError as e:
-                    log.error(e)
-                    return
-                except ValueError as e:
-                    log.error(e)
-                    return
 
-                # Get database upload date
-                try:
-                    async with self.bot.db_pool.acquire() as con:
-                        record = await con.fetch("SELECT last_upload FROM youtube_channels WHERE channel_id=$1", rec['channel_id'])
-                    last_upload = record[0]['last_upload']
-                except PostgresError as e:
-                    log.exception(e)
-                    return
-
-                # Compare and update if necessary
-                if last_upload is None or last_upload < date_published:
+                # Check if guilds are still subscribed
+                if not record['subscribed_guilds']:
+                    # Remove from database
                     try:
-                        async with self.bot.db_pool.acquire() as con:
-                            await con.execute("UPDATE youtube_channels SET last_upload=$1 WHERE channel_id=$2", date_published, rec['channel_id'])
-                    except PostgresError as e:
+                        async with self.bot.db_pool.acquire() as conn:
+                            await conn.execute("""
+                                               DELETE
+                                               FROM cenbot.youtube
+                                               WHERE channel_id=$2
+                                               """, record['channel_id'])
+                    except Exception as e:
                         log.exception(e)
                         continue
-                    except UnboundLocalError as e:
+
+                # For for each subscribed guild, send notification
+                async for guild_id in forasync(record['subscribed_guilds']):
+                    # Get YouTube news channel
+                    try:
+                        async with self.bot.db_pool.acquire() as conn:
+                            record2 = await conn.fetchrow("""
+                                                          SELECT youtube_alert_channel
+                                                          FROM cenbot.guilds
+                                                          WHERE guild_id=$1
+                                                          """, guild_id)
+                    except Exception as e:
                         log.exception(e)
                         continue
 
-                    # log
-                    log.debug(f"New video found: ID={video_id}")
-
-                    # For each guild listed, send new upload alert
-                    async for guild_id in forasync(rec['guild_ids']):
-                        # Get YouTube news channel
-                        try:
-                            async with self.bot.db_pool.acquire() as con:
-                                record = await con.fetch("SELECT youtube_news_channel FROM guild_data WHERE guild_id=$1", guild_id)
-                            channel_id = record[0]['youtube_news_channel']
-                        except PostgresError as e:
-                            log.exception(e)
-                            continue
-                        except UnboundLocalError as e:
-                            log.exception(e)
-                            continue
-
-                        # Send if channel exists
-                        if channel_id is not None:
-                            # Get channel
-                            channel = self.bot.get_channel(channel_id)
-                            await channel.send(f"**YouTube Video Alert!**\n{youtube_channel_name} just uploaded a new YouTube video: [{video_title}](https://youtube.com/watch?v={video_id})")
+                    # Check for record
+                    if record2['youtube_alert_channel']:
+                        await self.bot.get_channel(record2['youtube_alert_channel']).send(f"**YouTube Video Alert!**\n{youtube_channel_name} just uploaded a new YouTube video: [{video_title}](https://youtube.com/watch?v={video_id})")
 
         # Annouce completion
         log.info("Finished checking YouTube channels for new uploads")
 
 
-async def setup(bot: cbot) -> None:
+# Add to bot
+async def setup(bot: cenbot) -> None:
     await bot.add_cog(youtube(bot))
