@@ -49,13 +49,19 @@ loggers:
   CENBot.easter:
     level: DEBUG
     propogate: true
-  CENBot.logging:
+  CENBot.guilds:
     level: DEBUG
     propogate: true
-  CENBot.quickstart:
+  CENBot.internal:
     level: DEBUG
     propogate: true
-  CENBot.radio:
+  CENBot.moderation:
+    level: DEBUG
+    propogate: true
+  CENBot.reports:
+    level: DEBUG
+    propogate: true
+  CENBot.roles:
     level: DEBUG
     propogate: true
   CENBot.twitch:

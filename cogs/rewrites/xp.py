@@ -10,7 +10,7 @@ import random
 from time import time
 
 # Discord imports
-from cbot import cbot
+from start import cenbot
 import discord
 from discord.ext import commands
 from discord import app_commands
@@ -25,18 +25,18 @@ log = logging.getLogger('CENBot.xp')
 class xp(commands.GroupCog, name='xp'):
     """ These are all functions related to the xp function of the bot.
     """
-    def __init__(self, bot: cbot) -> None:
+    def __init__(self, bot: cenbot) -> None:
         self.bot = bot
         super().__init__()
 
     @commands.Cog.listener()
-    async def on_message(self, ctx: discord.Message) -> None:
+    async def on_message(self, msg: discord.Message) -> None:
         # Ignore messages from self
-        if self.bot.user == ctx.author:
+        if self.bot.user == msg.author:
             return
 
         # Ignore DM messages
-        if ctx.channel.type == discord.ChannelType.private:
+        if msg.channel.type == discord.ChannelType.private:
             return
 
         # Generate random number between 1 and 100 and assign xp
@@ -53,7 +53,7 @@ class xp(commands.GroupCog, name='xp'):
         # Get xp records
         try:
             async with self.bot.db_pool.acquire() as con:
-                record = await con.fetch(f"SELECT s_{ctx.guild.id} FROM xp WHERE user_id=$1", ctx.author.id)
+                record = await con.fetch(f"SELECT s_{msg.guild.id} FROM xp WHERE user_id=$1", msg.author.id)
             record = dict(record[0])
         except PostgresError as e:
             log.exception(e)
@@ -61,16 +61,16 @@ class xp(commands.GroupCog, name='xp'):
             # Add user to table
             try:
                 async with self.bot.db_pool.acquire() as con:
-                    await con.execute("INSERT INTO xp (user_id) VALUES ($1)", ctx.author.id)
+                    await con.execute("INSERT INTO xp (user_id) VALUES ($1)", msg.author.id)
             except PostgresError as e:
                 log.exception(e)
         else:
-            old_exp = record[f's_{ctx.guild.id}']
+            old_exp = record[f's_{msg.guild.id}']
             # Add change in xp
             new_exp = old_exp + exp
             try:
                 async with self.bot.db_pool.acquire() as con:
-                    await con.execute(f"UPDATE xp SET s_{ctx.guild.id}=$1 WHERE user_id=$2", new_exp, ctx.author.id)
+                    await con.execute(f"UPDATE xp SET s_{msg.guild.id}=$1 WHERE user_id=$2", new_exp, msg.author.id)
             except PostgresError as e:
                 log.exception(e)
                 return
@@ -141,5 +141,5 @@ class xp(commands.GroupCog, name='xp'):
 
 
 # Add to bot
-async def setup(bot: cbot) -> None:
+async def setup(bot: cenbot) -> None:
     await bot.add_cog(xp(bot))
