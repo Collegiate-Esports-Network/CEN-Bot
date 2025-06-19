@@ -5,9 +5,6 @@ __version__ = "1.0.0"
 __status__ = "Production"
 __doc__ = """Guild activity moderation"""
 
-# Module imports
-from modules.appcommand_checks import is_app_enabled
-
 # Discord imports
 from start import cenbot
 import discord
@@ -25,7 +22,6 @@ log = getLogger('CENBot.moderation')
 
 
 @app_commands.guild_only()
-@is_app_enabled()
 class moderation(commands.GroupCog, name="moderation"):
     """More advanced moderation than Discord has built-in.
     """
@@ -47,10 +43,10 @@ class moderation(commands.GroupCog, name="moderation"):
 
     @app_commands.checks.has_role("CENBot Admin")
     @app_commands.command(
-        name="set_channel"
+        name="set_log_channel"
     )
-    async def set_channel(self, interaction: discord.Interaction, channel: discord.TextChannel) -> None:
-        """Sets the channel guild reports will be sent to.
+    async def set_log_channel(self, interaction: discord.Interaction, channel: discord.TextChannel) -> None:
+        """Sets the channel guild logs will be sent to.
 
         :param interaction: the discord interaction
         :type interaction: discord.Interaction
@@ -60,8 +56,9 @@ class moderation(commands.GroupCog, name="moderation"):
         try:
             async with self.bot.db_pool.acquire() as conn:
                 await conn.execute("""
-                                   INSERT INTO cenbot.moderation (guild_id, mod_channel) VALUES ($1, $2) ON CONFLICT (guild_id) DO
-                                   UPDATE SET mod_channel=$2 WHERE cenbot.moderation.guild_id=$1
+                                   UPDATE cenbot.guilds
+                                   SET log_channel=$2
+                                   WHERE guild_id=$1
                                    """, interaction.guild.id, channel.id)
         except PostgresError as e:
             log.exception(e)
@@ -74,10 +71,38 @@ class moderation(commands.GroupCog, name="moderation"):
 
     @app_commands.checks.has_role("CENBot Admin")
     @app_commands.command(
+        name="set_report_channel"
+    )
+    async def set_report_channel(self, interaction: discord.Interaction, channel: discord.TextChannel) -> None:
+        """Sets the channel guild reports will be sent to.
+
+        :param interaction: the discord interaction
+        :type interaction: discord.Interaction
+        :param channel: the text channel to send guild reports to
+        :type channel: discord.TextChannel
+        """
+        try:
+            async with self.bot.db_pool.acquire() as conn:
+                await conn.execute("""
+                                   UPDATE cenbot.guilds
+                                   SET report_channel=$2
+                                   WHERE guild_id=$1
+                                   """, interaction.guild.id, channel.id)
+        except PostgresError as e:
+            log.exception(e)
+            await interaction.response.send_message("There was an error updating your data, please try again.", ephemeral=True)
+        except Exception as e:
+            log.exception(e)
+            await interaction.response.send_message("There was an error, please try again.", ephemeral=True)
+        else:
+            await interaction.response.send_message(f"Report channel set to ``{channel.category}: #{channel.name}``", ephemeral=True)
+
+    @app_commands.checks.has_role("CENBot Admin")
+    @app_commands.command(
         name="set_level"
     )
-    async def set_level(self, interaction: discord.Interaction, level: Literal['0: None', '1: Default (Reports Only)', '2: Message Activity', '3: All Activity']) -> None:
-        """Sets the level of reporting the bot will perform.
+    async def set_level(self, interaction: discord.Interaction, level: Literal['0: None', '1: Default (Reports Only)', '2: Message Edits', '3: All Messages', '4: All Activity']) -> None:
+        """Sets the level of moderation the bot will perform.
 
         :param interaction: the discord interaction
         :type interaction: discord.Interaction
@@ -87,8 +112,9 @@ class moderation(commands.GroupCog, name="moderation"):
         try:
             async with self.bot.db_pool.acquire() as conn:
                 await conn.execute("""
-                                   INSERT INTO cenbot.moderation (guild_id, mod_level) VALUES ($1, $2) ON CONFLICT (guild_id) DO
-                                   UPDATE SET mod_level=$2 WHERE cenbot.moderation.guild_id=$1
+                                   UPDATE cenbot.moderation
+                                   SET moderation_level=$2
+                                   WHERE guild_id=$1
                                    """, interaction.guild.id, int(level[0:1]))
         except PostgresError as e:
             log.exception(e)
@@ -114,8 +140,9 @@ class moderation(commands.GroupCog, name="moderation"):
         try:
             async with self.bot.db_pool.acquire() as conn:
                 await conn.execute("""
-                                   INSERT INTO cenbot.moderation (guild_id, new_member_message_timer) VALUES ($1, $2) ON CONFLICT (guild_id) DO
-                                   UPDATE SET mod_level=$2 WHERE cenbot.moderation.guild_id=$1
+                                   UPDATE cenbot.moderation
+                                   SET new_member_message_timer=$2
+                                   WHERE guild_id=$1
                                    """, interaction.guild.id, seconds)
         except PostgresError as e:
             log.exception(e)
@@ -141,9 +168,8 @@ class moderation(commands.GroupCog, name="moderation"):
         try:
             async with self.bot.db_pool.acquire() as conn:
                 record = await conn.fetchrow("""
-                                             SELECT cenbot.moderation.mod_level, cenbot.moderation.mod_channel, cenbot.guilds.moderation_enabled
-                                             FROM cenbot.moderation INNER JOIN cenbot.guilds
-                                                 ON (cenbot.moderation.guild_id=cenbot.guilds.guild_id)
+                                             SELECT cenbot.guilds.report_channel, cenbot.moderation.moderation_level
+                                             FROM cenbot.guilds INNER JOIN cenbot.moderation ON (cenbot.guilds.guild_id=cenbot.moderation.guild_id)
                                              WHERE cenbot.guilds.guild_id=$1
                                              """, msg.guild.id)
         except Exception as e:
@@ -152,7 +178,7 @@ class moderation(commands.GroupCog, name="moderation"):
         # Check for record
         if record:
             # Check if mod level is 1 or above
-            if record['mod_level'] >= 1 and record['moderation_enabled'] is True:
+            if record['moderation_level'] >= 1 and record['report_channel']:
                 # Create embed
                 embed = discord.Embed(colour=discord.Colour.pink())
                 embed.set_author(name=interaction.user.display_name, icon_url=interaction.user.display_avatar)
@@ -168,7 +194,7 @@ class moderation(commands.GroupCog, name="moderation"):
                     embed.set_footer(text=f"{discord.utils.utcnow().strftime('%d/%m/%y - %H:%M:%S')}")
 
                     # Send report to channel
-                    await self.bot.get_channel(record['mod_channel']).send(content="@everyone", embed=embed)
+                    await self.bot.get_channel(record['report_channel']).send(content="@everyone", embed=embed)
 
                     # Respond
                     await interaction.followup.send("Message reported.")
@@ -188,9 +214,8 @@ class moderation(commands.GroupCog, name="moderation"):
         try:
             async with self.bot.db_pool.acquire() as conn:
                 record = await conn.fetchrow("""
-                                             SELECT cenbot.moderation.mod_level, cenbot.moderation.mod_channel, cenbot.guilds.moderation_enabled
-                                             FROM cenbot.moderation INNER JOIN cenbot.guilds
-                                                 ON (cenbot.moderation.guild_id=cenbot.guilds.guild_id)
+                                             SELECT cenbot.guilds.report_channel, cenbot.moderation.moderation_level
+                                             FROM cenbot.guilds INNER JOIN cenbot.moderation ON (cenbot.guilds.guild_id=cenbot.moderation.guild_id)
                                              WHERE cenbot.guilds.guild_id=$1
                                              """, member.guild.id)
         except Exception as e:
@@ -199,7 +224,7 @@ class moderation(commands.GroupCog, name="moderation"):
         # Check for record
         if record:
             # Check if mod level is 1 or above
-            if record['mod_level'] >= 1 and record['moderation_enabled'] is True:
+            if record['moderation_level'] >= 1 and record['report_channel']:
                 # Create embed
                 embed = discord.Embed(colour=discord.Colour.pink())
                 embed.set_author(name=interaction.user.display_name, icon_url=interaction.user.display_avatar)
@@ -207,7 +232,7 @@ class moderation(commands.GroupCog, name="moderation"):
                 embed.set_footer(text=f"{discord.utils.utcnow().strftime('%d/%m/%y - %H:%M:%S')}")
 
                 # Send report to channel
-                await self.bot.get_channel(record['mod_channel']).send(content="@everyone", embed=embed)
+                await self.bot.get_channel(record['report_channel']).send(content="@everyone", embed=embed)
 
                 # Respond
                 await interaction.followup.send("User reported.")
@@ -223,14 +248,13 @@ class moderation(commands.GroupCog, name="moderation"):
         if self.bot.user == msg.author or msg.channel.type == discord.ChannelType.private:
             return
 
-        # Get data from database
+        # Get check if channel is populated
         try:
             async with self.bot.db_pool.acquire() as conn:
                 record = await conn.fetchrow("""
-                                             SELECT cenbot.moderation.mod_level, cenbot.moderation.mod_channel, cenbot.guilds.moderation_enabled, cenbot.moderation.new_member_message_timer
-                                             FROM cenbot.moderation INNER JOIN cenbot.guilds
-                                               ON (cenbot.moderation.guild_id=cenbot.guilds.guild_id)
-                                             WHERE cenbot.guilds.guild_id=$1
+                                             SELECT new_member_message_timer, moderation_level
+                                             FROM cenbot.moderation
+                                             WHERE guild_id=$1
                                              """, msg.guild.id)
         except Exception as e:
             log.exception(e)
@@ -238,7 +262,7 @@ class moderation(commands.GroupCog, name="moderation"):
         # Check for record
         if record:
             # Check if mod level is 1 or above
-            if record['mod_level'] >= 1 and record['moderation_enabled'] is True:
+            if record['moderation_level'] >= 1:
                 # Check if user is a member of the server for longer than the specified time
                 if msg.author.joined_at + timedelta(seconds=record['new_member_message_timer']) >= discord.utils.utcnow():
                     # Delete message
@@ -272,9 +296,8 @@ class moderation(commands.GroupCog, name="moderation"):
         try:
             async with self.bot.db_pool.acquire() as conn:
                 record = await conn.fetchrow("""
-                                             SELECT cenbot.moderation.mod_level, cenbot.moderation.mod_channel, cenbot.guilds.moderation_enabled
-                                             FROM cenbot.moderation INNER JOIN cenbot.guilds
-                                                 ON (cenbot.moderation.guild_id=cenbot.guilds.guild_id)
+                                             SELECT cenbot.guilds.log_channel, cenbot.moderation.moderation_level
+                                             FROM cenbot.guilds INNER JOIN cenbot.moderation ON (cenbot.guilds.guild_id=cenbot.moderation.guild_id)
                                              WHERE cenbot.guilds.guild_id=$1
                                              """, msg_before.guild.id)
         except Exception as e:
@@ -283,7 +306,7 @@ class moderation(commands.GroupCog, name="moderation"):
         # Check for record
         if record:
             # Check if mod level is 2 or above
-            if record['mod_level'] >= 2 and record['moderation_enabled'] is True:
+            if record['moderation_level'] >= 2 and record['log_channel']:
                 # Build embed
                 embed = discord.Embed(colour=discord.Colour.yellow())
                 embed.set_author(name=msg_before.author.display_name, icon_url=msg_before.author.display_avatar)
@@ -319,9 +342,8 @@ class moderation(commands.GroupCog, name="moderation"):
         try:
             async with self.bot.db_pool.acquire() as conn:
                 record = await conn.fetchrow("""
-                                             SELECT cenbot.moderation.mod_level, cenbot.moderation.mod_channel, cenbot.guilds.moderation_enabled
-                                             FROM cenbot.moderation INNER JOIN cenbot.guilds
-                                                 ON (cenbot.moderation.guild_id=cenbot.guilds.guild_id)
+                                             SELECT cenbot.guilds.log_channel, cenbot.moderation.moderation_level
+                                             FROM cenbot.guilds INNER JOIN cenbot.moderation ON (cenbot.guilds.guild_id=cenbot.moderation.guild_id)
                                              WHERE cenbot.guilds.guild_id=$1
                                              """, msg.guild.id)
         except Exception as e:
@@ -330,7 +352,7 @@ class moderation(commands.GroupCog, name="moderation"):
         # Check for record
         if record:
             # Check if mod level is 2 or above
-            if record['mod_level'] >= 2 and record['moderation_enabled'] is True:
+            if record['moderation_level'] >= 2 and record['log_channel']:
                 # Build embed
                 embed = discord.Embed(colour=discord.Colour.orange())
                 embed.set_author(name=msg.author.display_name, icon_url=msg.author.display_avatar)
@@ -368,9 +390,8 @@ class moderation(commands.GroupCog, name="moderation"):
         try:
             async with self.bot.db_pool.acquire() as conn:
                 record = await conn.fetchrow("""
-                                             SELECT cenbot.moderation.mod_level, cenbot.moderation.mod_channel, cenbot.guilds.moderation_enabled
-                                             FROM cenbot.moderation INNER JOIN cenbot.guilds
-                                                 ON (cenbot.moderation.guild_id=cenbot.guilds.guild_id)
+                                             SELECT cenbot.guilds.log_channel, cenbot.moderation.moderation_level
+                                             FROM cenbot.guilds INNER JOIN cenbot.moderation ON (cenbot.guilds.guild_id=cenbot.moderation.guild_id)
                                              WHERE cenbot.guilds.guild_id=$1
                                              """, member.guild.id)
         except Exception as e:
@@ -378,8 +399,8 @@ class moderation(commands.GroupCog, name="moderation"):
 
         # Check for record
         if record:
-            # Check if mod level is 3 or above
-            if record['mod_level'] >= 3 and record['moderation_enabled'] is True:
+            # Check if mod level is 2 or above
+            if record['moderation_level'] >= 2 and record['log_channel']:
                 # Check if the user joined or left a voice channel
                 if before.channel is None:
                     # Build embed

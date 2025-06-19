@@ -33,7 +33,11 @@ class internal(commands.Cog):
 
         try:
             async with self.bot.db_pool.acquire() as conn:
-                await conn.execute("INSERT INTO cenbot.guilds guild_id VALUES $1 ON CONFLICT DO NOTHING", guild.id)
+                await conn.execute("""
+                                   INSERT INTO cenbot.guilds (guild_id)
+                                   VALUES ($1)
+                                   ON CONFLICT DO NOTHING
+                                   """, guild.id)
         except Exception as e:
             log.exception(e)
 
@@ -47,7 +51,10 @@ class internal(commands.Cog):
 
         try:
             async with self.bot.db_pool.acquire() as conn:
-                await conn.execute("DELETE FROM cenbot.guilds WHERE guild_id=$1", guild.id)
+                await conn.execute("""
+                                   DELETE FROM cenbot.guilds
+                                   WHERE guild_id=$1
+                                   """, guild.id)
         except Exception as e:
             log.exception(e)
 

@@ -54,7 +54,11 @@ class youtube(commands.GroupCog, name="youtube"):
         """
         try:
             async with self.bot.db_pool.acquire() as con:
-                await con.execute("UPDATE cenbot.guilds SET youtube_alert_channel=$1 WHERE guild_id=$2", channel.id, interaction.guild.id)
+                await con.execute("""
+                                  UPDATE cenbot.guilds
+                                  SET youtube_alert_channel=$1
+                                  WHERE guild_id=$2
+                                  """, channel.id, interaction.guild.id)
         except PostgresError as e:
             log.exception(e)
             await interaction.response.send_message("There was an error updating your data, please try again.", ephemeral=True)
@@ -103,8 +107,16 @@ class youtube(commands.GroupCog, name="youtube"):
         # Update YouTube data
         try:
             async with self.bot.db_pool.acquire() as conn:
-                await conn.execute("INSERT INTO cenbot.youtube (channel_id, upload_playlist_id) VALUES ($1, $2) ON CONFLICT DO NOTHING", channel_id, upload_playlist_id)
-                await conn.execute("UPDATE cenbot.youtube SET subscribed_guilds=ARRAY_APPEND(subscribed_guilds, $1) WHERE channel_id=$2", interaction.guild.id, channel_id)
+                await conn.execute("""
+                                   INSERT INTO cenbot.youtube (channel_id, upload_playlist_id)
+                                   VALUES ($1, $2)
+                                   ON CONFLICT DO NOTHING
+                                   """, channel_id, upload_playlist_id)
+                await conn.execute("""
+                                   UPDATE cenbot.youtube
+                                   SET subscribed_guilds=ARRAY_APPEND(subscribed_guilds, $1)
+                                   WHERE channel_id=$2
+                                   """, interaction.guild.id, channel_id)
         except Exception as e:
             log.exception(e)
             await interaction.followup.send(f"There was an error adding ``{channel_handle}`` to your subscriptions, please try again.")
@@ -149,7 +161,11 @@ class youtube(commands.GroupCog, name="youtube"):
         # Update YouTube data
         try:
             async with self.bot.db_pool.acquire() as conn:
-                await conn.execute("UPDATE cenbot.youtube SET subscribed_guilds=ARRAY_REMOVE(subscribed_guilds, $1) WHERE channel_id=$2", interaction.guild.id, channel_id)
+                await conn.execute("""
+                                   UPDATE cenbot.youtube
+                                   SET subscribed_guilds=ARRAY_REMOVE(subscribed_guilds, $1)
+                                   WHERE channel_id=$2
+                                   """, interaction.guild.id, channel_id)
         except Exception as e:
             log.exception(e)
             await interaction.followup.send(f"There was an error removing {channel_handle} from your subscriptions, please try again.")
@@ -174,7 +190,10 @@ class youtube(commands.GroupCog, name="youtube"):
         # Update YouTube data
         try:
             async with self.bot.db_pool.acquire() as conn:
-                await conn.execute("UPDATE cenbot.youtube SET subscribed_guilds=ARRAY_REMOVE(subscribed_guilds, $1)", interaction.guild.id)
+                await conn.execute("""
+                                   UPDATE cenbot.youtube
+                                   SET subscribed_guilds=ARRAY_REMOVE(subscribed_guilds, $1)
+                                   """, interaction.guild.id)
         except Exception as e:
             log.exception(e)
             await interaction.followup.send("There was an error removing all your subscriptions, please try again.")
@@ -221,7 +240,11 @@ class youtube(commands.GroupCog, name="youtube"):
                 # Update database
                 try:
                     async with self.bot.db_pool.acquire() as conn:
-                        await conn.execute("UPDATE cenbot.youtube SET last_upload_date=$1 WHERE channel_id=$2", date_published, record['channel_id'])
+                        await conn.execute("""
+                                           UPDATE cenbot.youtube
+                                           SET last_upload_date=$1
+                                           WHERE channel_id=$2
+                                           """, date_published, record['channel_id'])
                 except Exception as e:
                     log.exception(e)
                     continue
@@ -231,7 +254,11 @@ class youtube(commands.GroupCog, name="youtube"):
                     # Remove from database
                     try:
                         async with self.bot.db_pool.acquire() as conn:
-                            await conn.execute("DELETE FROM cenbot.youtube WHERE channel_id=$2", record['channel_id'])
+                            await conn.execute("""
+                                               DELETE
+                                               FROM cenbot.youtube
+                                               WHERE channel_id=$2
+                                               """, record['channel_id'])
                     except Exception as e:
                         log.exception(e)
                         continue
@@ -241,14 +268,18 @@ class youtube(commands.GroupCog, name="youtube"):
                     # Get YouTube news channel
                     try:
                         async with self.bot.db_pool.acquire() as conn:
-                            rec = await conn.fetchrow("SELECT youtube_alert_channel FROM cenbot.guilds WHERE guild_id=$1", guild_id)
+                            record2 = await conn.fetchrow("""
+                                                          SELECT youtube_alert_channel
+                                                          FROM cenbot.guilds
+                                                          WHERE guild_id=$1
+                                                          """, guild_id)
                     except Exception as e:
                         log.exception(e)
                         continue
 
                     # Check for record
-                    if rec:
-                        await self.bot.get_channel(rec['youtube_alert_channel']).send(f"**YouTube Video Alert!**\n{youtube_channel_name} just uploaded a new YouTube video: [{video_title}](https://youtube.com/watch?v={video_id})")
+                    if record2['youtube_alert_channel']:
+                        await self.bot.get_channel(record2['youtube_alert_channel']).send(f"**YouTube Video Alert!**\n{youtube_channel_name} just uploaded a new YouTube video: [{video_title}](https://youtube.com/watch?v={video_id})")
 
         # Annouce completion
         log.info("Finished checking YouTube channels for new uploads")

@@ -55,10 +55,10 @@ loggers:
   CENBot.internal:
     level: DEBUG
     propogate: true
-  CENBot.logging:
+  CENBot.moderation:
     level: DEBUG
     propogate: true
-  CENBot.moderation:
+  CENBot.reports:
     level: DEBUG
     propogate: true
   CENBot.roles:

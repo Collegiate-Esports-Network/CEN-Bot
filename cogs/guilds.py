@@ -70,9 +70,9 @@ class guilds(commands.GroupCog, name="guild"):
         """
         # Parse input
         if state == "enable":
-            state = True
+            status = True
         else:
-            state = False
+            status = False
 
         # Toggle modules
         try:
@@ -80,13 +80,13 @@ class guilds(commands.GroupCog, name="guild"):
                 # Switch on module
                 match module:
                     case "moderation":
-                        await conn.execute("UPDATE cenbot.guilds SET moderation_enabled=$1 WHERE guild_id=$2", state, interaction.guild.id)
+                        await conn.execute("UPDATE cenbot.guilds SET moderation_enabled=$1 WHERE guild_id=$2", status, interaction.guild.id)
                     case "roles":
-                        await conn.execute("UPDATE cenbot.guilds SET roles_enabled=$1 WHERE guild_id=$2", state, interaction.guild.id)
+                        await conn.execute("UPDATE cenbot.guilds SET roles_enabled=$1 WHERE guild_id=$2", status, interaction.guild.id)
                     case "voice":
-                        await conn.execute("UPDATE cenbot.guilds SET voice_enabled=$1 WHERE guild_id=$2", state, interaction.guild.id)
+                        await conn.execute("UPDATE cenbot.guilds SET voice_enabled=$1 WHERE guild_id=$2", status, interaction.guild.id)
                     case "welcome":
-                        await conn.execute("UPDATE cenbot.guilds SET welcome_enabled=$1 WHERE guild_id=$2", state, interaction.guild.id)
+                        await conn.execute("UPDATE cenbot.guilds SET welcome_enabled=$1 WHERE guild_id=$2", status, interaction.guild.id)
         except PostgresError as e:
             log.exception(e)
             await interaction.response.send_message(f"There was an error enabling ``{module}``, please try again.", ephemeral=True)
@@ -94,7 +94,7 @@ class guilds(commands.GroupCog, name="guild"):
             log.exception(e)
             await interaction.response.send_message("There was an error, please try again.", ephemeral=True)
         else:
-            await interaction.response.send_message("Moderation enabled.", ephemeral=True)
+            await interaction.response.send_message(f"Moderation {state}d.", ephemeral=True)
 
     @app_commands.checks.has_role("CENBot Admin")
     @app_commands.command(
