@@ -1,11 +1,8 @@
 ---
 version: 1
 formatters:
-  client:
-    format: '%(asctime)s | discord         : %(levelname)-8s %(message)s'
-    datefmt: '%Y-%m-%d %H:%M:%S'
   default: 
-    format: '%(asctime)s | %(name)-16s: %(levelname)-8s %(message)s'
+    format: '%(asctime)s | %(levelname)-8s | %(name)s : %(message)s'
     datefmt: '%Y-%m-%d %H:%M:%S'
 handlers: 
   bot: 
@@ -21,23 +18,10 @@ handlers:
     formatter: default
     level: INFO
     stream: ext://sys.stdout
-  client:
-    class: logging.handlers.TimedRotatingFileHandler
-    formatter: client
-    filename: LOG.log
-    when: W6
-    backupCount: 3
-    encoding: UTF-8
-    level: DEBUG
-  client_console:
-    class: logging.StreamHandler
-    formatter: client
-    level: INFO
-    stream: ext://sys.stdout
 loggers:
   discord:
-    handlers: [client, client_console]
-    level: INFO
+    handlers: [bot, bot_console]
+    level: DEBUG
     propogate: false
   CENBot: 
     handlers: [bot, bot_console]

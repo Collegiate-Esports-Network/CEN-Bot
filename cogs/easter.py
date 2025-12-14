@@ -26,12 +26,12 @@ class easter(commands.Cog, name='easter'):
         self.bot = bot
 
     @commands.Cog.listener()
-    async def on_message(self, ctx: discord.Message) -> None:
+    async def on_message(self, ctx: commands.Context) -> None:
         # Choose a random number
         random.seed(round(time() * 1000))
         num = random.randint(1, 100)
 
-        if ctx.author != self.bot.user and num > 90 and 'crazy' in ctx.content.lower():
+        if ctx.author != self.bot.user and num > 90 and 'crazy' in ctx.message.content.lower():
             await ctx.reply("Crazy? I was crazy once. They locked me in a room. A rubber room. A rubber room with rats, and rats make me crazy.\nCrazy? I was crazy once...")
 
     @commands.command(
@@ -39,9 +39,10 @@ class easter(commands.Cog, name='easter'):
         description="Rickrolls the user.",
         hidden=True
     )
-    async def rickroll(self, msg: discord.Message) -> None:
-        """Rickroll the user."""
-        await msg.channel.send("https://www.youtube.com/watch?v=dQw4w9WgXcQ")
+    async def rickroll(self, ctx: commands.Context, *, member: discord.Member) -> None:
+        """Rickroll the user mentioned in the message."""
+        await ctx.message.delete()
+        await ctx.message.channel.send(content=member.mention, file=discord.File("./cogs/assets/audio.mp3"))
 
 
 # Add to bot

@@ -41,11 +41,9 @@ class youtube(commands.GroupCog, name="youtube"):
         self.check_youtube.stop()
 
     @app_commands.checks.has_role("CENBot Admin")
-    @app_commands.command(
-        name="set_channel"
-    )
-    async def set_channel(self, interaction: discord.Interaction, channel: discord.TextChannel):
-        """Sets the channel to send YouTube alerts to.
+    @app_commands.command()
+    async def enable(self, interaction: discord.Interaction, channel: discord.TextChannel):
+        """Enables YouTube alerts and sets the channel.
 
         :param interaction: the discord interaction
         :type interaction: discord.Interaction
@@ -56,9 +54,9 @@ class youtube(commands.GroupCog, name="youtube"):
             async with self.bot.db_pool.acquire() as con:
                 await con.execute("""
                                   UPDATE cenbot.guilds
-                                  SET youtube_alert_channel=$1
-                                  WHERE guild_id=$2
-                                  """, channel.id, interaction.guild.id)
+                                  SET youtube_alert_channel=$2
+                                  WHERE guild_id=$1
+                                  """, interaction.guild.id, channel.id)
         except PostgresError as e:
             log.exception(e)
             await interaction.response.send_message("There was an error updating your data, please try again.", ephemeral=True)
@@ -68,10 +66,30 @@ class youtube(commands.GroupCog, name="youtube"):
         else:
             await interaction.response.send_message(f"YouTube alert channel set to {channel.mention}.", ephemeral=True)
 
+    async def disable(self, interaction: discord.Interaction):
+        """Disables YouTube alerts and clears channel data.
+
+        :param interaction: the discord interaction
+        :type interaction: discord.Interaction
+        """
+        try:
+            async with self.bot.db_pool.acquire() as con:
+                await con.execute("""
+                                  UPDATE cenbot.guilds
+                                  SET youtube_alert_channel=NULL
+                                  WHERE guild_id=$1
+                                  """, interaction.guild.id)
+        except PostgresError as e:
+            log.exception(e)
+            await interaction.response.send_message("There was an error updating your data, please try again.", ephemeral=True)
+        except Exception as e:
+            log.exception(e)
+            await interaction.response.send_message("There was an error, please try again.", ephemeral=True)
+        else:
+            await interaction.response.send_message("YouTube alerts disabled.", ephemeral=True)
+
     @app_commands.checks.has_role("CENBot Admin")
-    @app_commands.command(
-        name="add_alert"
-    )
+    @app_commands.command()
     async def add_alert(self, interaction: discord.Interaction, channel_handle: str):
         """Subscribes a guild to a YouTube channel alert.
 
@@ -124,11 +142,9 @@ class youtube(commands.GroupCog, name="youtube"):
             await interaction.followup.send(f"``{channel_handle}`` has been added to your subscriptions.")
 
     @app_commands.checks.has_role("CENBot Admin")
-    @app_commands.command(
-        name="remove_alert"
-    )
+    @app_commands.command()
     async def remove_alert(self, interaction: discord.Interaction, channel_handle: str):
-        """Removes a guild from a YouTube channel alert.
+        """Unsubscribes a guild from a YouTube channel alert.
 
         :param interaction: the discord interaction
         :type interaction: discord.Interaction
@@ -173,16 +189,12 @@ class youtube(commands.GroupCog, name="youtube"):
             await interaction.followup.send(f"``{channel_handle}`` has been removed to your subscriptions.")
 
     @app_commands.checks.has_role("CENBot Admin")
-    @app_commands.command(
-        name="remove_all_alerts"
-    )
+    @app_commands.command()
     async def remove_all_alerts(self, interaction: discord.Interaction):
-        """Removes a guild from a YouTube channel alert.
+        """Unsubscibes a guild from all YouTube channel alerts.
 
         :param interaction: the discord interaction
         :type interaction: discord.Interaction
-        :param channel_handle: the YouTube channel handle to unsubscribe to (@<channel_name>)
-        :type channel: discord.TextChannel
         """
         # Defer response
         await interaction.response.defer(ephemeral=True, thinking=True)
@@ -227,7 +239,7 @@ class youtube(commands.GroupCog, name="youtube"):
                         if response.status == 200:
                             data = await response.json()
                             youtube_channel_name = data['items'][0]['snippet']['channelTitle']
-                            video_title = data['items'][0]['snippet']['title']
+                            video_title: str = data['items'][0]['snippet']['title']
                             date_published = datetime.fromisoformat(data['items'][0]['snippet']['publishedAt'])
                             video_id = data['items'][0]['snippet']['resourceId']['videoId']
                         else:
@@ -279,6 +291,13 @@ class youtube(commands.GroupCog, name="youtube"):
 
                     # Check for record
                     if record2['youtube_alert_channel']:
+                        # Clean for live emoji
+                        if "🔴 " in video_title:
+                            video_title = video_title.replace("🔴 ", "LIVE ")
+                        elif "🔴" in video_title:
+                            video_title = video_title.replace("🔴", "LIVE")
+
+                        # Send to channel
                         await self.bot.get_channel(record2['youtube_alert_channel']).send(f"**YouTube Video Alert!**\n{youtube_channel_name} just uploaded a new YouTube video: [{video_title}](https://youtube.com/watch?v={video_id})")
 
         # Annouce completion
