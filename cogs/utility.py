@@ -151,6 +151,7 @@ class utility(commands.Cog):
             weather = await client.get(cities[discord.utils.utcnow().minute % 5])
             if weather:
                 await self.bot.change_presence(activity=discord.CustomActivity(name=f"{weather.location}: {weather.kind.name.capitalize() if not "SUNNY" else "Clear"}, {weather.feels_like}°F"))
+                log.debug("Bot status updated")
             else:
                 return
 
