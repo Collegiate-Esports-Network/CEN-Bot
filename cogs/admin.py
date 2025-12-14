@@ -98,10 +98,9 @@ class admin(commands.Cog, name='admin'):
         # For each guild, create DM with owner with the annoucement
         async for guild in forasync(self.bot.guilds):
             if not await self.bot.is_owner(guild.owner):
-                channel = await guild.owner.create_dm()
-                await channel.send(msg)
+                await guild.owner.send(msg)
 
-        await ctx.reply(f"Annoucement \"{msg}\" sent.")
+        await ctx.reply(f"Announcement \"{msg}\" sent.")
 
 
 # Add to bot

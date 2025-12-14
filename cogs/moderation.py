@@ -42,22 +42,20 @@ class moderation(commands.GroupCog, name="moderation"):
         self.bot.tree.add_command(self.ctx_report_user)
 
     @app_commands.checks.has_role("CENBot Admin")
-    @app_commands.command(
-        name="set_log_channel"
-    )
-    async def set_log_channel(self, interaction: discord.Interaction, channel: discord.TextChannel) -> None:
-        """Sets the channel guild logs will be sent to.
+    @app_commands.command()
+    async def enable_logging(self, interaction: discord.Interaction, channel: discord.TextChannel) -> None:
+        """Enables the logging module and sets the log channel.
 
         :param interaction: the discord interaction
         :type interaction: discord.Interaction
-        :param channel: the text channel to send guild reports to
+        :param channel: the text channel to send guild logs to
         :type channel: discord.TextChannel
         """
         try:
             async with self.bot.db_pool.acquire() as conn:
                 await conn.execute("""
                                    UPDATE cenbot.guilds
-                                   SET log_channel=$2
+                                   SET logging_channel=$2
                                    WHERE guild_id=$1
                                    """, interaction.guild.id, channel.id)
         except PostgresError as e:
@@ -67,13 +65,35 @@ class moderation(commands.GroupCog, name="moderation"):
             log.exception(e)
             await interaction.response.send_message("There was an error, please try again.", ephemeral=True)
         else:
-            await interaction.response.send_message(f"Log channel set to ``{channel.category}: #{channel.name}``", ephemeral=True)
+            await interaction.response.send_message(f"Logging channel set to {channel.mention}.", ephemeral=True)
 
     @app_commands.checks.has_role("CENBot Admin")
-    @app_commands.command(
-        name="set_report_channel"
-    )
-    async def set_report_channel(self, interaction: discord.Interaction, channel: discord.TextChannel) -> None:
+    @app_commands.command()
+    async def disable_logging(self, interaction: discord.Interaction) -> None:
+        """Disables the logging module and clears the channel data.
+
+        :param interaction: the discord interaction
+        :type interaction: discord.Interaction
+        """
+        try:
+            async with self.bot.db_pool.acquire() as conn:
+                await conn.execute("""
+                                   UPDATE cenbot.guilds
+                                   SET logging_channel=NULL
+                                   WHERE guild_id=$1
+                                   """, interaction.guild.id)
+        except PostgresError as e:
+            log.exception(e)
+            await interaction.response.send_message("There was an error updating your data, please try again.", ephemeral=True)
+        except Exception as e:
+            log.exception(e)
+            await interaction.response.send_message("There was an error, please try again.", ephemeral=True)
+        else:
+            await interaction.response.send_message("Logging disabled", ephemeral=True)
+
+    @app_commands.checks.has_role("CENBot Admin")
+    @app_commands.command()
+    async def enable_reporting(self, interaction: discord.Interaction, channel: discord.TextChannel) -> None:
         """Sets the channel guild reports will be sent to.
 
         :param interaction: the discord interaction
@@ -85,7 +105,7 @@ class moderation(commands.GroupCog, name="moderation"):
             async with self.bot.db_pool.acquire() as conn:
                 await conn.execute("""
                                    UPDATE cenbot.guilds
-                                   SET report_channel=$2
+                                   SET reporting_channel=$2
                                    WHERE guild_id=$1
                                    """, interaction.guild.id, channel.id)
         except PostgresError as e:
@@ -95,7 +115,31 @@ class moderation(commands.GroupCog, name="moderation"):
             log.exception(e)
             await interaction.response.send_message("There was an error, please try again.", ephemeral=True)
         else:
-            await interaction.response.send_message(f"Report channel set to ``{channel.category}: #{channel.name}``", ephemeral=True)
+            await interaction.response.send_message(f"Report channel set to {channel.mention}.", ephemeral=True)
+
+    @app_commands.checks.has_role("CENBot Admin")
+    @app_commands.command()
+    async def disable_reporting(self, interaction: discord.Interaction) -> None:
+        """Disables the reporting module and clears the channel data.
+
+        :param interaction: the discord interaction
+        :type interaction: discord.Interaction
+        """
+        try:
+            async with self.bot.db_pool.acquire() as conn:
+                await conn.execute("""
+                                   UPDATE cenbot.guilds
+                                   SET reporting_channel=NULL
+                                   WHERE guild_id=$1
+                                   """, interaction.guild.id)
+        except PostgresError as e:
+            log.exception(e)
+            await interaction.response.send_message("There was an error updating your data, please try again.", ephemeral=True)
+        except Exception as e:
+            log.exception(e)
+            await interaction.response.send_message("There was an error, please try again.", ephemeral=True)
+        else:
+            await interaction.response.send_message("Reporting disabled.", ephemeral=True)
 
     @app_commands.checks.has_role("CENBot Admin")
     @app_commands.command(
@@ -154,7 +198,7 @@ class moderation(commands.GroupCog, name="moderation"):
             await interaction.response.send_message(f"Set new member message timer to ``{seconds} seconds``", ephemeral=True)
 
     async def report_message(self, interaction: discord.Interaction, msg: discord.Message) -> None:
-        """Report a message to the moderation channel.
+        """Report a message to the reports channel.
 
         :param interaction: the discord interaction
         :type interaction: discord.Interaction
@@ -168,17 +212,19 @@ class moderation(commands.GroupCog, name="moderation"):
         try:
             async with self.bot.db_pool.acquire() as conn:
                 record = await conn.fetchrow("""
-                                             SELECT cenbot.guilds.report_channel, cenbot.moderation.moderation_level
+                                             SELECT cenbot.guilds.reporting_channel, cenbot.moderation.moderation_level
                                              FROM cenbot.guilds INNER JOIN cenbot.moderation ON (cenbot.guilds.guild_id=cenbot.moderation.guild_id)
                                              WHERE cenbot.guilds.guild_id=$1
                                              """, msg.guild.id)
         except Exception as e:
             log.exception(e)
+            await interaction.followup.send(f"There was an reporting {msg.author.mention}'s message, please try again.", ephemeral=True)
+            return
 
         # Check for record
         if record:
             # Check if mod level is 1 or above
-            if record['moderation_level'] >= 1 and record['report_channel']:
+            if record['moderation_level'] >= 1 and record['reporting_channel']:
                 # Create embed
                 embed = discord.Embed(colour=discord.Colour.pink())
                 embed.set_author(name=interaction.user.display_name, icon_url=interaction.user.display_avatar)
@@ -194,13 +240,13 @@ class moderation(commands.GroupCog, name="moderation"):
                     embed.set_footer(text=f"{discord.utils.utcnow().strftime('%d/%m/%y - %H:%M:%S')}")
 
                     # Send report to channel
-                    await self.bot.get_channel(record['report_channel']).send(content="@everyone", embed=embed)
+                    await self.bot.get_channel(record['reporting_channel']).send(content="@everyone", embed=embed)
 
                     # Respond
                     await interaction.followup.send("Message reported.")
 
     async def report_user(self, interaction: discord.Interaction, member: discord.Member) -> None:
-        """Report a user to the moderation channel.
+        """Report a user to the reports channel.
 
         :param interaction: the discord interaction
         :type interaction: discord.Interaction
@@ -214,17 +260,19 @@ class moderation(commands.GroupCog, name="moderation"):
         try:
             async with self.bot.db_pool.acquire() as conn:
                 record = await conn.fetchrow("""
-                                             SELECT cenbot.guilds.report_channel, cenbot.moderation.moderation_level
+                                             SELECT cenbot.guilds.reporting_channel, cenbot.moderation.moderation_level
                                              FROM cenbot.guilds INNER JOIN cenbot.moderation ON (cenbot.guilds.guild_id=cenbot.moderation.guild_id)
                                              WHERE cenbot.guilds.guild_id=$1
                                              """, member.guild.id)
         except Exception as e:
             log.exception(e)
+            await interaction.followup.send(f"There was an reporting {member.mention}, please try again.", ephemeral=True)
+            return
 
         # Check for record
         if record:
             # Check if mod level is 1 or above
-            if record['moderation_level'] >= 1 and record['report_channel']:
+            if record['moderation_level'] >= 1 and record['reporting_channel']:
                 # Create embed
                 embed = discord.Embed(colour=discord.Colour.pink())
                 embed.set_author(name=interaction.user.display_name, icon_url=interaction.user.display_avatar)
@@ -232,7 +280,7 @@ class moderation(commands.GroupCog, name="moderation"):
                 embed.set_footer(text=f"{discord.utils.utcnow().strftime('%d/%m/%y - %H:%M:%S')}")
 
                 # Send report to channel
-                await self.bot.get_channel(record['report_channel']).send(content="@everyone", embed=embed)
+                await self.bot.get_channel(record['reporting_channel']).send(content="@everyone", embed=embed)
 
                 # Respond
                 await interaction.followup.send("User reported.")
@@ -289,24 +337,25 @@ class moderation(commands.GroupCog, name="moderation"):
         :type msg_after: discord.Message
         """
         # Ignore messages from self or in private channels
-        if self.bot.user == msg_before.author:
+        if self.bot.user == msg_before.author or msg_before.channel.type == discord.ChannelType.private:
             return
 
         # Get data from database
         try:
             async with self.bot.db_pool.acquire() as conn:
                 record = await conn.fetchrow("""
-                                             SELECT cenbot.guilds.log_channel, cenbot.moderation.moderation_level
+                                             SELECT cenbot.guilds.logging_channel, cenbot.moderation.moderation_level
                                              FROM cenbot.guilds INNER JOIN cenbot.moderation ON (cenbot.guilds.guild_id=cenbot.moderation.guild_id)
                                              WHERE cenbot.guilds.guild_id=$1
                                              """, msg_before.guild.id)
         except Exception as e:
             log.exception(e)
+            return
 
         # Check for record
         if record:
             # Check if mod level is 2 or above
-            if record['moderation_level'] >= 2 and record['log_channel']:
+            if record['moderation_level'] >= 2 and record['logging_channel']:
                 # Build embed
                 embed = discord.Embed(colour=discord.Colour.yellow())
                 embed.set_author(name=msg_before.author.display_name, icon_url=msg_before.author.display_avatar)
@@ -325,7 +374,7 @@ class moderation(commands.GroupCog, name="moderation"):
                 embed.set_footer(text=f"{discord.utils.utcnow().strftime('%d/%m/%y - %H:%M:%S')}")
 
                 # Send to channel
-                await self.bot.get_channel(record['mod_channel']).send(embed=embed)
+                await self.bot.get_channel(record['logging_channel']).send(embed=embed)
 
     @commands.Cog.listener()
     async def on_message_delete(self, msg: discord.Message) -> None:
@@ -335,24 +384,25 @@ class moderation(commands.GroupCog, name="moderation"):
         :type msg: discord.Message
         """
         # Ignore messages from self or in private channels
-        if self.bot.user == msg.author:
+        if self.bot.user == msg.author or msg.channel.type == discord.ChannelType.private:
             return
 
         # Get data from database
         try:
             async with self.bot.db_pool.acquire() as conn:
                 record = await conn.fetchrow("""
-                                             SELECT cenbot.guilds.log_channel, cenbot.moderation.moderation_level
+                                             SELECT cenbot.guilds.logging_channel, cenbot.moderation.moderation_level
                                              FROM cenbot.guilds INNER JOIN cenbot.moderation ON (cenbot.guilds.guild_id=cenbot.moderation.guild_id)
                                              WHERE cenbot.guilds.guild_id=$1
                                              """, msg.guild.id)
         except Exception as e:
             log.exception(e)
+            return
 
         # Check for record
         if record:
             # Check if mod level is 2 or above
-            if record['moderation_level'] >= 2 and record['log_channel']:
+            if record['moderation_level'] >= 2 and record['logging_channel']:
                 # Build embed
                 embed = discord.Embed(colour=discord.Colour.orange())
                 embed.set_author(name=msg.author.display_name, icon_url=msg.author.display_avatar)
@@ -369,7 +419,7 @@ class moderation(commands.GroupCog, name="moderation"):
                 embed.set_footer(text=f"{discord.utils.utcnow().strftime('%d/%m/%y - %H:%M:%S')}")
 
                 # Send to channel
-                await self.bot.get_channel(record['mod_channel']).send(embed=embed)
+                await self.bot.get_channel(record['logging_channel']).send(embed=embed)
 
     @commands.Cog.listener()
     async def on_voice_state_update(self, member: discord.Member, before: discord.VoiceState, after: discord.VoiceState) -> None:
@@ -390,17 +440,18 @@ class moderation(commands.GroupCog, name="moderation"):
         try:
             async with self.bot.db_pool.acquire() as conn:
                 record = await conn.fetchrow("""
-                                             SELECT cenbot.guilds.log_channel, cenbot.moderation.moderation_level
+                                             SELECT cenbot.guilds.logging_channel, cenbot.moderation.moderation_level
                                              FROM cenbot.guilds INNER JOIN cenbot.moderation ON (cenbot.guilds.guild_id=cenbot.moderation.guild_id)
                                              WHERE cenbot.guilds.guild_id=$1
                                              """, member.guild.id)
         except Exception as e:
             log.exception(e)
+            return
 
         # Check for record
         if record:
             # Check if mod level is 2 or above
-            if record['moderation_level'] >= 2 and record['log_channel']:
+            if record['moderation_level'] >= 2 and record['logging_channel']:
                 # Check if the user joined or left a voice channel
                 if before.channel is None:
                     # Build embed
@@ -422,7 +473,7 @@ class moderation(commands.GroupCog, name="moderation"):
                 embed.set_footer(text=f"{discord.utils.utcnow().strftime('%d/%m/%y - %H:%M:%S')}")
 
                 # Send to channel
-                await self.bot.get_channel(record['mod_channel']).send(embed=embed)
+                await self.bot.get_channel(record['logging_channel']).send(embed=embed)
 
 
 # Add to bot

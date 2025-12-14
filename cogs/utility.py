@@ -11,11 +11,12 @@ import random
 from datetime import datetime
 from zoneinfo import ZoneInfo
 from typing import Literal
+import python_weather
 
 # Discord imports
 from start import cenbot
 import discord
-from discord.ext import commands
+from discord.ext import commands, tasks
 from discord import app_commands
 
 # Logging
@@ -106,6 +107,58 @@ class utility(commands.Cog):
             await interaction.response.send_message(f"Fixed datetime: ``<t:{int(user_time.timestamp())}:F>``", ephemeral=True)
         else:
             await interaction.response.send_message("Invalid timestamp format specified.", ephemeral=True)
+
+    @app_commands.command(
+        name='weather',
+        description="Gets your local weather"
+    )
+    async def weather(self, interaction: discord.Interaction, city: str) -> None:
+        """Gets your local weather forecast
+
+        :param interaction: the discord interaction
+        :type interaction: discord.Interaction
+        :param city: the city to get weather for
+        :type city: str
+        """
+        # Create the client
+        weather = None
+        async with python_weather.Client(unit=python_weather.IMPERIAL) as client:
+            weather = await client.get(city)
+        if weather:
+            # Build Embed
+            embed = discord.Embed(title='Weather Forecast', description="Here is your 3-day weather forecast.", color=discord.Color.greyple())
+            embed.set_author(name=self.bot.user.name, icon_url=self.bot.user.avatar.url)
+            embed.add_field(name="Currently",
+                            value=f"{weather.temperature}°F and {weather.description}\nWind: {weather.wind_direction} @ {weather.wind_speed} mph",
+                            inline=False)
+            embed.add_field(name="Tomorrow",
+                            value=f"{weather.daily_forecasts[0].lowest_temperature}°F - {weather.daily_forecasts[0].highest_temperature}°F | {weather.daily_forecasts[0].hourly_forecasts[4].kind}",
+                            inline=False)
+            embed.add_field(name=f"{weather.daily_forecasts[1].date}",
+                            value=f"{weather.daily_forecasts[1].lowest_temperature}°F - {weather.daily_forecasts[1].highest_temperature}°F | {weather.daily_forecasts[1].hourly_forecasts[4].kind}",
+                            inline=False)
+            embed.add_field(name=f"{weather.daily_forecasts[2].date}",
+                            value=f"{weather.daily_forecasts[2].lowest_temperature}°F - {weather.daily_forecasts[2].highest_temperature}°F | {weather.daily_forecasts[2].hourly_forecasts[4].kind}",
+                            inline=False)
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+
+    @tasks.loop(minutes=1)
+    async def update_presence(self) -> None:
+        """Updates the bot's presence every minute with the weather."""
+        cities = ["New York", "Cincinnati", "Chicago", "Denver", "Los Angeles"]
+        weather = None
+        async with python_weather.Client(unit=python_weather.IMPERIAL) as client:
+            weather = await client.get(cities[discord.utils.utcnow().minute % 5])
+            if weather:
+                await self.bot.change_presence(activity=discord.CustomActivity(name=f"{weather.location}: {weather.kind.name.capitalize() if not "SUNNY" else "Clear"}, {weather.feels_like}°F"))
+            else:
+                return
+
+    def cog_load(self):
+        self.update_presence.start()
+
+    def cog_unload(self):
+        self.update_presence.stop()
 
 
 # Add to bot

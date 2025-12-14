@@ -25,12 +25,11 @@ class internal(commands.Cog):
 
     @commands.Cog.listener()
     async def on_guild_join(self, guild: discord.Guild) -> None:
-        """When a guild is joined, populate Supabase and create necessary roles.
+        """When a guild is joined, populate Supabase.
 
         :param guild: the guild joined.
         :type guild: discord.Guild
         """
-
         try:
             async with self.bot.db_pool.acquire() as conn:
                 await conn.execute("""
@@ -48,7 +47,6 @@ class internal(commands.Cog):
         :param guild: the guild left
         :type guild: discord.Guild
         """
-
         try:
             async with self.bot.db_pool.acquire() as conn:
                 await conn.execute("""

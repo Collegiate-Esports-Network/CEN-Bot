@@ -41,11 +41,10 @@ class cenbot(Bot):
     def __init__(self) -> None:
         super().__init__(
             intents=intents,
-            activity=discord.Activity(type=discord.ActivityType.playing, name="big brother"),
             description="Hello! I'm the CEN Bot, a customized bot built and maintained by Collegiate Esports Network LLC.",
             command_prefix="!!"
         )
-        self.version = "1.0.0"
+        self.version = "1.1.0"
 
     async def setup_hook(self) -> None:
         log.info(f"{self.user.display_name} is connecting...")
@@ -81,6 +80,21 @@ class cenbot(Bot):
 
         # Force command sync
         await self.tree.sync()
+
+    # async def on_app_command_error(self, interaction: discord.Interaction, error: Exception) -> None:
+    #     # Get owner
+    #     owner = self.get_user(self.owner_id)
+    #     if owner is None:
+    #         try:
+    #             owner = await self.fetch_user(self.owner_id)
+    #         except discord.HTTPException:
+    #             owner = None
+
+    #     if owner:
+    #         try:
+    #             await owner.send("Error")
+    #         except discord.Forbidden:
+    #             log.warning("DMs unavailable.")
 
     async def on_ready(self) -> None:
         log.info(f"{self.user.display_name} has logged in")
