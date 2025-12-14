@@ -11,11 +11,10 @@ import discord
 from discord.ext import commands
 from discord import app_commands
 
-# Typing
-from typing import Literal
+# Modules
+from modules.async_for import forasync
 
 # Logging
-from asyncpg.exceptions import PostgresError
 from logging import getLogger
 log = getLogger('CENBot.guilds')
 
@@ -28,9 +27,7 @@ class guilds(commands.GroupCog, name="guild"):
         self.bot = bot
 
     @app_commands.checks.has_permissions(administrator=True)
-    @app_commands.command(
-        name="setup"
-    )
+    @app_commands.command()
     async def setup(self, interaction: discord.Interaction) -> None:
         """Does initial server setup
 
@@ -40,97 +37,99 @@ class guilds(commands.GroupCog, name="guild"):
         # Defer
         await interaction.response.defer(ephemeral=True)
 
+        # Check for CENBot Admin role
+        is_RoleCreated = False
+        async for role in forasync(interaction.guild.roles):
+            if role.name == "CENBot Admin" and role.permissions.administrator:
+                is_RoleCreated = True
+                break
+
         # Create bot-manager role
-        try:
-            role = await interaction.guild.create_role(name="CENBot Admin", color=0x2374A5, permissions=discord.Permissions(administrator=True), reason="CENBot Admin role created by default.")
-        except discord.Forbidden:
-            log.warning(f"CENBot Admin role creation for guild {interaction.guild.id}: {interaction.guild.name} is forbidden")
-            await interaction.guild.owner.send("CENBot Admin role creation is not possible as the bot does not have the proper permissions. Please create a role with the name ``CENBot Admin`` and give it, and the CEN Bot, administrator permissions.")
-        except Exception as e:
-            log.exception(e)
-            await interaction.guild.owner.send("CENBot Admin role creation is not possible at the momement. Please create a role with the name ``CENBot Admin`` and give it administrator permissions.")
+        if not is_RoleCreated:
+            try:
+                role = await interaction.guild.create_role(name="CENBot Admin", color=0x2374A5, permissions=discord.Permissions(administrator=True), reason="``CENBot Admin`` role created by CEN Bot.")
+            except discord.Forbidden:
+                log.warning(f"CENBot Admin role creation for guild {interaction.guild.id}: {interaction.guild.name} is forbidden")
+                await interaction.guild.owner.send("CENBot Admin role creation is not possible as the bot does not have the proper permissions. Please give the CEN Bot administrator permissions, and try again.")
+                return
+            except Exception as e:
+                log.exception(e)
+                await interaction.guild.owner.send("CENBot Admin role creation is not possible at the momement. Please try again.")
+                return
 
         # Give role to interaction user
         await interaction.user.add_roles(role)
+
+        # Validate guild_id in Supabase
+        try:
+            async with self.bot.db_pool.acquire() as conn:
+                record = await conn.fetchrow("""
+                                             SELECT FROM cenbot.guilds
+                                             WHERE guild_id=$1
+                                             """, interaction.guild.id)
+        except Exception as e:
+            log.exception(e)
+            await interaction.guild.owner.send("The CENBot was unable to validate the server. Please try again.")
+            return
+
+        if not record:
+            try:
+                async with self.bot.db_pool.acquire() as conn:
+                    await conn.execute("""
+                                       INSERT INTO cenbot.guilds (guild_id)
+                                       VALUES ($1)
+                                       ON CONFLICT DO NOTHING
+                                       """, interaction.guild.id)
+            except Exception as e:
+                log.exception(e)
+                await interaction.guild.owner.send("The CENBot was unable to validate the server. Please try again.")
+                return
 
         # Confirm
         await interaction.followup.send("The server has been set up.")
 
     @app_commands.checks.has_role("CENBot Admin")
-    @app_commands.command(
-        name="toggle"
-    )
-    async def toggle(self, interaction: discord.Interaction, state: Literal["enable", "disable"], module: Literal["moderation", "roles", "voice", "welcome"]) -> None:
-        """Toggles a module for this server
-
-        :param interaction: the discord interaction.
-        :type interaction: discord.Interaction
-        :param module: the module to enable.
-        :type module: Literal[&quot;moderation&quot;, &quot;roles&quot;, &quot;voice&quot;, &quot;welcome&quot;]
-        """
-        # Parse input
-        if state == "enable":
-            status = True
-        else:
-            status = False
-
-        # Toggle modules
-        try:
-            async with self.bot.db_pool.acquire() as conn:
-                # Switch on module
-                match module:
-                    case "moderation":
-                        await conn.execute("UPDATE cenbot.guilds SET moderation_enabled=$1 WHERE guild_id=$2", status, interaction.guild.id)
-                    case "roles":
-                        await conn.execute("UPDATE cenbot.guilds SET roles_enabled=$1 WHERE guild_id=$2", status, interaction.guild.id)
-                    case "voice":
-                        await conn.execute("UPDATE cenbot.guilds SET voice_enabled=$1 WHERE guild_id=$2", status, interaction.guild.id)
-                    case "welcome":
-                        await conn.execute("UPDATE cenbot.guilds SET welcome_enabled=$1 WHERE guild_id=$2", status, interaction.guild.id)
-        except PostgresError as e:
-            log.exception(e)
-            await interaction.response.send_message(f"There was an error enabling ``{module}``, please try again.", ephemeral=True)
-        except Exception as e:
-            log.exception(e)
-            await interaction.response.send_message("There was an error, please try again.", ephemeral=True)
-        else:
-            await interaction.response.send_message(f"Moderation {state}d.", ephemeral=True)
-
-    @app_commands.checks.has_role("CENBot Admin")
-    @app_commands.command(
-        name="module_status"
-    )
+    @app_commands.command()
     async def module_status(self, interaction: discord.Interaction) -> None:
-        """Checks module statuses for this server
+        """Checks the status of modules.
 
-        :param interaction: the discord interaction.
+        :param interaction: the discord interaction
         :type interaction: discord.Interaction
         """
         try:
             async with self.bot.db_pool.acquire() as conn:
-                record = await conn.fetchrow("SELECT * FROM cenbot.guilds WHERE guild_id=$1", interaction.guild.id)
-        except PostgresError as e:
-            log.exception(e)
-            await interaction.response.send_message("There was an error getting your data, please try again.", ephemeral=True)
+                record = await conn.fetchrow("""
+                                             SELECT *
+                                             FROM cenbot.guilds
+                                             WHERE guild_id=$1
+                                             """, interaction.guild.id)
         except Exception as e:
             log.exception(e)
-            await interaction.response.send_message("There was an error, please try again.", ephemeral=True)
-        else:
-            # Check for record
-            if record:
-                # Build embed
-                embed = discord.Embed(title="Enabled Modules", color=0x2374A5)
-                embed.set_author(name="CENBot", icon_url=self.bot.user.avatar.url)
-                embed.add_field(name="Moderation", value=record['moderation_enabled'], inline=False)
-                embed.add_field(name="Roles", value=record['roles_enabled'], inline=False)
-                embed.add_field(name="Voice", value=record['voice_enabled'], inline=False)
-                embed.add_field(name="Welcome", value=record['welcome_enabled'], inline=False)
+            await interaction.response.send_message("The CENBot was unable to check the status of modules. Please try again.", ephemeral=True)
+            return
 
-                # Send embed
-                await interaction.response.send_message(embed=embed, ephemeral=True)
-            else:
-                log.exception(f"Error retrieving module status for {interaction.guild.id}")
-                await interaction.response.send_message("There was an error getting your data, please try again.", ephemeral=True)
+        if record:
+            # Validate statuses
+            logging = ("Enabled", self.bot.get_channel(record['logging_channel']).mention) if record['logging_channel'] else ("Disabled", "None")
+            reporting = ("Enabled", self.bot.get_channel(record['reporting_channel']).mention) if record['reporting_channel'] else ("Disabled", "None")
+            twitch = ("Enabled", self.bot.get_channel(record['twitch_alert_channel']).mention) if record['twitch_alert_channel'] else ("Disabled", "None")
+            welcome = ("Enabled", self.bot.get_channel(record['welcome_channel']).mention) if record['welcome_channel'] else ("Disabled", "None")
+            youtube = ("Enabled", self.bot.get_channel(record['youtube_alert_channel']).mention) if record['youtube_alert_channel'] else ("Disabled", "None")
+
+            # Build embed
+            embed = discord.Embed(title="Module Info", description="Here is the status of all bot modules in this guild.", colour=0x2374A5)
+            embed.set_author(name=self.bot.user.name, icon_url=self.bot.user.avatar.url)
+            embed.add_field(name="Logging", value=f"{logging[0]} | {logging[1]}", inline=False)
+            embed.add_field(name="Reporting", value=f"{reporting[0]} | {reporting[1]}", inline=False)
+            embed.add_field(name="Twitch", value=f"{twitch[0]} | {twitch[1]}", inline=False)
+            embed.add_field(name="Welcome", value=f"{welcome[0]} | {welcome[1]}", inline=False)
+            embed.add_field(name="YouTube", value=f"{youtube[0]} | {youtube[1]}", inline=False)
+            embed.set_footer(text=f"{discord.utils.utcnow().strftime('%d/%m/%y - %H:%M:%S')}")
+
+            # Send embed
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+        else:
+            await interaction.response.send_message("The CENBot was unable to check the status of modules. Please try again.", ephemeral=True)
 
 
 # Add to bot

@@ -26,11 +26,15 @@ class welcome(commands.GroupCog, name='welcome'):
         super().__init__()
 
     @app_commands.checks.has_role("CENBot Admin")
-    @app_commands.command(
-        name='set_channel',
-        description="Sets the welcome channel."
-    )
-    async def set_channel(self, interaction: discord.Interaction, channel: discord.TextChannel) -> None:
+    @app_commands.command()
+    async def enable(self, interaction: discord.Interaction, channel: discord.TextChannel) -> None:
+        """Enables the welcome module and sets the channel.
+
+        :param interaction: the discord interaction
+        :type interaction: discord.Interaction
+        :param channel: the text channel to send welcome messages to
+        :type channel: discord.TextChannel
+        """
         try:
             async with self.bot.db_pool.acquire() as conn:
                 await conn.execute("""
@@ -45,17 +49,42 @@ class welcome(commands.GroupCog, name='welcome'):
             log.exception(e)
             await interaction.response.send_message("There was an error, please try again.", ephemeral=True)
         else:
-            await interaction.response.send_message("Welcome channel set.", ephemeral=True)
+            await interaction.response.send_message(f"Welcome channel set to {channel.mention}.", ephemeral=True)
 
     @app_commands.checks.has_role("CENBot Admin")
-    @app_commands.command(
-        name='set_message',
-        description="Sets the welcome message."
-    )
-    @app_commands.describe(
-        message="The welcome message. Use ``<new_member>`` to mention the member."
-    )
+    @app_commands.command()
+    async def disable(self, interaction: discord.Interaction) -> None:
+        """Disables the welcome module.
+
+        :param interaction: the discord interaction
+        :type interaction: discord.Interaction
+        """
+        try:
+            async with self.bot.db_pool.acquire() as conn:
+                await conn.execute("""
+                                   UPDATE cenbot.guilds
+                                   SET welcome_channel=NULL
+                                   WHERE guild_id=$1
+                                   """, interaction.guild.id)
+        except PostgresError as e:
+            log.exception(e)
+            await interaction.response.send_message("There was an error updating your data, please try again.", ephemeral=True)
+        except Exception as e:
+            log.exception(e)
+            await interaction.response.send_message("There was an error, please try again.", ephemeral=True)
+        else:
+            await interaction.response.send_message("Welcome disabled.", ephemeral=True)
+
+    @app_commands.checks.has_role("CENBot Admin")
+    @app_commands.command()
     async def set_message(self, interaction: discord.Interaction, message: str) -> None:
+        """Sets the welcome message.
+
+        :param interaction: the discord interaction
+        :type interaction: discord.Interaction
+        :param message: the welcome message. Use "<new_user>" where you'd like to mention the new user.
+        :type message: str
+        """
         try:
             async with self.bot.db_pool.acquire() as conn:
                 await conn.execute("""
@@ -73,11 +102,13 @@ class welcome(commands.GroupCog, name='welcome'):
             await interaction.response.send_message("Welcome message set.", ephemeral=True)
 
     @app_commands.checks.has_role("CENBot Admin")
-    @app_commands.command(
-        name='test_message',
-        description="Tests the welcome message."
-    )
+    @app_commands.command()
     async def test_message(self, interaction: discord.Interaction):
+        """Tests the welcome message.
+
+        :param interaction: the discord interaction
+        :type interaction: discord.Interaction
+        """
         # Get welcome message
         try:
             async with self.bot.db_pool.acquire() as conn:
@@ -122,7 +153,7 @@ class welcome(commands.GroupCog, name='welcome'):
         # Send welcome message
         if record['welcome_channel']:
             try:
-                await self.bot.get_channel(record['welcome_channel']).send(record['welcome_message'].replace('<new_member>', member.user.mention))
+                await self.bot.get_channel(record['welcome_channel']).send(record['welcome_message'].replace('<new_member>', member.mention))
             except AttributeError as e:
                 log.exception(e)
 
