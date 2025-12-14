@@ -44,7 +44,7 @@ class cenbot(Bot):
             description="Hello! I'm the CEN Bot, a customized bot built and maintained by Collegiate Esports Network LLC.",
             command_prefix="!!"
         )
-        self.version = "1.0.1"
+        self.version = "1.1.0"
 
     async def setup_hook(self) -> None:
         log.info(f"{self.user.display_name} is connecting...")
