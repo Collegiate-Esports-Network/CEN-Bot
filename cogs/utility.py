@@ -148,9 +148,10 @@ class utility(commands.Cog):
         cities = ["New York", "Cincinnati", "Chicago", "Denver", "Los Angeles"]
         weather = None
         async with python_weather.Client(unit=python_weather.IMPERIAL) as client:
-            weather = await client.get(cities[discord.utils.utcnow().minute % 5])
+            city = cities[discord.utils.utcnow().minute % 5]
+            weather = await client.get(city)
             if weather:
-                await self.bot.change_presence(activity=discord.CustomActivity(name=f"{weather.location}: {weather.kind.name.capitalize() if not "SUNNY" else "Clear"}, {weather.feels_like}°F"))
+                await self.bot.change_presence(activity=discord.CustomActivity(name=f"{city}: {weather.kind.name.capitalize() if not "SUNNY" else "Clear"}, {weather.feels_like}°F"))
                 log.debug("Bot status updated")
             else:
                 return

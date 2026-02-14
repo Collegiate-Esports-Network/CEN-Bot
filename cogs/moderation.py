@@ -286,7 +286,7 @@ class moderation(commands.GroupCog, name="moderation"):
                 await interaction.followup.send("User reported.")
 
     @commands.Cog.listener()
-    async def on_message(self, msg: discord.Message) -> None:
+    async def on_(self, msg: discord.Message) -> None:
         """Spam protection (level 1 and above)
 
         :param msg: the discord message
@@ -312,12 +312,13 @@ class moderation(commands.GroupCog, name="moderation"):
             # Check if mod level is 1 or above
             if record['moderation_level'] >= 1:
                 # Check if user is a member of the server for longer than the specified time
-                if msg.author.joined_at + timedelta(seconds=record['new_member_message_timer']) >= discord.utils.utcnow():
-                    # Delete message
-                    await msg.delete()
+                if msg.author.joined_at is not None:  # Catch guest cases
+                    if msg.author.joined_at + timedelta(seconds=record['new_member_message_timer']) >= discord.utils.utcnow():
+                        # Delete message
+                        await msg.delete()
 
-                    # Send warning message to the user
-                    await msg.author.send(f"Your message in ``{msg.guild.name}`` was deleted because you are not a member of the server for longer than ``{record['new_member_message_timer']} seconds``.")
+                        # Send warning message to the user
+                        await msg.author.send(f"Your message in ``{msg.guild.name}`` was deleted because you are not a member of the server for longer than ``{record['new_member_message_timer']} seconds``.")
         else:
             # Check if user is a member of the server for longer than the 120 seconds
             if msg.author.joined_at + timedelta(seconds=120) >= discord.utils.utcnow():
