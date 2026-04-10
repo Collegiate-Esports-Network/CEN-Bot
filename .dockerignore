@@ -1,0 +1,12 @@
+# Folders
+__pycache__
+.venv
+.vscode
+logs/
+
+# Files
+.env.*
+.gitignore
+FUNDING.yaml
+LICENSE
+README.md

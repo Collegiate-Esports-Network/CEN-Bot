@@ -1,30 +1,31 @@
+"""Guild management"""
+
 __author__ = "Justin Panchula"
 __copyright__ = "Copyright CEN"
 __credits__ = "Justin Panchula"
 __version__ = "1.0.0"
 __status__ = "Production"
-__doc__ = """Guild management"""
 
-# Discord imports
-from start import cenbot
+# Standard library
+from logging import getLogger
+
+# Third-party
 import discord
 from discord.ext import commands
 from discord import app_commands
 
-# Modules
-from modules.async_for import forasync
+# Internal
+from start import CENBot
 
-# Logging
-from logging import getLogger
 log = getLogger('CENBot.guilds')
 
 
 @app_commands.guild_only()
-class guilds(commands.GroupCog, name="guild"):
-    """Guild management functions.
-    """
-    def __init__(self, bot: cenbot):
+class Guilds(commands.GroupCog, name="guild"):
+    """Guild management functions."""
+    def __init__(self, bot: CENBot):
         self.bot = bot
+        super().__init__()
 
     @app_commands.checks.has_permissions(administrator=True)
     @app_commands.command()
@@ -34,18 +35,13 @@ class guilds(commands.GroupCog, name="guild"):
         :param interaction: the discord interaction.
         :type interaction: discord.Interaction
         """
-        # Defer
         await interaction.response.defer(ephemeral=True)
 
         # Check for CENBot Admin role
-        is_RoleCreated = False
-        async for role in forasync(interaction.guild.roles):
-            if role.name == "CENBot Admin" and role.permissions.administrator:
-                is_RoleCreated = True
-                break
+        role = discord.utils.get(interaction.guild.roles, name="CENBot Admin")
 
-        # Create bot-manager role
-        if not is_RoleCreated:
+        # Create bot-manager role if it doesn't exist
+        if role is None:
             try:
                 role = await interaction.guild.create_role(name="CENBot Admin", color=0x2374A5, permissions=discord.Permissions(administrator=True), reason="``CENBot Admin`` role created by CEN Bot.")
             except discord.Forbidden:
@@ -54,7 +50,7 @@ class guilds(commands.GroupCog, name="guild"):
                 return
             except Exception as e:
                 log.exception(e)
-                await interaction.guild.owner.send("CENBot Admin role creation is not possible at the momement. Please try again.")
+                await interaction.guild.owner.send("CENBot Admin role creation is not possible at the moment. Please try again.")
                 return
 
         # Give role to interaction user
@@ -85,7 +81,6 @@ class guilds(commands.GroupCog, name="guild"):
                 await interaction.guild.owner.send("The CENBot was unable to validate the server. Please try again.")
                 return
 
-        # Confirm
         await interaction.followup.send("The server has been set up.")
 
     @app_commands.checks.has_role("CENBot Admin")
@@ -109,14 +104,12 @@ class guilds(commands.GroupCog, name="guild"):
             return
 
         if record:
-            # Validate statuses
             logging = ("Enabled", self.bot.get_channel(record['logging_channel']).mention) if record['logging_channel'] else ("Disabled", "None")
             reporting = ("Enabled", self.bot.get_channel(record['reporting_channel']).mention) if record['reporting_channel'] else ("Disabled", "None")
             twitch = ("Enabled", self.bot.get_channel(record['twitch_alert_channel']).mention) if record['twitch_alert_channel'] else ("Disabled", "None")
             welcome = ("Enabled", self.bot.get_channel(record['welcome_channel']).mention) if record['welcome_channel'] else ("Disabled", "None")
             youtube = ("Enabled", self.bot.get_channel(record['youtube_alert_channel']).mention) if record['youtube_alert_channel'] else ("Disabled", "None")
 
-            # Build embed
             embed = discord.Embed(title="Module Info", description="Here is the status of all bot modules in this guild.", colour=0x2374A5)
             embed.set_author(name=self.bot.user.name, icon_url=self.bot.user.avatar.url)
             embed.add_field(name="Logging", value=f"{logging[0]} | {logging[1]}", inline=False)
@@ -126,12 +119,10 @@ class guilds(commands.GroupCog, name="guild"):
             embed.add_field(name="YouTube", value=f"{youtube[0]} | {youtube[1]}", inline=False)
             embed.set_footer(text=f"{discord.utils.utcnow().strftime('%d/%m/%y - %H:%M:%S')}")
 
-            # Send embed
             await interaction.response.send_message(embed=embed, ephemeral=True)
         else:
             await interaction.response.send_message("The CENBot was unable to check the status of modules. Please try again.", ephemeral=True)
 
 
-# Add to bot
-async def setup(bot: cenbot) -> None:
-    await bot.add_cog(guilds(bot))
+async def setup(bot: CENBot) -> None:
+    await bot.add_cog(Guilds(bot))

@@ -1,5 +1,5 @@
 {
     // VSCode settings
     "python.analysis.typeCheckingMode": "off",
-    "python.languageServer": "Pylance"
+    "python.languageServer": "Pylance",
 }

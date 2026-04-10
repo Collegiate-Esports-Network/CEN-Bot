@@ -1,26 +1,28 @@
+"""CENBot internal listeners"""
+
 __author__ = "Justin Panchula"
 __copyright__ = "Copyright CEN"
 __credits__ = "Justin Panchula"
 __version__ = "1.0.0"
 __status__ = "Production"
-__doc__ = """CENBot internal listeners"""
 
-# Discord imports
-from start import cenbot
+# Standard library
+from logging import getLogger
+
+# Third-party
 import discord
 from discord.ext import commands
-from discord import app_commands
+from asyncpg.exceptions import PostgresError
 
-# Logging
-from logging import getLogger
+# Internal
+from start import CENBot
+
 log = getLogger('CENBot.internal')
 
 
-@app_commands.guild_only()
-class internal(commands.Cog):
-    """CENBot internal listeners.
-    """
-    def __init__(self, bot: cenbot):
+class Internal(commands.Cog):
+    """CENBot internal listeners."""
+    def __init__(self, bot: CENBot):
         self.bot = bot
 
     @commands.Cog.listener()
@@ -33,16 +35,16 @@ class internal(commands.Cog):
         try:
             async with self.bot.db_pool.acquire() as conn:
                 await conn.execute("""
-                                   INSERT INTO cenbot.guilds (guild_id)
+                                   INSERT INTO cenbot.guilds (id)
                                    VALUES ($1)
-                                   ON CONFLICT DO NOTHING
+                                   ON CONFLICT (id) DO UPDATE SET removed_at=NULL
                                    """, guild.id)
-        except Exception as e:
+        except PostgresError as e:
             log.exception(e)
 
     @commands.Cog.listener()
     async def on_guild_remove(self, guild: discord.Guild) -> None:
-        """When a guild is left, remove the data from Supabase.
+        """When a guild is left, soft-delete the guild's data in Supabase.
 
         :param guild: the guild left
         :type guild: discord.Guild
@@ -50,10 +52,11 @@ class internal(commands.Cog):
         try:
             async with self.bot.db_pool.acquire() as conn:
                 await conn.execute("""
-                                   DELETE FROM cenbot.guilds
-                                   WHERE guild_id=$1
+                                   UPDATE cenbot.guilds
+                                   SET removed_at=NOW()
+                                   WHERE id=$1
                                    """, guild.id)
-        except Exception as e:
+        except PostgresError as e:
             log.exception(e)
 
     @commands.Cog.listener()
@@ -66,6 +69,5 @@ class internal(commands.Cog):
         await thread.join()
 
 
-# Add to bot
-async def setup(bot: cenbot) -> None:
-    await bot.add_cog(internal(bot))
+async def setup(bot: CENBot) -> None:
+    await bot.add_cog(Internal(bot))
