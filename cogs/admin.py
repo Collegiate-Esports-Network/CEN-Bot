@@ -1,27 +1,28 @@
+"""Admin functions"""
+
 __author__ = "Justin Panchula"
 __copyright__ = "Copyright CEN"
 __credits__ = "Justin Panchula"
 __version__ = "1.0.0"
 __status__ = "Production"
-__doc__ = """Admin functions"""
 
-# Helpers
-from modules.async_for import forasync
+# Standard library
+from logging import getLogger
 
-# Discord imports
-from start import cenbot
+# Third-party
 from discord.ext import commands
-
-# Logging
-import logging
 from discord.ext.commands import ExtensionAlreadyLoaded, ExtensionNotLoaded, ExtensionError
-log = logging.getLogger('CENBot.admin')
+from asyncpg.exceptions import PostgresError
+
+# Internal
+from start import CENBot
+
+log = getLogger('CENBot.admin')
 
 
-class admin(commands.Cog, name='admin'):
-    """These are all the admin functions of the bot.
-    """
-    def __init__(self, bot: cenbot) -> None:
+class Admin(commands.Cog, name='admin'):
+    """These are all the admin functions of the bot."""
+    def __init__(self, bot: CENBot) -> None:
         self.bot = bot
 
     @commands.is_owner()
@@ -31,13 +32,8 @@ class admin(commands.Cog, name='admin'):
         description="Forces the bot to sync commands."
     )
     async def sync(self, ctx: commands.Context) -> None:
-        # Sync commands
         await self.bot.tree.sync()
-
-        # Log
         log.info("The bot was forcibly synced")
-
-        # Send response
         await ctx.reply("The bot was forcibly synced.")
 
     @commands.is_owner()
@@ -91,18 +87,60 @@ class admin(commands.Cog, name='admin'):
     @commands.is_owner()
     @commands.dm_only()
     @commands.command(
-        name='announce',
-        description="Annouces something to guild owners."
+        name='sync_guilds',
+        description="Reconciles the bot's current guilds with cenbot.guilds."
     )
-    async def annouce(self, ctx: commands.Context, *, msg: str) -> None:
-        # For each guild, create DM with owner with the annoucement
-        async for guild in forasync(self.bot.guilds):
+    async def sync_guilds(self, ctx: commands.Context) -> None:
+        current_ids = [guild.id for guild in self.bot.guilds]
+
+        try:
+            async with self.bot.db_pool.acquire() as conn:
+                # Upsert all current guilds, clearing removed_at for any that rejoined
+                await conn.executemany("""
+                                       INSERT INTO cenbot.guilds (id)
+                                       VALUES ($1)
+                                       ON CONFLICT (id) DO UPDATE SET removed_at=NULL
+                                       """, [(gid,) for gid in current_ids])
+                # Soft-delete guilds the bot is no longer in (if on_guild_remove failed to fire)
+                soft_deleted = await conn.execute("""
+                                                  UPDATE cenbot.guilds
+                                                  SET removed_at=NOW()
+                                                  WHERE removed_at IS NULL AND id != ALL($1)
+                                                  """, current_ids)
+                # Hard-delete rows soft-deleted more than 90 days ago
+                hard_deleted = await conn.execute("""
+                                                  DELETE FROM cenbot.guilds
+                                                  WHERE removed_at IS NOT NULL
+                                                    AND removed_at < NOW() - INTERVAL '90 days'
+                                                  """)
+        except PostgresError as e:
+            log.exception(e)
+            await ctx.reply("There was an error syncing guilds, please try again.")
+            return
+
+        soft_count = int(soft_deleted.split()[-1])
+        hard_count = int(hard_deleted.split()[-1])
+        await ctx.reply(
+            f"Guild sync complete.\n"
+            f"- {len(current_ids)} active guild(s) reconciled\n"
+            f"- {soft_count} guild(s) marked as removed\n"
+            f"- {hard_count} guild(s) purged (>90 days expired)"
+        )
+
+    @commands.is_owner()
+    @commands.dm_only()
+    @commands.command(
+        name='announce',
+        description="Announces something to guild owners."
+    )
+    async def announce(self, ctx: commands.Context, *, msg: str) -> None:
+        # For each guild, create DM with owner with the announcement
+        for guild in self.bot.guilds:
             if not await self.bot.is_owner(guild.owner):
                 await guild.owner.send(msg)
 
         await ctx.reply(f"Announcement \"{msg}\" sent.")
 
 
-# Add to bot
-async def setup(bot: cenbot) -> None:
-    await bot.add_cog(admin(bot))
+async def setup(bot: CENBot) -> None:
+    await bot.add_cog(Admin(bot))

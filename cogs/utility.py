@@ -1,42 +1,42 @@
+"""Utility functions"""
+
 __author__ = "Justin Panchula"
 __copyright__ = "Copyright CEN"
 __credits__ = "Justin Panchula"
 __version__ = "1.0.0"
 __status__ = "Production"
-__doc__ = """Utility Functions"""
 
-# Python imports
+# Standard library
 import sys
 import random
 from datetime import datetime
 from zoneinfo import ZoneInfo
 from typing import Literal
-import python_weather
+from logging import getLogger
 
-# Discord imports
-from start import cenbot
+# Third-party
+import python_weather
 import discord
 from discord.ext import commands, tasks
 from discord import app_commands
 
-# Logging
-import logging
-log = logging.getLogger('CENBot.utility')
+# Internal
+from start import CENBot
+
+log = getLogger('CENBot.utility')
 
 
 @app_commands.guild_only()
-class utility(commands.Cog):
-    """Simple commands for all.
-    """
-    # Init
-    def __init__(self, bot: cenbot) -> None:
+class Utility(commands.Cog):
+    """Simple commands for all."""
+    def __init__(self, bot: CENBot) -> None:
         self.bot = bot
 
     @app_commands.command(
         name='ping',
         description="Replies with Pong! (and the bots ping)",
     )
-    async def ping(self, interaction: discord.Interaction):
+    async def ping(self, interaction: discord.Interaction) -> None:
         await interaction.response.send_message(f"Pong! ({round(self.bot.latency * 1000, 4)} ms)", ephemeral=True)
 
     @app_commands.command(
@@ -44,15 +44,13 @@ class utility(commands.Cog):
         description="Returns the current bot information",
     )
     async def about(self, interaction: discord.Interaction) -> None:
-        # Create embed
         embed = discord.Embed(title='Bot Info', description="Here is the most up-to-date information on the bot.", color=0x2374A5)
         embed.set_author(name=self.bot.user.name, icon_url=self.bot.user.avatar.url)
         embed.add_field(name="Bot Version:", value=self.bot.version)
         embed.add_field(name="Python Version:", value=f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}")
         embed.add_field(name="Discord.py Version:", value=discord.__version__)
         embed.add_field(name="Written By:", value="[Justin Panchula](https://github.com/JustinPanchula)", inline=False)
-        embed.add_field(name="Server Information:", value=f"This bot is in {len(self.bot.guilds)} servers watching over \
-                                                            {len(set(self.bot.get_all_members()))-len(self.bot.guilds)} members.", inline=False)
+        embed.add_field(name="Server Information:", value=f"This bot is in {len(self.bot.guilds)} servers watching over {len(set(self.bot.get_all_members()))-len(self.bot.guilds)} members.", inline=False)
 
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
@@ -61,7 +59,6 @@ class utility(commands.Cog):
         description="Flips a coin"
     )
     async def flip(self, interaction: discord.Interaction) -> None:
-        # Choose heads or tails
         random.seed(round(discord.utils.utcnow().timestamp() * 1000))
         heads = random.randint(0, 1)
 
@@ -70,9 +67,7 @@ class utility(commands.Cog):
         else:
             await interaction.response.send_message(f"{interaction.user.mention} the coin is Tails.")
 
-    @app_commands.command(
-        name='utc',
-    )
+    @app_commands.command(name='utc')
     async def utc(self, interaction: discord.Interaction, style: Literal["Relative", "Fixed"],
                         year: int, month: int, day: int, hour: int, minute: int,
                         time_zone: Literal["America/New_York", "America/Chicago", "America/Denver", "America/Los_Angeles", "UTC"]) -> None:
@@ -120,12 +115,9 @@ class utility(commands.Cog):
         :param city: the city to get weather for
         :type city: str
         """
-        # Create the client
-        weather = None
         async with python_weather.Client(unit=python_weather.IMPERIAL) as client:
             weather = await client.get(city)
         if weather:
-            # Build Embed
             embed = discord.Embed(title='Weather Forecast', description="Here is your 3-day weather forecast.", color=discord.Color.greyple())
             embed.set_author(name=self.bot.user.name, icon_url=self.bot.user.avatar.url)
             embed.add_field(name="Currently",
@@ -140,18 +132,20 @@ class utility(commands.Cog):
             embed.add_field(name=f"{weather.daily_forecasts[2].date}",
                             value=f"{weather.daily_forecasts[2].lowest_temperature}°F - {weather.daily_forecasts[2].highest_temperature}°F | {weather.daily_forecasts[2].hourly_forecasts[4].kind}",
                             inline=False)
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+        else:
+            await interaction.response.send_message(f"Could not retrieve weather for ``{city}``.", ephemeral=True)
 
     @tasks.loop(minutes=1)
     async def update_presence(self) -> None:
         """Updates the bot's presence every minute with the weather."""
-        cities = ["New York", "Cincinnati", "Chicago", "Denver", "Los Angeles"]
+        cities = ["New York", "Columbus", "Chicago", "Denver", "Los Angeles"]
         weather = None
         async with python_weather.Client(unit=python_weather.IMPERIAL) as client:
             city = cities[discord.utils.utcnow().minute % 5]
             weather = await client.get(city)
             if weather:
-                await self.bot.change_presence(activity=discord.CustomActivity(name=f"{city}: {weather.kind.name.capitalize() if not "SUNNY" else "Clear"}, {weather.feels_like}°F"))
+                await self.bot.change_presence(activity=discord.CustomActivity(name=f"{city}: {weather.kind.name.capitalize() if not 'SUNNY' else 'Clear'}, {weather.feels_like}°F"))
                 log.debug("Bot status updated")
             else:
                 return
@@ -163,6 +157,5 @@ class utility(commands.Cog):
         self.update_presence.stop()
 
 
-# Add to bot
-async def setup(bot: cenbot) -> None:
-    await bot.add_cog(utility(bot))
+async def setup(bot: CENBot) -> None:
+    await bot.add_cog(Utility(bot))

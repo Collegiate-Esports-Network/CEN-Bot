@@ -1,36 +1,38 @@
+"""Guild activity moderation"""
+
 __author__ = "Justin Panchula"
 __copyright__ = "Copyright CEN"
 __credits__ = "Justin Panchula"
 __version__ = "1.0.0"
 __status__ = "Production"
-__doc__ = """Guild activity moderation"""
 
-# Discord imports
-from start import cenbot
+# Standard library
+from datetime import timedelta
+from typing import Literal
+from logging import getLogger
+
+# Third-party
 import discord
 from discord.ext import commands
 from discord import app_commands
-
-# Python imports
-from datetime import timedelta
-from typing import Literal
-
-# Logging
 from asyncpg.exceptions import PostgresError
-from logging import getLogger
+
+# Internal
+from start import CENBot
+
 log = getLogger('CENBot.moderation')
 
 
 @app_commands.guild_only()
-class moderation(commands.GroupCog, name="moderation"):
-    """More advanced moderation than Discord has built-in.
-    """
-    def __init__(self, bot: cenbot):
+class Moderation(commands.GroupCog, name="moderation"):
+    """More advanced moderation than Discord has built-in."""
+    def __init__(self, bot: CENBot):
         self.bot = bot
+        super().__init__()
 
         # Add context menus from this cog
         self.ctx_report_message = app_commands.ContextMenu(
-            name="Report Messsage",
+            name="Report Message",
             callback=self.report_message
         )
         self.bot.tree.add_command(self.ctx_report_message)
@@ -142,9 +144,7 @@ class moderation(commands.GroupCog, name="moderation"):
             await interaction.response.send_message("Reporting disabled.", ephemeral=True)
 
     @app_commands.checks.has_role("CENBot Admin")
-    @app_commands.command(
-        name="set_level"
-    )
+    @app_commands.command(name="set_level")
     async def set_level(self, interaction: discord.Interaction, level: Literal['0: None', '1: Default (Reports Only)', '2: Message Edits', '3: All Messages', '4: All Activity']) -> None:
         """Sets the level of moderation the bot will perform.
 
@@ -170,9 +170,7 @@ class moderation(commands.GroupCog, name="moderation"):
             await interaction.response.send_message(f"Moderation level set to ``{level}``.", ephemeral=True)
 
     @app_commands.checks.has_role("CENBot Admin")
-    @app_commands.command(
-        name="set_new_member_message_timer"
-    )
+    @app_commands.command(name="set_new_member_message_timer")
     async def set_new_member_message_timer(self, interaction: discord.Interaction, seconds: int) -> None:
         """Set the duration (in seconds) that new members will not be able to send messages for.
 
@@ -205,10 +203,8 @@ class moderation(commands.GroupCog, name="moderation"):
         :param msg: the message reported
         :type msg: discord.Message
         """
-        # Defer response
         await interaction.response.defer(ephemeral=True)
 
-        # Get data from database
         try:
             async with self.bot.db_pool.acquire() as conn:
                 record = await conn.fetchrow("""
@@ -218,19 +214,15 @@ class moderation(commands.GroupCog, name="moderation"):
                                              """, msg.guild.id)
         except Exception as e:
             log.exception(e)
-            await interaction.followup.send(f"There was an reporting {msg.author.mention}'s message, please try again.", ephemeral=True)
+            await interaction.followup.send(f"There was an error reporting {msg.author.mention}'s message, please try again.", ephemeral=True)
             return
 
-        # Check for record
         if record:
-            # Check if mod level is 1 or above
             if record['moderation_level'] >= 1 and record['reporting_channel']:
-                # Create embed
                 embed = discord.Embed(colour=discord.Colour.pink())
                 embed.set_author(name=interaction.user.display_name, icon_url=interaction.user.display_avatar)
                 embed.add_field(name='Reported Message', value=f"A message sent by {msg.author.mention} was reported in {msg.channel.mention}", inline=False)
 
-                # Ignore impossible message
                 try:
                     embed.add_field(name='Content', value=msg.content, inline=False)
                 except Exception as e:
@@ -238,11 +230,7 @@ class moderation(commands.GroupCog, name="moderation"):
                     return
                 else:
                     embed.set_footer(text=f"{discord.utils.utcnow().strftime('%d/%m/%y - %H:%M:%S')}")
-
-                    # Send report to channel
                     await self.bot.get_channel(record['reporting_channel']).send(content="@everyone", embed=embed)
-
-                    # Respond
                     await interaction.followup.send("Message reported.")
 
     async def report_user(self, interaction: discord.Interaction, member: discord.Member) -> None:
@@ -250,13 +238,11 @@ class moderation(commands.GroupCog, name="moderation"):
 
         :param interaction: the discord interaction
         :type interaction: discord.Interaction
-        :param msg: the message reported
-        :type msg: discord.Message
+        :param member: the member reported
+        :type member: discord.Member
         """
-        # Defer response
         await interaction.response.defer(ephemeral=True)
 
-        # Get data from database
         try:
             async with self.bot.db_pool.acquire() as conn:
                 record = await conn.fetchrow("""
@@ -266,37 +252,28 @@ class moderation(commands.GroupCog, name="moderation"):
                                              """, member.guild.id)
         except Exception as e:
             log.exception(e)
-            await interaction.followup.send(f"There was an reporting {member.mention}, please try again.", ephemeral=True)
+            await interaction.followup.send(f"There was an error reporting {member.mention}, please try again.", ephemeral=True)
             return
 
-        # Check for record
         if record:
-            # Check if mod level is 1 or above
             if record['moderation_level'] >= 1 and record['reporting_channel']:
-                # Create embed
                 embed = discord.Embed(colour=discord.Colour.pink())
                 embed.set_author(name=interaction.user.display_name, icon_url=interaction.user.display_avatar)
                 embed.add_field(name='Reported User', value=f"{member.mention} was reported in {interaction.channel.mention} by {interaction.user.mention}", inline=False)
                 embed.set_footer(text=f"{discord.utils.utcnow().strftime('%d/%m/%y - %H:%M:%S')}")
-
-                # Send report to channel
                 await self.bot.get_channel(record['reporting_channel']).send(content="@everyone", embed=embed)
-
-                # Respond
                 await interaction.followup.send("User reported.")
 
     @commands.Cog.listener()
-    async def on_(self, msg: discord.Message) -> None:
+    async def on_message(self, msg: discord.Message) -> None:
         """Spam protection (level 1 and above)
 
         :param msg: the discord message
         :type msg: discord.Message
         """
-        # Ignore messages from self or in private channels
         if self.bot.user == msg.author or msg.channel.type == discord.ChannelType.private:
             return
 
-        # Get check if channel is populated
         try:
             async with self.bot.db_pool.acquire() as conn:
                 record = await conn.fetchrow("""
@@ -307,25 +284,15 @@ class moderation(commands.GroupCog, name="moderation"):
         except Exception as e:
             log.exception(e)
 
-        # Check for record
         if record:
-            # Check if mod level is 1 or above
             if record['moderation_level'] >= 1:
-                # Check if user is a member of the server for longer than the specified time
                 if msg.author.joined_at is not None:  # Catch guest cases
                     if msg.author.joined_at + timedelta(seconds=record['new_member_message_timer']) >= discord.utils.utcnow():
-                        # Delete message
                         await msg.delete()
-
-                        # Send warning message to the user
                         await msg.author.send(f"Your message in ``{msg.guild.name}`` was deleted because you are not a member of the server for longer than ``{record['new_member_message_timer']} seconds``.")
         else:
-            # Check if user is a member of the server for longer than the 120 seconds
             if msg.author.joined_at + timedelta(seconds=120) >= discord.utils.utcnow():
-                # Delete message
                 await msg.delete()
-
-                # Send warning message to the user
                 await msg.author.send(f"Your message in ``{msg.guild.name}`` was deleted because you are not a member of the server for longer than ``{120} seconds``.")
 
     @commands.Cog.listener()
@@ -337,11 +304,9 @@ class moderation(commands.GroupCog, name="moderation"):
         :param msg_after: the edited discord message
         :type msg_after: discord.Message
         """
-        # Ignore messages from self or in private channels
         if self.bot.user == msg_before.author or msg_before.channel.type == discord.ChannelType.private:
             return
 
-        # Get data from database
         try:
             async with self.bot.db_pool.acquire() as conn:
                 record = await conn.fetchrow("""
@@ -353,16 +318,11 @@ class moderation(commands.GroupCog, name="moderation"):
             log.exception(e)
             return
 
-        # Check for record
         if record:
-            # Check if mod level is 2 or above
             if record['moderation_level'] >= 2 and record['logging_channel']:
-                # Build embed
                 embed = discord.Embed(colour=discord.Colour.yellow())
                 embed.set_author(name=msg_before.author.display_name, icon_url=msg_before.author.display_avatar)
-                embed.add_field(name='Message Alert: Edit', value=f"A message sent by {msg_before.author.mention} was edited in {msg_before.channel.mention} \
-                                                                    \n[View Message]({msg_after.jump_url})", inline=False)
-                # Ignore impossible messages
+                embed.add_field(name='Message Alert: Edit', value=f"A message sent by {msg_before.author.mention} was edited in {msg_before.channel.mention}\n[View Message]({msg_after.jump_url})", inline=False)
                 try:
                     embed.add_field(name='Before', value=msg_before.content, inline=False)
                 except Exception as e:
@@ -371,10 +331,7 @@ class moderation(commands.GroupCog, name="moderation"):
                 else:
                     embed.add_field(name='After', value=msg_after.content, inline=False)
 
-                # Set footer
                 embed.set_footer(text=f"{discord.utils.utcnow().strftime('%d/%m/%y - %H:%M:%S')}")
-
-                # Send to channel
                 await self.bot.get_channel(record['logging_channel']).send(embed=embed)
 
     @commands.Cog.listener()
@@ -384,11 +341,9 @@ class moderation(commands.GroupCog, name="moderation"):
         :param msg: the deleted discord message
         :type msg: discord.Message
         """
-        # Ignore messages from self or in private channels
         if self.bot.user == msg.author or msg.channel.type == discord.ChannelType.private:
             return
 
-        # Get data from database
         try:
             async with self.bot.db_pool.acquire() as conn:
                 record = await conn.fetchrow("""
@@ -400,44 +355,34 @@ class moderation(commands.GroupCog, name="moderation"):
             log.exception(e)
             return
 
-        # Check for record
         if record:
-            # Check if mod level is 2 or above
             if record['moderation_level'] >= 2 and record['logging_channel']:
-                # Build embed
                 embed = discord.Embed(colour=discord.Colour.orange())
                 embed.set_author(name=msg.author.display_name, icon_url=msg.author.display_avatar)
-                embed.add_field(name='Message Alert: Delete', value=f"A message sent by {msg.author.mention} was edited in {msg.channel.mention} \
-                                                                    \n[View Message]({msg.jump_url})", inline=False)
-                # Ignore impossible messages
+                embed.add_field(name='Message Alert: Delete', value=f"A message sent by {msg.author.mention} was deleted in {msg.channel.mention}", inline=False)
                 try:
                     embed.add_field(name='Content', value=msg.content)
                 except Exception as e:
                     log.exception(e)
                     return
 
-                # Set footer
                 embed.set_footer(text=f"{discord.utils.utcnow().strftime('%d/%m/%y - %H:%M:%S')}")
-
-                # Send to channel
                 await self.bot.get_channel(record['logging_channel']).send(embed=embed)
 
     @commands.Cog.listener()
     async def on_voice_state_update(self, member: discord.Member, before: discord.VoiceState, after: discord.VoiceState) -> None:
         """Voice state tracking (level 3 and above)
 
-        :param member: the guild member who's voice state changed
+        :param member: the guild member whose voice state changed
         :type member: discord.Member
         :param before: the state before
         :type before: discord.VoiceState
         :param after: the state after
         :type after: discord.VoiceState
         """
-        # Ignore messages from self or in private channels
         if self.bot.user.id == member.id:
             return
 
-        # Get data from database
         try:
             async with self.bot.db_pool.acquire() as conn:
                 record = await conn.fetchrow("""
@@ -449,34 +394,24 @@ class moderation(commands.GroupCog, name="moderation"):
             log.exception(e)
             return
 
-        # Check for record
         if record:
-            # Check if mod level is 2 or above
             if record['moderation_level'] >= 2 and record['logging_channel']:
-                # Check if the user joined or left a voice channel
                 if before.channel is None:
-                    # Build embed
                     embed = discord.Embed(colour=discord.Colour.green())
                     embed.set_author(name=member.display_name, icon_url=member.display_avatar)
                     embed.add_field(name='Voice Alert', value=f"{member.mention} has joined {after.channel.mention}", inline=False)
                 elif after.channel is None:
-                    # Build embed
                     embed = discord.Embed(colour=discord.Colour.red())
                     embed.set_author(name=member.display_name, icon_url=member.display_avatar)
                     embed.add_field(name='Voice Alert', value=f"{member.mention} has left {before.channel.mention}", inline=False)
                 else:
-                    # Build embed
                     embed = discord.Embed(colour=discord.Colour.yellow())
                     embed.set_author(name=member.display_name, icon_url=member.display_avatar)
                     embed.add_field(name='Voice Alert', value=f"{member.mention} moved from {before.channel.mention} to {after.channel.mention}", inline=False)
 
-                # Set footer
                 embed.set_footer(text=f"{discord.utils.utcnow().strftime('%d/%m/%y - %H:%M:%S')}")
-
-                # Send to channel
                 await self.bot.get_channel(record['logging_channel']).send(embed=embed)
 
 
-# Add to bot
-async def setup(bot: cenbot) -> None:
-    await bot.add_cog(moderation(bot))
+async def setup(bot: CENBot) -> None:
+    await bot.add_cog(Moderation(bot))

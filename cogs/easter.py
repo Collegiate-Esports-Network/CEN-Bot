@@ -1,38 +1,34 @@
+"""Easter egg commands"""
+
 __author__ = "Justin Panchula"
 __copyright__ = "Copyright CEN"
 __credits__ = "Justin Panchula"
 __version__ = "1.0.0"
 __status__ = "Production"
-__doc__ = """Easter Eggies"""
 
-# Python imports
+# Standard library
 import random
-from time import time
+from logging import getLogger
 
-# Discord imports
-from start import cenbot
+# Third-party
 import discord
 from discord.ext import commands
 
-# Logging
-import logging
-log = logging.getLogger('CENBot.easter')
+# Internal
+from start import CENBot
+
+log = getLogger('CENBot.easter')
 
 
-class easter(commands.Cog, name='easter'):
-    """These are all the hidden easter egg commands
-    """
-    def __init__(self, bot: cenbot):
+class Easter(commands.Cog, name='easter'):
+    """These are all the hidden easter egg commands."""
+    def __init__(self, bot: CENBot):
         self.bot = bot
 
     @commands.Cog.listener()
-    async def on_message(self, ctx: commands.Context) -> None:
-        # Choose a random number
-        random.seed(round(time() * 1000))
-        num = random.randint(1, 100)
-
-        if ctx.author != self.bot.user and num > 90 and 'crazy' in ctx.message.content.lower():
-            await ctx.reply("Crazy? I was crazy once. They locked me in a room. A rubber room. A rubber room with rats, and rats make me crazy.\nCrazy? I was crazy once...")
+    async def on_message(self, message: discord.Message) -> None:
+        if message.author != self.bot.user and random.randint(1, 100) > 90 and 'crazy' in message.content.lower():
+            await message.reply("Crazy? I was crazy once. They locked me in a room. A rubber room. A rubber room with rats, and rats make me crazy.\nCrazy? I was crazy once...")
 
     @commands.command(
         name="rickroll",
@@ -45,6 +41,5 @@ class easter(commands.Cog, name='easter'):
         await ctx.message.channel.send(content=member.mention, file=discord.File("./cogs/assets/audio.mp3"))
 
 
-# Add to bot
-async def setup(bot: cenbot) -> None:
-    await bot.add_cog(easter(bot))
+async def setup(bot: CENBot) -> None:
+    await bot.add_cog(Easter(bot))
