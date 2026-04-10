@@ -8,6 +8,7 @@ __status__ = "Production"
 
 # Standard library
 import sys
+import asyncio
 import random
 from datetime import datetime
 from zoneinfo import ZoneInfo
@@ -59,13 +60,24 @@ class Utility(commands.Cog):
         description="Flips a coin"
     )
     async def flip(self, interaction: discord.Interaction) -> None:
-        random.seed(round(discord.utils.utcnow().timestamp() * 1000))
-        heads = random.randint(0, 1)
+        """Flips a coin with a spinning animation.
 
-        if heads:
-            await interaction.response.send_message(f"{interaction.user.mention} the coin is Heads.")
-        else:
-            await interaction.response.send_message(f"{interaction.user.mention} the coin is Tails.")
+        :param interaction: the discord interaction
+        :type interaction: discord.Interaction
+        """
+        result = random.randint(0, 1)
+
+        await interaction.response.defer()
+        msg = await interaction.followup.send("🪙", wait=True)
+        frames = ["🟡", "🪙"]
+
+        for i in range(15):
+            await asyncio.sleep(0.1)
+            await msg.edit(content=frames[i % 2])
+
+        await asyncio.sleep(0.1)
+        side = "Heads" if result else "Tails"
+        await msg.edit(content=f"{interaction.user.mention} **{side}!** {frames[result]}")
 
     @app_commands.command(name='utc')
     async def utc(self, interaction: discord.Interaction, style: Literal["Relative", "Fixed"],
