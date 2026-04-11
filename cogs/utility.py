@@ -8,6 +8,7 @@ __status__ = "Production"
 
 # Standard library
 import sys
+import asyncio
 import random
 from datetime import datetime
 from zoneinfo import ZoneInfo
@@ -37,6 +38,11 @@ class Utility(commands.Cog):
         description="Replies with Pong! (and the bots ping)",
     )
     async def ping(self, interaction: discord.Interaction) -> None:
+        """Reply with 'Pong!' and the current gateway latency in milliseconds.
+
+        :param interaction: the discord interaction
+        :type interaction: discord.Interaction
+        """
         await interaction.response.send_message(f"Pong! ({round(self.bot.latency * 1000, 4)} ms)", ephemeral=True)
 
     @app_commands.command(
@@ -44,6 +50,11 @@ class Utility(commands.Cog):
         description="Returns the current bot information",
     )
     async def about(self, interaction: discord.Interaction) -> None:
+        """Display an embed with bot version, library versions, and server stats.
+
+        :param interaction: the discord interaction
+        :type interaction: discord.Interaction
+        """
         embed = discord.Embed(title='Bot Info', description="Here is the most up-to-date information on the bot.", color=0x2374A5)
         embed.set_author(name=self.bot.user.name, icon_url=self.bot.user.avatar.url)
         embed.add_field(name="Bot Version:", value=self.bot.version)
@@ -55,17 +66,52 @@ class Utility(commands.Cog):
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
     @app_commands.command(
+        name='help',
+        description="Lists all available slash commands.",
+    )
+    async def help(self, interaction: discord.Interaction) -> None:
+        """Lists all available slash commands.
+
+        :param interaction: the discord interaction
+        :type interaction: discord.Interaction
+        """
+        embed = discord.Embed(title="Available Commands", color=0x2374A5)
+
+        for cmd in sorted(self.bot.tree.get_commands(), key=lambda c: c.name):
+            if isinstance(cmd, app_commands.Group):
+                lines = [
+                    f"`/{cmd.name} {sub.name}` — {sub.description}"
+                    for sub in sorted(cmd.commands, key=lambda c: c.name)
+                ]
+                embed.add_field(name=f"/{cmd.name}", value='\n'.join(lines), inline=False)
+            else:
+                embed.add_field(name=f"/{cmd.name}", value=cmd.description or "No description.", inline=False)
+
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+
+    @app_commands.command(
         name='flip',
         description="Flips a coin"
     )
     async def flip(self, interaction: discord.Interaction) -> None:
-        random.seed(round(discord.utils.utcnow().timestamp() * 1000))
-        heads = random.randint(0, 1)
+        """Flips a coin with a spinning animation.
 
-        if heads:
-            await interaction.response.send_message(f"{interaction.user.mention} the coin is Heads.")
-        else:
-            await interaction.response.send_message(f"{interaction.user.mention} the coin is Tails.")
+        :param interaction: the discord interaction
+        :type interaction: discord.Interaction
+        """
+        result = random.randint(0, 1)
+
+        await interaction.response.defer()
+        msg = await interaction.followup.send("🪙", wait=True)
+        frames = ["🟡", "🪙"]
+
+        for i in range(15):
+            await asyncio.sleep(0.1)
+            await msg.edit(content=frames[i % 2])
+
+        await asyncio.sleep(0.1)
+        side = "Heads" if result else "Tails"
+        await msg.edit(content=f"{interaction.user.mention} **{side}!** {frames[result]}")
 
     @app_commands.command(name='utc')
     async def utc(self, interaction: discord.Interaction, style: Literal["Relative", "Fixed"],
@@ -151,9 +197,11 @@ class Utility(commands.Cog):
                 return
 
     def cog_load(self):
+        """Start the presence update task loop."""
         self.update_presence.start()
 
     def cog_unload(self):
+        """Stop the presence update task loop."""
         self.update_presence.stop()
 
 

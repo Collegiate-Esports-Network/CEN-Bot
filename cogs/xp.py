@@ -31,6 +31,14 @@ class XP(commands.GroupCog, name='xp'):
 
     @commands.Cog.listener()
     async def on_message(self, msg: discord.Message) -> None:
+        """Award XP on every non-bot, non-DM message.
+
+        XP is awarded probabilistically: 70% chance of 1 XP, 20% chance of 2,
+        and 10% chance of 3 per message.
+
+        :param msg: the incoming message
+        :type msg: discord.Message
+        """
         if self.bot.user == msg.author:
             return
         if msg.channel.type == discord.ChannelType.private:
@@ -60,6 +68,11 @@ class XP(commands.GroupCog, name='xp'):
         description="Returns your current xp."
     )
     async def xp_xp(self, interaction: discord.Interaction) -> None:
+        """Return the calling user's current total XP.
+
+        :param interaction: the discord interaction
+        :type interaction: discord.Interaction
+        """
         try:
             async with self.bot.db_pool.acquire() as con:
                 record = await con.fetchrow(
@@ -83,6 +96,11 @@ class XP(commands.GroupCog, name='xp'):
         description="Returns the top 20 xp leaders."
     )
     async def xp_leaderboard(self, interaction: discord.Interaction) -> None:
+        """Display the top 20 users by XP across all guilds.
+
+        :param interaction: the discord interaction
+        :type interaction: discord.Interaction
+        """
         try:
             async with self.bot.db_pool.acquire() as con:
                 records = await con.fetch(

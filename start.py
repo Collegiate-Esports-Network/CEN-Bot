@@ -30,7 +30,14 @@ intents = discord.Intents.all()
 
 
 class CENBot(Bot):
+    """The main bot class for CEN.
+
+    Extends :class:`discord.ext.commands.Bot` with a Supabase connection pool
+    and automatic cog loading from the ``cogs/`` directory.
+    """
+
     def __init__(self) -> None:
+        """Initialise the bot with all intents and the ``!!`` command prefix."""
         super().__init__(
             intents=intents,
             description="Hello! I'm the CEN Bot, a customized bot built and maintained by Collegiate Esports Network LLC.",
@@ -39,6 +46,11 @@ class CENBot(Bot):
         self.version = "1.1.0"
 
     async def setup_hook(self) -> None:
+        """Create the DB connection pool, load all cogs, and sync slash commands.
+
+        Runs once before the bot connects to the gateway. Exits with code 1 if
+        the database connection cannot be established.
+        """
         log.info("Connecting...")
 
         # Create DB connection
@@ -73,10 +85,20 @@ class CENBot(Bot):
         await self.tree.sync()
 
     async def on_ready(self) -> None:
+        """Log a confirmation message once the bot has connected and is ready."""
         log.info(f"{self.user.display_name} has logged in")
 
 
 def start(args: argparse.Namespace):
+    """Load environment variables and run the bot.
+
+    Loads ``.env.local`` first (shared API keys), then the environment-specific
+    file (``.env.dev`` or ``.env.prod``) selected by ``args.env``. Exits with
+    code 1 if the environment is invalid or the bot token is missing.
+
+    :param args: parsed CLI arguments; expects ``args.env`` to be ``'dev'`` or ``'prod'``
+    :type args: argparse.Namespace
+    """
     log.info("Loading local environment variables...")
     load_dotenv('.env.local')
 

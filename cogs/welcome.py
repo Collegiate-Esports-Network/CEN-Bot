@@ -22,7 +22,16 @@ log = getLogger('CENBot.welcome')
 
 
 class WelcomeChannelSelect(discord.ui.ChannelSelect):
+    """Saves the chosen text channel as the guild's welcome channel."""
+
     def __init__(self, bot: CENBot, current_channel_id: int | None) -> None:
+        """Initialise with the currently configured channel pre-selected.
+
+        :param bot: the bot instance
+        :type bot: CENBot
+        :param current_channel_id: the ID of the currently set channel, or ``None``
+        :type current_channel_id: int | None
+        """
         default_values = [discord.Object(id=current_channel_id)] if current_channel_id else []
         super().__init__(
             placeholder="Select a welcome channel...",
@@ -34,6 +43,11 @@ class WelcomeChannelSelect(discord.ui.ChannelSelect):
         self.bot = bot
 
     async def callback(self, interaction: discord.Interaction) -> None:
+        """Persist the selected channel and confirm to the user.
+
+        :param interaction: the discord interaction triggered by the select
+        :type interaction: discord.Interaction
+        """
         new_channel_id = self.values[0].id if self.values else None
         try:
             async with self.bot.db_pool.acquire() as conn:
@@ -54,6 +68,12 @@ class WelcomeChannelSelect(discord.ui.ChannelSelect):
 
 
 class WelcomeMessageModal(discord.ui.Modal, title="Welcome Message"):
+    """Modal for entering or editing the guild's welcome message text.
+
+    Use ``<new_member>`` as a placeholder that is replaced with the joining
+    member's mention at send time.
+    """
+
     message = discord.ui.TextInput(
         label="Welcome Message",
         style=discord.TextStyle.paragraph,
@@ -63,12 +83,24 @@ class WelcomeMessageModal(discord.ui.Modal, title="Welcome Message"):
     )
 
     def __init__(self, bot: CENBot, current_message: str | None) -> None:
+        """Initialise the modal, pre-filling the text input if a message already exists.
+
+        :param bot: the bot instance
+        :type bot: CENBot
+        :param current_message: the existing welcome message text, or ``None``
+        :type current_message: str | None
+        """
         super().__init__()
         self.bot = bot
         if current_message:
             self.message.default = current_message
 
     async def on_submit(self, interaction: discord.Interaction) -> None:
+        """Persist the submitted welcome message text.
+
+        :param interaction: the discord interaction triggered by modal submission
+        :type interaction: discord.Interaction
+        """
         new_message = self.message.value.strip() or None
         try:
             async with self.bot.db_pool.acquire() as conn:
@@ -85,22 +117,54 @@ class WelcomeMessageModal(discord.ui.Modal, title="Welcome Message"):
         await interaction.response.send_message("Welcome message saved.", ephemeral=True)
 
     async def on_error(self, interaction: discord.Interaction, error: Exception) -> None:
+        """Log unexpected modal errors and notify the user.
+
+        :param interaction: the discord interaction
+        :type interaction: discord.Interaction
+        :param error: the exception that was raised
+        :type error: Exception
+        """
         log.exception(error)
         await interaction.response.send_message("Something went wrong, please try again.", ephemeral=True)
 
 
 class SetMessageButton(discord.ui.Button):
+    """Button that opens the :class:`WelcomeMessageModal` for editing the welcome message."""
+
     def __init__(self, bot: CENBot, current_message: str | None) -> None:
+        """Initialise the button, storing the current message for pre-filling the modal.
+
+        :param bot: the bot instance
+        :type bot: CENBot
+        :param current_message: the existing welcome message text, or ``None``
+        :type current_message: str | None
+        """
         super().__init__(label="Set Message", style=discord.ButtonStyle.primary)
         self.bot = bot
         self.current_message = current_message
 
     async def callback(self, interaction: discord.Interaction) -> None:
+        """Open the welcome message modal on button press.
+
+        :param interaction: the discord interaction triggered by the button
+        :type interaction: discord.Interaction
+        """
         await interaction.response.send_modal(WelcomeMessageModal(self.bot, self.current_message))
 
 
 class WelcomeConfigView(discord.ui.LayoutView):
+    """Layout view combining the channel select and message button into one config panel."""
+
     def __init__(self, bot: CENBot, current_channel_id: int | None, current_message: str | None) -> None:
+        """Build the config panel with current settings pre-populated.
+
+        :param bot: the bot instance
+        :type bot: CENBot
+        :param current_channel_id: the ID of the currently set welcome channel, or ``None``
+        :type current_channel_id: int | None
+        :param current_message: the currently set welcome message text, or ``None``
+        :type current_message: str | None
+        """
         super().__init__()
         self.add_item(discord.ui.TextDisplay("**Welcome Channel**"))
         self.add_item(discord.ui.ActionRow(WelcomeChannelSelect(bot, current_channel_id)))

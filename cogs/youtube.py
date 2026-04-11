@@ -27,7 +27,16 @@ log = getLogger('CENBot.youtube')
 
 
 class YouTubeUploadChannelSelect(discord.ui.ChannelSelect):
+    """Saves the chosen text channel as the guild's YouTube upload alert channel."""
+
     def __init__(self, bot: CENBot, current_channel_id: int | None) -> None:
+        """Initialise with the currently configured upload channel pre-selected.
+
+        :param bot: the bot instance
+        :type bot: CENBot
+        :param current_channel_id: the ID of the currently set channel, or ``None``
+        :type current_channel_id: int | None
+        """
         default_values = [discord.Object(id=current_channel_id)] if current_channel_id else []
         super().__init__(
             placeholder="Select an upload alert channel...",
@@ -39,6 +48,11 @@ class YouTubeUploadChannelSelect(discord.ui.ChannelSelect):
         self.bot = bot
 
     async def callback(self, interaction: discord.Interaction) -> None:
+        """Persist the selected upload alert channel and confirm to the user.
+
+        :param interaction: the discord interaction triggered by the select
+        :type interaction: discord.Interaction
+        """
         new_channel_id = self.values[0].id if self.values else None
         try:
             async with self.bot.db_pool.acquire() as conn:
@@ -58,7 +72,16 @@ class YouTubeUploadChannelSelect(discord.ui.ChannelSelect):
 
 
 class YouTubeLiveChannelSelect(discord.ui.ChannelSelect):
+    """Saves the chosen text channel as the guild's YouTube live alert channel."""
+
     def __init__(self, bot: CENBot, current_channel_id: int | None) -> None:
+        """Initialise with the currently configured live channel pre-selected.
+
+        :param bot: the bot instance
+        :type bot: CENBot
+        :param current_channel_id: the ID of the currently set channel, or ``None``
+        :type current_channel_id: int | None
+        """
         default_values = [discord.Object(id=current_channel_id)] if current_channel_id else []
         super().__init__(
             placeholder="Select a live alert channel...",
@@ -70,6 +93,11 @@ class YouTubeLiveChannelSelect(discord.ui.ChannelSelect):
         self.bot = bot
 
     async def callback(self, interaction: discord.Interaction) -> None:
+        """Persist the selected live alert channel and confirm to the user.
+
+        :param interaction: the discord interaction triggered by the select
+        :type interaction: discord.Interaction
+        """
         new_channel_id = self.values[0].id if self.values else None
         try:
             async with self.bot.db_pool.acquire() as conn:
@@ -89,7 +117,16 @@ class YouTubeLiveChannelSelect(discord.ui.ChannelSelect):
 
 
 class YouTubeAlertRoleSelect(discord.ui.RoleSelect):
+    """Saves the chosen role as the guild's YouTube alert mention role."""
+
     def __init__(self, bot: CENBot, current_role_id: int | None) -> None:
+        """Initialise with the currently configured alert role pre-selected.
+
+        :param bot: the bot instance
+        :type bot: CENBot
+        :param current_role_id: the ID of the currently set role, or ``None``
+        :type current_role_id: int | None
+        """
         default_values = [discord.Object(id=current_role_id)] if current_role_id else []
         super().__init__(
             placeholder="Select an alert role...",
@@ -100,6 +137,11 @@ class YouTubeAlertRoleSelect(discord.ui.RoleSelect):
         self.bot = bot
 
     async def callback(self, interaction: discord.Interaction) -> None:
+        """Persist the selected alert role and confirm to the user.
+
+        :param interaction: the discord interaction triggered by the select
+        :type interaction: discord.Interaction
+        """
         new_role_id = self.values[0].id if self.values else None
         try:
             async with self.bot.db_pool.acquire() as conn:
@@ -119,7 +161,20 @@ class YouTubeAlertRoleSelect(discord.ui.RoleSelect):
 
 
 class YouTubeConfigView(discord.ui.LayoutView):
+    """Layout view combining upload channel, live channel, and alert role selects."""
+
     def __init__(self, bot: CENBot, upload_channel_id: int | None, live_channel_id: int | None, role_id: int | None) -> None:
+        """Build the config panel with current settings pre-populated.
+
+        :param bot: the bot instance
+        :type bot: CENBot
+        :param upload_channel_id: currently configured upload alert channel ID, or ``None``
+        :type upload_channel_id: int | None
+        :param live_channel_id: currently configured live alert channel ID, or ``None``
+        :type live_channel_id: int | None
+        :param role_id: currently configured alert role ID, or ``None``
+        :type role_id: int | None
+        """
         super().__init__()
         self.add_item(discord.ui.TextDisplay("**Upload Alert Channel**"))
         self.add_item(discord.ui.ActionRow(YouTubeUploadChannelSelect(bot, upload_channel_id)))
@@ -141,9 +196,11 @@ class YouTube(commands.GroupCog, name="youtube"):
         super().__init__()
 
     def cog_load(self):
+        """Start the YouTube polling task loop."""
         self.check_youtube.start()
 
     def cog_unload(self):
+        """Stop the YouTube polling task loop."""
         self.check_youtube.stop()
 
     async def _resolve_channel(self, session: aiohttp.ClientSession, query: str) -> tuple[str, str] | None:
@@ -438,6 +495,14 @@ class YouTube(commands.GroupCog, name="youtube"):
 
     @tasks.loop(minutes=10)
     async def check_youtube(self):
+        """Poll subscribed YouTube channels for new uploads or live streams.
+
+        Runs every 10 minutes. For each subscribed channel, fetches the most
+        recent playlist item and fires an alert if the publish date is newer
+        than ``last_upload_date``. Detects live streams by the presence of
+        the 🔴 prefix in the video title and routes them to the live alert
+        channel when set.
+        """
         log.info("Checking YouTube channels for new uploads...")
 
         try:
