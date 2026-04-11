@@ -11,7 +11,6 @@ import asyncio
 from logging import getLogger
 
 # Third-party
-import discord
 from discord.ext import commands
 from discord.ext.commands import ExtensionAlreadyLoaded, ExtensionNotLoaded, ExtensionError
 from asyncpg.exceptions import PostgresError
@@ -30,13 +29,13 @@ class Admin(commands.Cog, name='admin'):
     @commands.is_owner()
     @commands.dm_only()
     @commands.command(
-        name='sync',
+        name='sync_commands',
         description="Forces the bot to sync commands."
     )
-    async def sync(self, ctx: commands.Context) -> None:
+    async def sync_commands(self, ctx: commands.Context) -> None:
         await self.bot.tree.sync()
-        log.info("The bot was forcibly synced")
-        await ctx.reply("The bot was forcibly synced.")
+        log.info("The bot commands were forcibly synced")
+        await ctx.reply("The bot commands were forcibly synced.")
 
     @commands.is_owner()
     @commands.dm_only()
@@ -99,10 +98,12 @@ class Admin(commands.Cog, name='admin'):
             async with self.bot.db_pool.acquire() as conn:
                 # Upsert all current guilds, clearing removed_at for any that rejoined
                 await conn.executemany("""
-                                       INSERT INTO cenbot.guilds (id)
-                                       VALUES ($1)
-                                       ON CONFLICT (id) DO UPDATE SET removed_at=NULL
-                                       """, [(gid,) for gid in current_ids])
+                                       INSERT INTO cenbot.guilds (id, name)
+                                       VALUES ($1, $2)
+                                       ON CONFLICT (id) DO UPDATE
+                                       SET name = EXCLUDED.name,
+                                           removed_at = NULL
+                                       """, [(guild.id, guild.name) for guild in self.bot.guilds])
                 # Soft-delete guilds the bot is no longer in (if on_guild_remove failed to fire)
                 soft_deleted = await conn.execute("""
                                                   UPDATE cenbot.guilds

@@ -121,10 +121,10 @@ class Internal(commands.Cog):
         try:
             async with self.bot.db_pool.acquire() as conn:
                 await conn.execute("""
-                                   INSERT INTO cenbot.guilds (id)
-                                   VALUES ($1)
+                                   INSERT INTO cenbot.guilds (id, name)
+                                   VALUES ($1, $2)
                                    ON CONFLICT (id) DO UPDATE SET removed_at=NULL
-                                   """, guild.id)
+                                   """, guild.id, guild.name)
         except PostgresError as e:
             log.exception(e)
 
