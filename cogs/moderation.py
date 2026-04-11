@@ -57,6 +57,15 @@ class LogChannelSelect(discord.ui.ChannelSelect):
     """Saves the chosen text channel as the guild's moderation log channel."""
 
     def __init__(self, cog: 'Moderation', guild_id: int, current: int | None) -> None:
+        """Initialise the select with the currently configured log channel pre-selected.
+
+        :param cog: the owning Moderation cog (for cache access)
+        :type cog: Moderation
+        :param guild_id: the guild this select is being shown for
+        :type guild_id: int
+        :param current: the ID of the currently set log channel, or ``None``
+        :type current: int | None
+        """
         default_values = [discord.Object(id=current)] if current else []
         super().__init__(
             placeholder="Select a log channel...",
@@ -69,6 +78,11 @@ class LogChannelSelect(discord.ui.ChannelSelect):
         self.guild_id = guild_id
 
     async def callback(self, interaction: discord.Interaction) -> None:
+        """Persist the selected log channel, update the cache, and confirm.
+
+        :param interaction: the discord interaction triggered by the select
+        :type interaction: discord.Interaction
+        """
         new_channel_id = self.values[0].id if self.values else None
         try:
             async with self.cog.bot.db_pool.acquire() as conn:
@@ -95,6 +109,15 @@ class ReportChannelSelect(discord.ui.ChannelSelect):
     """Saves the chosen text channel as the guild's report destination."""
 
     def __init__(self, cog: 'Moderation', guild_id: int, current: int | None) -> None:
+        """Initialise the select with the currently configured report channel pre-selected.
+
+        :param cog: the owning Moderation cog (for cache access)
+        :type cog: Moderation
+        :param guild_id: the guild this select is being shown for
+        :type guild_id: int
+        :param current: the ID of the currently set report channel, or ``None``
+        :type current: int | None
+        """
         default_values = [discord.Object(id=current)] if current else []
         super().__init__(
             placeholder="Select a report channel...",
@@ -107,6 +130,11 @@ class ReportChannelSelect(discord.ui.ChannelSelect):
         self.guild_id = guild_id
 
     async def callback(self, interaction: discord.Interaction) -> None:
+        """Persist the selected report channel, update the cache, and confirm.
+
+        :param interaction: the discord interaction triggered by the select
+        :type interaction: discord.Interaction
+        """
         new_channel_id = self.values[0].id if self.values else None
         try:
             async with self.cog.bot.db_pool.acquire() as conn:
@@ -132,6 +160,15 @@ class ModerationLevelSelect(discord.ui.Select):
     """Saves the chosen moderation level for the guild."""
 
     def __init__(self, cog: 'Moderation', guild_id: int, current_level: int) -> None:
+        """Initialise the select with the current moderation level pre-selected.
+
+        :param cog: the owning Moderation cog (for cache access)
+        :type cog: Moderation
+        :param guild_id: the guild this select is being shown for
+        :type guild_id: int
+        :param current_level: the currently active moderation level (0–4)
+        :type current_level: int
+        """
         options = [
             discord.SelectOption(
                 label="0 — Off",
@@ -169,6 +206,11 @@ class ModerationLevelSelect(discord.ui.Select):
         self.guild_id = guild_id
 
     async def callback(self, interaction: discord.Interaction) -> None:
+        """Persist the selected moderation level, update the cache, and confirm.
+
+        :param interaction: the discord interaction triggered by the select
+        :type interaction: discord.Interaction
+        """
         new_level = int(self.values[0])
         try:
             async with self.cog.bot.db_pool.acquire() as conn:
@@ -192,6 +234,15 @@ class ModerationConfigView(discord.ui.View):
     """Combines the three moderation selects into a single ephemeral config panel."""
 
     def __init__(self, cog: 'Moderation', guild_id: int, config: ModerationConfig) -> None:
+        """Build the config panel from the guild's current moderation settings.
+
+        :param cog: the owning Moderation cog
+        :type cog: Moderation
+        :param guild_id: the guild this panel is being shown for
+        :type guild_id: int
+        :param config: the guild's current cached moderation config
+        :type config: ModerationConfig
+        """
         super().__init__()
         self.add_item(LogChannelSelect(cog, guild_id, config.log_channel))
         self.add_item(ReportChannelSelect(cog, guild_id, config.report_channel))
@@ -207,6 +258,14 @@ class Moderation(commands.GroupCog, name="moderation"):
     """Guild activity logging and moderation."""
 
     def __init__(self, bot: CENBot) -> None:
+        """Initialise the cog, prepare the config cache, and create context menu objects.
+
+        Context menus are registered with the command tree in :meth:`cog_load`
+        and removed in :meth:`cog_unload` to prevent duplicate entries on reload.
+
+        :param bot: the bot instance
+        :type bot: CENBot
+        """
         self.bot = bot
         # Keyed by guild ID; populated on cog_load, mutated on config changes.
         # Event handlers read from here — zero DB queries during normal operation.

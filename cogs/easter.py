@@ -27,6 +27,14 @@ class Easter(commands.Cog, name='easter'):
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message) -> None:
+        """Respond with the 'Crazy' copypasta when triggered (~10% chance).
+
+        Fires only when the message author is not the bot and the word
+        ``crazy`` appears anywhere in the message content.
+
+        :param message: the incoming message
+        :type message: discord.Message
+        """
         if message.author != self.bot.user and random.randint(1, 100) > 90 and 'crazy' in message.content.lower():
             await message.reply("Crazy? I was crazy once. They locked me in a room. A rubber room. A rubber room with rats, and rats make me crazy.\nCrazy? I was crazy once...")
 
@@ -36,7 +44,13 @@ class Easter(commands.Cog, name='easter'):
         hidden=True
     )
     async def rickroll(self, ctx: commands.Context, *, member: discord.Member) -> None:
-        """Rickroll the user mentioned in the message."""
+        """Send the rickroll audio file to a target member and delete the invoking message.
+
+        :param ctx: the command context
+        :type ctx: commands.Context
+        :param member: the member to rickroll
+        :type member: discord.Member
+        """
         await ctx.message.delete()
         await ctx.message.channel.send(content=member.mention, file=discord.File("./cogs/assets/audio.mp3"))
 

@@ -66,4 +66,28 @@ All DB calls use `async with self.bot.db_pool.acquire() as conn:` and parameteri
 - All slash commands use `discord.Interaction` as first parameter; prefix commands use `commands.Context`.
 - `ephemeral=True` for user-only responses; `ephemeral=False` (or omitted) for public responses.
 - Required Discord role for admin commands: `"CENBot Admin"`.
-- Class and functions use the Sphinx docstyle.
+
+### Docstrings and Comments
+
+Every class, method, and function must have a docstring. Follow the Sphinx style throughout:
+
+```python
+def example(self, interaction: discord.Interaction, value: int) -> None:
+    """Short imperative summary of what this does.
+
+    Longer explanation if the behaviour is non-obvious (optional).
+
+    :param interaction: the discord interaction
+    :type interaction: discord.Interaction
+    :param value: description of the parameter
+    :type value: int
+    """
+```
+
+Specific rules:
+- **Classes** — docstring describes what the class *represents* or *does*. For dataclasses, document fields with `:param name:` / `:type name:` in the class docstring rather than on `__init__`.
+- **`__init__`** — document non-trivial initialisers (those that set more than just `self.bot`). Skip the docstring only for truly trivial one-liners.
+- **`cog_load` / `cog_unload`** — always add a one-line docstring describing what is started/registered or stopped/removed.
+- **Task loops** — docstring must describe the poll interval, what is checked, and any firing conditions (e.g. state transitions).
+- **UI callbacks** (`callback`, `on_submit`, `on_error`) — always docstring; note what is persisted and what feedback is given.
+- **Inline comments** — use sparingly for logic that is not self-evident. Avoid restating what the code already says.

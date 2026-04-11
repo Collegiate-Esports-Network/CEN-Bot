@@ -27,7 +27,16 @@ log = getLogger('CENBot.twitch')
 
 
 class TwitchAlertChannelSelect(discord.ui.ChannelSelect):
+    """Saves the chosen text channel as the guild's Twitch live alert channel."""
+
     def __init__(self, bot: CENBot, current_channel_id: int | None) -> None:
+        """Initialise with the currently configured alert channel pre-selected.
+
+        :param bot: the bot instance
+        :type bot: CENBot
+        :param current_channel_id: the ID of the currently set channel, or ``None``
+        :type current_channel_id: int | None
+        """
         default_values = [discord.Object(id=current_channel_id)] if current_channel_id else []
         super().__init__(
             placeholder="Select an alert channel...",
@@ -39,6 +48,11 @@ class TwitchAlertChannelSelect(discord.ui.ChannelSelect):
         self.bot = bot
 
     async def callback(self, interaction: discord.Interaction) -> None:
+        """Persist the selected alert channel and confirm to the user.
+
+        :param interaction: the discord interaction triggered by the select
+        :type interaction: discord.Interaction
+        """
         new_channel_id = self.values[0].id if self.values else None
         try:
             async with self.bot.db_pool.acquire() as conn:
@@ -58,7 +72,16 @@ class TwitchAlertChannelSelect(discord.ui.ChannelSelect):
 
 
 class TwitchAlertRoleSelect(discord.ui.RoleSelect):
+    """Saves the chosen role as the guild's Twitch alert mention role."""
+
     def __init__(self, bot: CENBot, current_role_id: int | None) -> None:
+        """Initialise with the currently configured alert role pre-selected.
+
+        :param bot: the bot instance
+        :type bot: CENBot
+        :param current_role_id: the ID of the currently set role, or ``None``
+        :type current_role_id: int | None
+        """
         default_values = [discord.Object(id=current_role_id)] if current_role_id else []
         super().__init__(
             placeholder="Select an alert role...",
@@ -69,6 +92,11 @@ class TwitchAlertRoleSelect(discord.ui.RoleSelect):
         self.bot = bot
 
     async def callback(self, interaction: discord.Interaction) -> None:
+        """Persist the selected alert role and confirm to the user.
+
+        :param interaction: the discord interaction triggered by the select
+        :type interaction: discord.Interaction
+        """
         new_role_id = self.values[0].id if self.values else None
         try:
             async with self.bot.db_pool.acquire() as conn:
@@ -88,7 +116,18 @@ class TwitchAlertRoleSelect(discord.ui.RoleSelect):
 
 
 class TwitchConfigView(discord.ui.LayoutView):
+    """Layout view combining the alert channel and alert role selects."""
+
     def __init__(self, bot: CENBot, channel_id: int | None, role_id: int | None) -> None:
+        """Build the config panel with current settings pre-populated.
+
+        :param bot: the bot instance
+        :type bot: CENBot
+        :param channel_id: currently configured alert channel ID, or ``None``
+        :type channel_id: int | None
+        :param role_id: currently configured alert role ID, or ``None``
+        :type role_id: int | None
+        """
         super().__init__()
         self.add_item(discord.ui.TextDisplay("**Alert Channel**"))
         self.add_item(discord.ui.ActionRow(TwitchAlertChannelSelect(bot, channel_id)))
@@ -110,9 +149,11 @@ class Twitch(commands.GroupCog, name="twitch"):
         super().__init__()
 
     def cog_load(self) -> None:
+        """Start the Twitch polling task loop."""
         self.check_twitch.start()
 
     def cog_unload(self) -> None:
+        """Stop the Twitch polling task loop."""
         self.check_twitch.stop()
 
     async def _get_token(self, session: aiohttp.ClientSession) -> str:
@@ -411,6 +452,12 @@ class Twitch(commands.GroupCog, name="twitch"):
 
     @tasks.loop(minutes=3)
     async def check_twitch(self) -> None:
+        """Poll subscribed Twitch channels for live status changes.
+
+        Runs every 3 minutes. Batches up to 100 channel IDs per ``/helix/streams``
+        call. Fires an alert only on a ``is_live`` false → true transition to avoid
+        repeated notifications while a stream is ongoing.
+        """
         log.info("Checking Twitch channels for live streams...")
 
         try:

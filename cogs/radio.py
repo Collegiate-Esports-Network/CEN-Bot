@@ -48,6 +48,11 @@ class PyAVSource(discord.AudioSource):
     MAX_BUFFER = FRAME_SIZE * 250
 
     def __init__(self, url: str) -> None:
+        """Start the background decode thread for the given audio URL.
+
+        :param url: direct audio stream URL obtained from yt-dlp
+        :type url: str
+        """
         self._buffer = bytearray()
         self._lock = threading.Lock()
         self._stop = threading.Event()
@@ -145,6 +150,15 @@ class PyAVSource(discord.AudioSource):
 
 @dataclass
 class Track:
+    """Metadata for a single queued audio track.
+
+    :param title: the video title from yt-dlp
+    :param url: the direct audio stream URL
+    :param webpage_url: the original YouTube page URL (for display)
+    :param duration: track length in seconds
+    :param requester: the guild member who requested the track
+    """
+
     title: str
     url: str
     webpage_url: str
@@ -154,6 +168,13 @@ class Track:
 
 @dataclass
 class GuildState:
+    """Per-guild radio playback state.
+
+    :param queue: ordered queue of upcoming tracks
+    :param current: the track currently playing, or ``None``
+    :param vc: the active voice client, or ``None`` when disconnected
+    """
+
     queue: deque = field(default_factory=deque)
     current: Track | None = None
     vc: discord.VoiceClient | None = None
@@ -163,6 +184,11 @@ class GuildState:
 class Radio(commands.GroupCog, name="radio"):
     """Audio playback from YouTube."""
     def __init__(self, bot: CENBot) -> None:
+        """Initialise the cog and prepare an empty per-guild state registry.
+
+        :param bot: the bot instance
+        :type bot: CENBot
+        """
         self.bot = bot
         self._states: dict[int, GuildState] = {}
         super().__init__()
@@ -232,6 +258,13 @@ class Radio(commands.GroupCog, name="radio"):
 
     @staticmethod
     def _fmt_duration(seconds: int) -> str:
+        """Format a duration in seconds as ``H:MM:SS`` or ``M:SS``.
+
+        :param seconds: the total duration in seconds
+        :type seconds: int
+        :returns: human-readable duration string
+        :rtype: str
+        """
         m, s = divmod(seconds, 60)
         h, m = divmod(m, 60)
         if h:

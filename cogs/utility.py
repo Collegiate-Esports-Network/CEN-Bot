@@ -38,6 +38,11 @@ class Utility(commands.Cog):
         description="Replies with Pong! (and the bots ping)",
     )
     async def ping(self, interaction: discord.Interaction) -> None:
+        """Reply with 'Pong!' and the current gateway latency in milliseconds.
+
+        :param interaction: the discord interaction
+        :type interaction: discord.Interaction
+        """
         await interaction.response.send_message(f"Pong! ({round(self.bot.latency * 1000, 4)} ms)", ephemeral=True)
 
     @app_commands.command(
@@ -45,6 +50,11 @@ class Utility(commands.Cog):
         description="Returns the current bot information",
     )
     async def about(self, interaction: discord.Interaction) -> None:
+        """Display an embed with bot version, library versions, and server stats.
+
+        :param interaction: the discord interaction
+        :type interaction: discord.Interaction
+        """
         embed = discord.Embed(title='Bot Info', description="Here is the most up-to-date information on the bot.", color=0x2374A5)
         embed.set_author(name=self.bot.user.name, icon_url=self.bot.user.avatar.url)
         embed.add_field(name="Bot Version:", value=self.bot.version)
@@ -187,9 +197,11 @@ class Utility(commands.Cog):
                 return
 
     def cog_load(self):
+        """Start the presence update task loop."""
         self.update_presence.start()
 
     def cog_unload(self):
+        """Stop the presence update task loop."""
         self.update_presence.stop()
 
 

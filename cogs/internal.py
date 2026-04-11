@@ -29,9 +29,11 @@ class Internal(commands.Cog):
         self.bot = bot
 
     def cog_load(self) -> None:
+        """Wire the global app command error handler to the command tree."""
         self.bot.tree.on_error = self._on_tree_error
 
     def cog_unload(self) -> None:
+        """Remove the custom tree error handler, restoring discord.py's default."""
         try:
             del self.bot.tree.on_error
         except AttributeError:

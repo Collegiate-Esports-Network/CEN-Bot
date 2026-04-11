@@ -33,6 +33,11 @@ class Admin(commands.Cog, name='admin'):
         description="Forces the bot to sync commands."
     )
     async def sync_commands(self, ctx: commands.Context) -> None:
+        """Force a global slash command tree sync.
+
+        :param ctx: the command context
+        :type ctx: commands.Context
+        """
         await self.bot.tree.sync()
         log.info("The bot commands were forcibly synced")
         await ctx.reply("The bot commands were forcibly synced.")
@@ -44,6 +49,13 @@ class Admin(commands.Cog, name='admin'):
         description="Loads an available cog.",
     )
     async def load(self, ctx: commands.Context, *, cog: str) -> None:
+        """Load a cog by name.
+
+        :param ctx: the command context
+        :type ctx: commands.Context
+        :param cog: the module name of the cog to load (e.g. ``moderation``)
+        :type cog: str
+        """
         try:
             await self.bot.load_extension(f'cogs.{cog}')
         except ExtensionAlreadyLoaded as e:
@@ -60,6 +72,13 @@ class Admin(commands.Cog, name='admin'):
         description="Reloads an available cog.",
     )
     async def reload(self, ctx: commands.Context, *, cog: str) -> None:
+        """Reload a currently loaded cog by name.
+
+        :param ctx: the command context
+        :type ctx: commands.Context
+        :param cog: the module name of the cog to reload (e.g. ``moderation``)
+        :type cog: str
+        """
         try:
             await self.bot.reload_extension(f'cogs.{cog}')
         except ExtensionError as e:
@@ -76,6 +95,13 @@ class Admin(commands.Cog, name='admin'):
         description="Unloads an available cog.",
     )
     async def unload(self, ctx: commands.Context, *, cog: str) -> None:
+        """Unload a currently loaded cog by name.
+
+        :param ctx: the command context
+        :type ctx: commands.Context
+        :param cog: the module name of the cog to unload (e.g. ``moderation``)
+        :type cog: str
+        """
         try:
             await self.bot.unload_extension(f'cogs.{cog}')
         except ExtensionNotLoaded as e:
@@ -92,6 +118,14 @@ class Admin(commands.Cog, name='admin'):
         description="Reconciles the bot's current guilds with cenbot.guilds."
     )
     async def sync_guilds(self, ctx: commands.Context) -> None:
+        """Reconcile ``cenbot.guilds`` with the guilds the bot currently occupies.
+
+        Upserts all active guilds, soft-deletes any that are no longer present,
+        and hard-deletes rows that have been soft-deleted for more than 90 days.
+
+        :param ctx: the command context
+        :type ctx: commands.Context
+        """
         current_ids = [guild.id for guild in self.bot.guilds]
 
         try:
