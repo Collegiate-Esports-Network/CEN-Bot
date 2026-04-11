@@ -7,9 +7,11 @@ __version__ = "1.0.0"
 __status__ = "Production"
 
 # Standard library
+import asyncio
 from logging import getLogger
 
 # Third-party
+import discord
 from discord.ext import commands
 from discord.ext.commands import ExtensionAlreadyLoaded, ExtensionNotLoaded, ExtensionError
 from asyncpg.exceptions import PostgresError
@@ -127,19 +129,66 @@ class Admin(commands.Cog, name='admin'):
             f"- {hard_count} guild(s) purged (>90 days expired)"
         )
 
+    async def _send_announcement(self, msg: str, delay_minutes: int, requester_id: int) -> None:
+        """Sends an announcement to all guild owners, optionally after a delay.
+
+        :param msg: the message to send
+        :type msg: str
+        :param delay_minutes: minutes to wait before sending
+        :type delay_minutes: int
+        :param requester_id: the user id to DM a completion summary to
+        :type requester_id: int
+        """
+        if delay_minutes > 0:
+            await asyncio.sleep(delay_minutes * 60)
+
+        app_info = await self.bot.application_info()
+        bot_owner_id = app_info.owner.id
+
+        sent, failed = 0, []
+        for guild in self.bot.guilds:
+            if guild.owner_id == bot_owner_id:
+                continue
+            try:
+                owner = await self.bot.fetch_user(guild.owner_id)
+                await owner.send(msg)
+                sent += 1
+            except Exception as e:
+                log.warning(f"Could not DM owner of '{guild.name}' ({guild.id}): {e}")
+                failed.append(guild.name)
+
+        requester = await self.bot.fetch_user(requester_id)
+        summary = f"Announcement complete. Sent to {sent} guild owner(s)."
+        if failed:
+            summary += f"\nFailed: {', '.join(failed)}"
+        await requester.send(summary)
+
     @commands.is_owner()
     @commands.dm_only()
     @commands.command(
         name='announce',
         description="Announces something to guild owners."
     )
-    async def announce(self, ctx: commands.Context, *, msg: str) -> None:
-        # For each guild, create DM with owner with the announcement
-        for guild in self.bot.guilds:
-            if not await self.bot.is_owner(guild.owner):
-                await guild.owner.send(msg)
+    async def announce(self, ctx: commands.Context, delay_minutes: int = 0, *, msg: str) -> None:
+        """Announces a message to all guild owners, with an optional delay.
 
-        await ctx.reply(f"Announcement \"{msg}\" sent.")
+        :param ctx: the command context
+        :type ctx: commands.Context
+        :param delay_minutes: minutes to wait before sending (default: 0)
+        :type delay_minutes: int
+        :param msg: the message to send
+        :type msg: str
+        """
+        if delay_minutes < 0:
+            await ctx.reply("Delay must be 0 or greater.")
+            return
+
+        asyncio.create_task(self._send_announcement(msg, delay_minutes, ctx.author.id))
+
+        if delay_minutes > 0:
+            await ctx.reply(f"Announcement scheduled in {delay_minutes} minute(s). You'll receive a summary when it sends.")
+        else:
+            await ctx.reply("Announcement sending. You'll receive a summary when complete.")
 
 
 async def setup(bot: CENBot) -> None:

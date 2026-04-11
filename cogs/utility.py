@@ -56,6 +56,30 @@ class Utility(commands.Cog):
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
     @app_commands.command(
+        name='help',
+        description="Lists all available slash commands.",
+    )
+    async def help(self, interaction: discord.Interaction) -> None:
+        """Lists all available slash commands.
+
+        :param interaction: the discord interaction
+        :type interaction: discord.Interaction
+        """
+        embed = discord.Embed(title="Available Commands", color=0x2374A5)
+
+        for cmd in sorted(self.bot.tree.get_commands(), key=lambda c: c.name):
+            if isinstance(cmd, app_commands.Group):
+                lines = [
+                    f"`/{cmd.name} {sub.name}` — {sub.description}"
+                    for sub in sorted(cmd.commands, key=lambda c: c.name)
+                ]
+                embed.add_field(name=f"/{cmd.name}", value='\n'.join(lines), inline=False)
+            else:
+                embed.add_field(name=f"/{cmd.name}", value=cmd.description or "No description.", inline=False)
+
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+
+    @app_commands.command(
         name='flip',
         description="Flips a coin"
     )
