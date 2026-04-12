@@ -8,15 +8,15 @@ __status__ = "Production"
 
 # Standard library
 import argparse
-import os
 import logging
 import logging.config
+import os
 
+import asyncpg
+import discord
 # Third-party
 import yaml
-import asyncpg
 from asyncpg.exceptions import PostgresError
-import discord
 from discord.ext.commands import Bot, ExtensionError, ExtensionNotFound
 from dotenv import load_dotenv
 

@@ -8,7 +8,7 @@ sys.path.insert(0, os.path.abspath('..'))
 
 # -- Project information -------------------------------------------------------
 project = 'CEN Bot'
-copyright = '2024, Justin Panchula'
+copyright = '2026, Justin Panchula'
 author = 'Justin Panchula'
 release = '1.0.0'
 
@@ -40,4 +40,4 @@ autodoc_default_options = {
 # -- HTML output ---------------------------------------------------------------
 html_theme = 'furo'
 html_title = 'CEN Bot'
-html_static_path = ['_static']
+html_static_path = ['./docs/_static']
