@@ -11,6 +11,7 @@ import asyncio
 from logging import getLogger
 
 # Third-party
+from discord.utils import utcnow
 from discord.ext import commands
 from discord.ext.commands import ExtensionAlreadyLoaded, ExtensionNotLoaded, ExtensionError
 from asyncpg.exceptions import PostgresError
@@ -41,6 +42,59 @@ class Admin(commands.Cog, name='admin'):
         await self.bot.tree.sync()
         log.info("The bot commands were forcibly synced")
         await ctx.reply("The bot commands were forcibly synced.")
+
+    @commands.is_owner()
+    @commands.dm_only()
+    @commands.command(
+        name='sync_guilds',
+        description="Reconciles the bot's current guilds with cenbot.guilds."
+    )
+    async def sync_guilds(self, ctx: commands.Context) -> None:
+        """Reconcile ``cenbot.guilds`` with the guilds the bot currently occupies.
+
+        Upserts all active guilds, soft-deletes any that are no longer present,
+        and hard-deletes rows that have been soft-deleted for more than 90 days.
+
+        :param ctx: the command context
+        :type ctx: commands.Context
+        """
+        current_ids = [guild.id for guild in self.bot.guilds]
+
+        try:
+            async with self.bot.db_pool.acquire() as conn:
+                # Upsert all current guilds, clearing removed_at for any that rejoined
+                await conn.executemany("""
+                                       INSERT INTO cenbot.guilds (id, name, joined_at)
+                                       VALUES ($1, $2, $3)
+                                       ON CONFLICT (id) DO UPDATE
+                                       SET name = EXCLUDED.name,
+                                           removed_at = NULL
+                                       """, [(guild.id, guild.name, utcnow()) for guild in self.bot.guilds])
+                # Soft-delete guilds the bot is no longer in (if on_guild_remove failed to fire)
+                soft_deleted = await conn.execute("""
+                                                  UPDATE cenbot.guilds
+                                                  SET removed_at=NOW()
+                                                  WHERE removed_at IS NULL AND id != ALL($1)
+                                                  """, current_ids)
+                # Hard-delete rows soft-deleted more than 90 days ago
+                hard_deleted = await conn.execute("""
+                                                  DELETE FROM cenbot.guilds
+                                                  WHERE removed_at IS NOT NULL
+                                                    AND removed_at < NOW() - INTERVAL '90 days'
+                                                  """)
+        except PostgresError as e:
+            log.exception(e)
+            await ctx.reply("There was an error syncing guilds, please try again.")
+            return
+
+        soft_count = int(soft_deleted.split()[-1])
+        hard_count = int(hard_deleted.split()[-1])
+        await ctx.reply(
+            f"Guild sync complete.\n"
+            f"- {len(current_ids)} active guild(s) reconciled\n"
+            f"- {soft_count} guild(s) marked as removed\n"
+            f"- {hard_count} guild(s) purged (>90 days expired)"
+        )
 
     @commands.is_owner()
     @commands.dm_only()
@@ -110,59 +164,6 @@ class Admin(commands.Cog, name='admin'):
         else:
             log.info(f"'{cog}' was unloaded")
             await ctx.reply(f"'{cog}' was unloaded")
-
-    @commands.is_owner()
-    @commands.dm_only()
-    @commands.command(
-        name='sync_guilds',
-        description="Reconciles the bot's current guilds with cenbot.guilds."
-    )
-    async def sync_guilds(self, ctx: commands.Context) -> None:
-        """Reconcile ``cenbot.guilds`` with the guilds the bot currently occupies.
-
-        Upserts all active guilds, soft-deletes any that are no longer present,
-        and hard-deletes rows that have been soft-deleted for more than 90 days.
-
-        :param ctx: the command context
-        :type ctx: commands.Context
-        """
-        current_ids = [guild.id for guild in self.bot.guilds]
-
-        try:
-            async with self.bot.db_pool.acquire() as conn:
-                # Upsert all current guilds, clearing removed_at for any that rejoined
-                await conn.executemany("""
-                                       INSERT INTO cenbot.guilds (id, name)
-                                       VALUES ($1, $2)
-                                       ON CONFLICT (id) DO UPDATE
-                                       SET name = EXCLUDED.name,
-                                           removed_at = NULL
-                                       """, [(guild.id, guild.name) for guild in self.bot.guilds])
-                # Soft-delete guilds the bot is no longer in (if on_guild_remove failed to fire)
-                soft_deleted = await conn.execute("""
-                                                  UPDATE cenbot.guilds
-                                                  SET removed_at=NOW()
-                                                  WHERE removed_at IS NULL AND id != ALL($1)
-                                                  """, current_ids)
-                # Hard-delete rows soft-deleted more than 90 days ago
-                hard_deleted = await conn.execute("""
-                                                  DELETE FROM cenbot.guilds
-                                                  WHERE removed_at IS NOT NULL
-                                                    AND removed_at < NOW() - INTERVAL '90 days'
-                                                  """)
-        except PostgresError as e:
-            log.exception(e)
-            await ctx.reply("There was an error syncing guilds, please try again.")
-            return
-
-        soft_count = int(soft_deleted.split()[-1])
-        hard_count = int(hard_deleted.split()[-1])
-        await ctx.reply(
-            f"Guild sync complete.\n"
-            f"- {len(current_ids)} active guild(s) reconciled\n"
-            f"- {soft_count} guild(s) marked as removed\n"
-            f"- {hard_count} guild(s) purged (>90 days expired)"
-        )
 
     async def _send_announcement(self, msg: str, delay_minutes: int, requester_id: int) -> None:
         """Sends an announcement to all guild owners, optionally after a delay.
