@@ -10,6 +10,7 @@ __status__ = "Production"
 import sys
 import asyncio
 import random
+import io
 from datetime import datetime
 from zoneinfo import ZoneInfo
 from typing import Literal
@@ -18,8 +19,12 @@ from logging import getLogger
 # Third-party
 import python_weather
 import discord
-from discord.ext import commands, tasks
+from discord.ext import commands
 from discord import app_commands
+import qrcode
+from qrcode.image.styledpil import StyledPilImage
+from PIL import Image, ImageDraw
+
 
 # Internal
 from start import CENBot
@@ -40,7 +45,7 @@ class Utility(commands.Cog):
     async def ping(self, interaction: discord.Interaction) -> None:
         """Reply with 'Pong!' and the current gateway latency in milliseconds.
 
-        :param interaction: the discord interaction
+        :param interaction: the Discord interaction
         :type interaction: discord.Interaction
         """
         await interaction.response.send_message(f"Pong! ({round(self.bot.latency * 1000, 4)} ms)", ephemeral=True)
@@ -52,7 +57,7 @@ class Utility(commands.Cog):
     async def about(self, interaction: discord.Interaction) -> None:
         """Display an embed with bot version, library versions, and server stats.
 
-        :param interaction: the discord interaction
+        :param interaction: the Discord interaction
         :type interaction: discord.Interaction
         """
         embed = discord.Embed(title='Bot Info', description="Here is the most up-to-date information on the bot.", color=0x2374A5)
@@ -72,7 +77,7 @@ class Utility(commands.Cog):
     async def help(self, interaction: discord.Interaction) -> None:
         """Lists all available slash commands.
 
-        :param interaction: the discord interaction
+        :param interaction: the Discord interaction
         :type interaction: discord.Interaction
         """
         embed = discord.Embed(title="Available Commands", color=0x2374A5)
@@ -96,7 +101,7 @@ class Utility(commands.Cog):
     async def flip(self, interaction: discord.Interaction) -> None:
         """Flips a coin with a spinning animation.
 
-        :param interaction: the discord interaction
+        :param interaction: the Discord interaction
         :type interaction: discord.Interaction
         """
         result = random.randint(0, 1)
@@ -119,7 +124,7 @@ class Utility(commands.Cog):
                         time_zone: Literal["America/New_York", "America/Chicago", "America/Denver", "America/Los_Angeles", "UTC"]) -> None:
         """Convert a local time to a discord timestamp
 
-        :param interaction: the discord interaction
+        :param interaction: the Discord interaction
         :type interaction: discord.Interaction
         :param style: the style of the timestamp
         :type style: Literal["Relative", "Fixed"]
@@ -156,7 +161,7 @@ class Utility(commands.Cog):
     async def weather(self, interaction: discord.Interaction, city: str) -> None:
         """Gets your local weather forecast
 
-        :param interaction: the discord interaction
+        :param interaction: the Discord interaction
         :type interaction: discord.Interaction
         :param city: the city to get weather for
         :type city: str
@@ -182,27 +187,69 @@ class Utility(commands.Cog):
         else:
             await interaction.response.send_message(f"Could not retrieve weather for ``{city}``.", ephemeral=True)
 
-    @tasks.loop(minutes=1)
-    async def update_presence(self) -> None:
-        """Updates the bot's presence every minute with the weather."""
-        cities = ["New York", "Columbus", "Chicago", "Denver", "Los Angeles"]
-        weather = None
-        async with python_weather.Client(unit=python_weather.IMPERIAL) as client:
-            city = cities[discord.utils.utcnow().minute % 5]
-            weather = await client.get(city)
-            if weather:
-                await self.bot.change_presence(activity=discord.CustomActivity(name=f"{city}: {weather.kind.name.capitalize() if not 'SUNNY' else 'Clear'}, {weather.feels_like}°F"))
-                log.debug("Bot status updated")
-            else:
-                return
+    @app_commands.command(
+        name='qrcode',
+        description="Generates a QR code from the provided text."
+    )
+    async def qrcode(self, interaction: discord.Interaction, text: str, logo: discord.Attachment | None = None) -> None:
+        """Creates a QR code from the provided text
 
-    def cog_load(self):
-        """Start the presence update task loop."""
-        self.update_presence.start()
+        :param interaction: the Discord interaction
+        :type interaction: discord.Interaction
+        :param text: the link or text to encode in the QR code
+        :type text: str
+        :param logo: an optional logo to embed in the center of the QR code (must be a square image)
+        :type logo: discord.Attachment | None
+        """
+        # Create the QR code
+        qr = qrcode.QRCode(version=4, box_size=20, border=4)
+        qr.add_data(text)
+        qr.make(fit=True)
 
-    def cog_unload(self):
-        """Stop the presence update task loop."""
-        self.update_presence.stop()
+        # Convert to a styled PIL image
+        img = qr.make_image(image_factory=StyledPilImage).convert("RGBA")
+
+        # Add a logo if provided
+        if logo:
+            logo_bytes = await logo.read()
+            logo = Image.open(io.BytesIO(logo_bytes)).convert("RGBA")
+        else:
+            logo = Image.open("./cogs/assets/logo.png").convert("RGBA")
+
+        # Resize the logo to fit within the QR code (about 15% of the QR code size)
+        qr_size = img.size[0]
+        logo_size = int(qr_size * 0.15)
+        logo = logo.resize((logo_size, logo_size))
+
+        # Flatten logo onto white background
+        background = Image.new("RGBA", (logo_size, logo_size), "white")
+        logo = Image.alpha_composite(background, logo)
+
+        # Circular mask
+        mask = Image.new("L", (logo_size, logo_size), 0)
+        ImageDraw.Draw(mask).ellipse((0, 0, logo_size, logo_size), fill=255)
+
+        # Apply circular mask to logo
+        logo_circular = Image.new("RGBA", (logo_size, logo_size), (0, 0, 0, 0))
+        logo_circular.paste(logo, mask=mask)
+
+        # Paste the logo onto the QR code with a circular mask to create a white border around the logo
+        mask2 = Image.new("L", (logo_size, logo_size), 0)
+        ImageDraw.Draw(mask2).ellipse((0, 0, logo_size, logo_size), fill=255)
+        final_logo = Image.new("RGBA", (logo_size, logo_size), (0, 0, 0, 0))
+        final_logo.paste(logo_circular, mask=mask2)
+
+        # Center the logo in the QR code
+        pos = ((qr_size - logo_size) // 2, (qr_size - logo_size) // 2)
+        img.paste(final_logo, pos, mask=final_logo)
+
+        # Save the image to a byte stream
+        buffer = io.BytesIO()
+        img.save(buffer, format="PNG")
+        buffer.seek(0)
+
+        # Send the QR code as a file in the response
+        await interaction.response.send_message(content=f"Here is your QR code for: ``{text}``", file=discord.File(fp=buffer, filename="qrcode.png"), ephemeral=True)
 
 
 async def setup(bot: CENBot) -> None:

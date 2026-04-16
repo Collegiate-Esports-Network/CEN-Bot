@@ -14,8 +14,9 @@ from logging import getLogger
 # Third-party
 import discord
 from discord import app_commands
-from discord.ext import commands
+from discord.ext import commands, tasks
 from asyncpg.exceptions import PostgresError
+import python_weather
 
 # Internal
 from start import CENBot
@@ -29,15 +30,17 @@ class Internal(commands.Cog):
         self.bot = bot
 
     def cog_load(self) -> None:
-        """Wire the global app command error handler to the command tree."""
+        """Set a global error handler for app commands and start the presence update task loop."""
         self.bot.tree.on_error = self._on_tree_error
+        self.update_presence.start()
 
     def cog_unload(self) -> None:
-        """Remove the custom tree error handler, restoring discord.py's default."""
+        """Remove the global error handler for app commands and stop the presence update task loop."""
         try:
             del self.bot.tree.on_error
         except AttributeError:
             pass
+        self.update_presence.stop()
 
     async def _alert_owner(self, title: str, error: Exception) -> None:
         """DMs the bot owner with a formatted error traceback.
@@ -155,6 +158,20 @@ class Internal(commands.Cog):
         :type thread: discord.Thread
         """
         await thread.join()
+
+    @tasks.loop(minutes=1)
+    async def update_presence(self) -> None:
+        """Updates the bot's presence every minute with the weather."""
+        cities = ["New York", "Columbus", "Chicago", "Denver", "Los Angeles"]
+        weather = None
+        async with python_weather.Client(unit=python_weather.IMPERIAL) as client:
+            city = cities[discord.utils.utcnow().minute % 5]
+            weather = await client.get(city)
+            if weather:
+                await self.bot.change_presence(activity=discord.CustomActivity(name=f"{city}: {weather.kind.name.capitalize() if not 'SUNNY' else 'Clear'}, {weather.feels_like}°F"))
+                log.debug("Bot status updated")
+            else:
+                return
 
 
 async def setup(bot: CENBot) -> None:

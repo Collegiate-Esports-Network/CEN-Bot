@@ -57,7 +57,7 @@ class CENBot(Bot):
         try:
             self.db_pool: asyncpg.Pool = await asyncpg.create_pool(
                 dsn=os.getenv('SUPABASE_CONN_STRING'),
-                ssl='require',
+                ssl='prefer',
                 statement_cache_size=0
             )
         except OSError as e:
