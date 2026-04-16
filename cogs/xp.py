@@ -54,12 +54,11 @@ class XP(commands.GroupCog, name='xp'):
 
         try:
             async with self.bot.db_pool.acquire() as con:
-                await con.execute(
-                    "UPDATE public.profiles"
-                    " SET message_xp = COALESCE(message_xp, 0) + $1"
-                    " WHERE discord_id = $2",
-                    exp, str(msg.author.id)
-                )
+                await con.execute("""
+                                  UPDATE public.profiles
+                                  SET message_xp = COALESCE(message_xp, 0) + $1
+                                  WHERE discord_id = $2
+                                  """, exp, msg.author.id)
         except PostgresError as e:
             log.exception(e)
 
@@ -77,8 +76,7 @@ class XP(commands.GroupCog, name='xp'):
             async with self.bot.db_pool.acquire() as con:
                 record = await con.fetchrow(
                     "SELECT message_xp FROM public.profiles WHERE discord_id = $1",
-                    str(interaction.user.id)
-                )
+                    interaction.user.id)
         except PostgresError as e:
             log.exception(e)
             await interaction.response.send_message("There was an error fetching your data, please try again.", ephemeral=True)
@@ -103,10 +101,10 @@ class XP(commands.GroupCog, name='xp'):
         """
         try:
             async with self.bot.db_pool.acquire() as con:
-                records = await con.fetch(
-                    "SELECT discord_id, message_xp FROM public.profiles"
-                    " WHERE message_xp > 0 ORDER BY message_xp DESC LIMIT 20"
-                )
+                records = await con.fetch("""
+                                          SELECT discord_id, message_xp FROM public.profiles
+                                          WHERE message_xp > 0 ORDER BY message_xp DESC LIMIT 20
+                                          """)
         except PostgresError as e:
             log.exception(e)
             await interaction.response.send_message("There was an error fetching the leaderboard, please try again.", ephemeral=True)
