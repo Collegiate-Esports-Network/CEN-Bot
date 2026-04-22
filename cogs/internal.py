@@ -7,6 +7,7 @@ __version__ = "1.0.0"
 __status__ = "Production"
 
 # Standard library
+import asyncio
 import sys
 import traceback
 from logging import getLogger
@@ -42,7 +43,7 @@ class Internal(commands.Cog):
             pass
         self.update_presence.stop()
 
-    async def _alert_owner(self, title: str, error: Exception) -> None:
+    async def _alert_team(self, title: str, error: Exception) -> None:
         """DMs the bot owner with a formatted error traceback.
 
         :param title: the alert title
@@ -53,9 +54,16 @@ class Internal(commands.Cog):
         tb = ''.join(traceback.format_exception(type(error), error, error.__traceback__))
         try:
             app_info = await self.bot.application_info()
-            await app_info.owner.send(f"**{title}**\n```\n{tb[:1900]}\n```")
+
+            if app_info.team:
+                member_list = await asyncio.gather(*[self.bot.fetch_user(m.id) for m in app_info.team.members])
+            elif app_info.owner:
+                member_list = [app_info.owner]
+
+            for member in member_list:
+                await member.send(f"**{title}**\n```\n{tb[:1900]}\n```")
         except Exception:
-            log.exception("Failed to DM owner about error")
+            log.exception("Failed to DM team error traceback")
 
     async def _on_tree_error(self, interaction: discord.Interaction, error: app_commands.AppCommandError) -> None:
         """Global app command error handler.
@@ -75,7 +83,7 @@ class Internal(commands.Cog):
 
         cmd_name = interaction.command.name if interaction.command else "unknown"
         log.error(f"Unhandled app command error in '/{cmd_name}'", exc_info=error)
-        await self._alert_owner(f"Unhandled app command error in `/{cmd_name}`", error)
+        await self._alert_team(f"Unhandled app command error in `/{cmd_name}`", error)
         msg = "An unexpected error occurred."
         if interaction.response.is_done():
             await interaction.followup.send(msg, ephemeral=True)
@@ -101,7 +109,7 @@ class Internal(commands.Cog):
             return
 
         log.error(f"Unhandled command error in '!!{ctx.command}'", exc_info=error)
-        await self._alert_owner(f"Unhandled command error in `!!{ctx.command}`", error)
+        await self._alert_team(f"Unhandled command error in `!!{ctx.command}`", error)
         await ctx.reply("An unexpected error occurred.")
 
     @commands.Cog.listener()
@@ -114,7 +122,7 @@ class Internal(commands.Cog):
         error = sys.exc_info()[1]
         log.exception(f"Unhandled exception in '{event_method}'")
         if error:
-            await self._alert_owner(f"Unhandled exception in `{event_method}`", error)
+            await self._alert_team(f"Unhandled exception in `{event_method}`", error)
 
     @commands.Cog.listener()
     async def on_guild_join(self, guild: discord.Guild) -> None:
