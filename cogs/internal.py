@@ -81,9 +81,21 @@ class Internal(commands.Cog):
                 await interaction.response.send_message(msg, ephemeral=True)
             return
 
+        if isinstance(error, app_commands.CommandInvokeError):
+            if error.original and isinstance(error.original, discord.HTTPException):
+                # Swallow 408 Request Timeout errors, which can occur when a command takes too long to respond
+                if error.original.status == 408 and "request timeout" in error.original.text.lower():
+                    log.warning(f"Swallowed `408: Request Timeout` error in '/{interaction.command}', sent by {interaction.user} ({interaction.user.id})")
+                    return
+
+        # Parse command name for logging, default to "unknown" if not available
         cmd_name = interaction.command.name if interaction.command else "unknown"
         log.error(f"Unhandled app command error in '/{cmd_name}'", exc_info=error)
+
+        # Alert the team with the error details
         await self._alert_team(f"Unhandled app command error in `/{cmd_name}`", error)
+
+        # Send a generic error message to the user
         msg = "An unexpected error occurred."
         if interaction.response.is_done():
             await interaction.followup.send(msg, ephemeral=True)
