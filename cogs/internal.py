@@ -186,7 +186,11 @@ class Internal(commands.Cog):
         weather = None
         async with python_weather.Client(unit=python_weather.IMPERIAL) as client:
             city = cities[discord.utils.utcnow().minute % 5]
-            weather = await client.get(city)
+            try:
+                weather = await client.get(city)
+            except python_weather.errors.RequestError as e:
+                log.exception(e)
+                return
             if weather:
                 await self.bot.change_presence(activity=discord.CustomActivity(name=f"{city}: {weather.kind.name.capitalize() if not 'SUNNY' else 'Clear'}, {weather.feels_like}°F"))
                 log.debug("Bot status updated")
