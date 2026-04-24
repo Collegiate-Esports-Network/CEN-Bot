@@ -33,6 +33,9 @@ loggers:
   CENBot.easter:
     level: DEBUG
     propogate: true
+  CENBot.guild:
+    level: DEBUG
+    propogate: true
   CENBot.internal:
     level: DEBUG
     propogate: true

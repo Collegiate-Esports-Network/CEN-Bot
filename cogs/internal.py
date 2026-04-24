@@ -33,12 +33,12 @@ class Internal(commands.Cog):
     def __init__(self, bot: CENBot):
         self.bot = bot
 
-    def cog_load(self) -> None:
+    async def cog_load(self) -> None:
         """Set a global error handler for app commands and start the presence update task loop."""
         self.bot.tree.on_error = self._on_tree_error
         self.update_presence.start()
 
-    def cog_unload(self) -> None:
+    async def cog_unload(self) -> None:
         """Remove the global error handler for app commands and stop the presence update task loop."""
         try:
             del self.bot.tree.on_error

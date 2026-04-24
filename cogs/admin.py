@@ -8,6 +8,8 @@ __status__ = "Production"
 
 # Standard library
 import asyncio
+import importlib
+import sys
 from logging import getLogger
 
 # Third-party
@@ -26,6 +28,16 @@ class Admin(commands.Cog, name='admin'):
     """These are all the admin functions of the bot."""
     def __init__(self, bot: CENBot) -> None:
         self.bot = bot
+
+    def _reload_support_modules(self) -> None:
+        """Reload in-repo helper modules that cogs import directly.
+
+        This keeps extension reloads in sync with recent edits to shared
+        modules like ``utils.embeds`` and ``utils.format``.
+        """
+        for module_name in tuple(sys.modules):
+            if module_name == 'utils' or module_name.startswith('utils.'):
+                importlib.reload(sys.modules[module_name])
 
     @commands.is_owner()
     @commands.dm_only()
@@ -133,14 +145,28 @@ class Admin(commands.Cog, name='admin'):
         :param cog: the module name of the cog to reload (e.g. ``moderation``)
         :type cog: str
         """
-        try:
-            await self.bot.reload_extension(f'cogs.{cog}')
-        except ExtensionError as e:
-            log.error(e)
-            await ctx.reply(f"'{cog}' was unable to be reloaded.")
+        if cog.lower() == 'all':
+            for extension in self.bot.extensions:
+                try:
+                    self._reload_support_modules()
+                    await self.bot.reload_extension(extension)
+                except ExtensionError as e:
+                    log.error(e)
+                    await ctx.reply(f"'{extension}' was unable to be reloaded.")
+                else:
+                    log.info(f"'{extension}' was reloaded")
+            await ctx.reply("All cogs were reloaded.")
+            return
         else:
-            log.info(f"'{cog}' was reloaded")
-            await ctx.reply(f"'{cog}' was reloaded.")
+            try:
+                self._reload_support_modules()
+                await self.bot.reload_extension(f'cogs.{cog}')
+            except ExtensionError as e:
+                log.error(e)
+                await ctx.reply(f"'{cog}' was unable to be reloaded.")
+            else:
+                log.info(f"'{cog}' was reloaded")
+                await ctx.reply(f"'{cog}' was reloaded.")
 
     @commands.is_owner()
     @commands.dm_only()

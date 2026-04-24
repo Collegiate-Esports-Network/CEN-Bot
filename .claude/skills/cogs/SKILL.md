@@ -35,14 +35,26 @@ async def setup(bot: CENBot) -> None:
 - Admin commands must be decorated with `@app_commands.checks.has_role("CENBot Admin")` or `@commands.has_role("CENBot Admin")`
 - Owner-only commands must be decorated with `@app_commands.checks.is_owner()` or `@commands.is_owner()`
 
+## Cog Loading
+To define loading and unloading behaviors:
+```python
+async def cog_load(self) -> None:
+    """Custom Load Behavior"""
+    self.custom_load_behavior()
+
+async def cog_unload(self) -> None:
+    """Custom Unload Behavior"""
+    self.custom_unload_behavior()
+```
+
 ## Task Loops
 Start and stop task loops in `cog_load`/`cog_unload`:
 ```python
-def cog_load(self) -> None:
+async def cog_load(self) -> None:
     """Start the polling task loop."""
     self.check_task.start()
 
-def cog_unload(self) -> None:
+async def cog_unload(self) -> None:
     """Stop the polling task loop."""
     self.check_task.stop()
 ```

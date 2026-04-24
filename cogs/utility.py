@@ -28,6 +28,7 @@ from PIL import Image, ImageDraw
 
 # Internal
 from start import CENBot
+from utils.embeds import requester_footer, BRAND_COLOR
 
 log = getLogger('CENBot.utility')
 
@@ -60,14 +61,14 @@ class Utility(commands.Cog):
         :param interaction: the Discord interaction
         :type interaction: discord.Interaction
         """
-        embed = discord.Embed(title='Bot Info', description="Here is the most up-to-date information on the bot.", color=0x2374A5)
+        embed = discord.Embed(title='Bot Info', description="Here is the most up-to-date information on the bot.", color=BRAND_COLOR)
         embed.set_author(name=self.bot.user.name, icon_url=self.bot.user.avatar.url)
         embed.add_field(name="Bot Version:", value=self.bot.version)
         embed.add_field(name="Python Version:", value=f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}")
         embed.add_field(name="Discord.py Version:", value=discord.__version__)
         embed.add_field(name="Written By:", value="[Justin Panchula](https://github.com/JustinPanchula)", inline=False)
         embed.add_field(name="Server Information:", value=f"This bot is in {len(self.bot.guilds)} servers watching over {len(set(self.bot.get_all_members()))-len(self.bot.guilds)} members.", inline=False)
-
+        requester_footer(embed, interaction)
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
     @app_commands.command(
@@ -80,7 +81,7 @@ class Utility(commands.Cog):
         :param interaction: the Discord interaction
         :type interaction: discord.Interaction
         """
-        embed = discord.Embed(title="Available Commands", color=0x2374A5)
+        embed = discord.Embed(title="Available Commands", color=BRAND_COLOR)
 
         for cmd in sorted(self.bot.tree.get_commands(), key=lambda c: c.name):
             if isinstance(cmd, app_commands.Group):
@@ -92,6 +93,7 @@ class Utility(commands.Cog):
             else:
                 embed.add_field(name=f"/{cmd.name}", value=cmd.description or "No description.", inline=False)
 
+        requester_footer(embed, interaction)
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
     @app_commands.command(
@@ -183,6 +185,7 @@ class Utility(commands.Cog):
             embed.add_field(name=f"{weather.daily_forecasts[2].date}",
                             value=f"{weather.daily_forecasts[2].lowest_temperature}°F - {weather.daily_forecasts[2].highest_temperature}°F | {weather.daily_forecasts[2].hourly_forecasts[4].kind}",
                             inline=False)
+            requester_footer(embed, interaction)
             await interaction.response.send_message(embed=embed, ephemeral=True)
         else:
             await interaction.response.send_message(f"Could not retrieve weather for ``{city}``.", ephemeral=True)

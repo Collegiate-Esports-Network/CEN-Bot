@@ -39,3 +39,7 @@ __status__ = "Development"        # "Development" → "Production"
 - Comment every logical block with a short label
 - Avoid restating what the code says
 - Use `# TODO:` for planned work and `# FIXME:` for known issues
+
+## Database Queries
+- Always use explicit column lists in SELECT — never `SELECT *`
+- Correlated subqueries (`COUNT(*)`) are acceptable for subscription counts in single-round-trip fetches

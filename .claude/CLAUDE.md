@@ -4,12 +4,12 @@ Custom Discord bot for the Collegiate Esports Network
 ## Project Structure
 ```
 cogs/               - modules loaded at runtime
+utils/              - helper functions
 logging.yaml        - logging configuration
 start.py            - entry point for custom bot
 .env.dev            - development environment variables
 .env.prod           - production environment variables
 .env.local          - shared environment variables
-
 ```
 
 ## Architecture
