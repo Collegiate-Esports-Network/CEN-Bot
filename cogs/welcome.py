@@ -233,8 +233,8 @@ class Welcome(commands.GroupCog, name='welcome'):
         try:
             async with self.bot.db_pool.acquire() as conn:
                 record = await conn.fetchrow("""
-                                             SELECT channel, message
-                                             FROM cenbot.welcome
+                                             SELECT welcome_channel, welcome_message
+                                             FROM cenbot.guilds
                                              WHERE guild_id=$1
                                              """, interaction.guild.id)
         except PostgresError as e:
@@ -242,8 +242,8 @@ class Welcome(commands.GroupCog, name='welcome'):
             await interaction.response.send_message("There was an error fetching your settings, please try again.", ephemeral=True)
             return
 
-        current_channel_id = record['channel'] if record else None
-        current_message = record['message'] if record else None
+        current_channel_id = record['welcome_channel'] if record else None
+        current_message = record['welcome_message'] if record else None
 
         view = WelcomeConfigView(self.bot, current_channel_id, current_message)
         await interaction.response.send_message(view=view, ephemeral=True)
@@ -259,25 +259,25 @@ class Welcome(commands.GroupCog, name='welcome'):
         try:
             async with self.bot.db_pool.acquire() as conn:
                 record = await conn.fetchrow("""
-                                             SELECT g.welcome_enabled, w.channel, w.message
-                                             FROM cenbot.guilds g LEFT JOIN cenbot.welcome w ON g.id=w.guild_id
-                                             WHERE g.id=$1
+                                             SELECT welcome_channel, welcome_message, welcome_enabled
+                                             FROM cenbot.guilds
+                                             WHERE id=$1
                                              """, interaction.guild.id)
         except PostgresError as e:
             log.exception(e)
             await interaction.response.send_message("There was an error fetching your data, please try again.", ephemeral=True)
             return
 
-        if not record or not record['channel']:
+        if not record or not record['welcome_channel']:
             await interaction.response.send_message("No welcome channel configured. Use `/welcome configure` to set one.", ephemeral=True)
             return
 
-        channel = self.bot.get_channel(record['channel'])
+        channel = self.bot.get_channel(record['welcome_channel'])
         if channel is None:
             await interaction.response.send_message("The configured welcome channel no longer exists.", ephemeral=True)
             return
 
-        await channel.send(record['message'].replace('<new_member>', interaction.user.mention))
+        await channel.send(record['welcome_message'].replace('<new_member>', interaction.user.mention))
         note = " *(module is currently disabled)*" if not record['welcome_enabled'] else ""
         await interaction.response.send_message(f"Test sent.{note}", ephemeral=True)
 
@@ -291,18 +291,18 @@ class Welcome(commands.GroupCog, name='welcome'):
         try:
             async with self.bot.db_pool.acquire() as conn:
                 record = await conn.fetchrow("""
-                                             SELECT g.welcome_enabled, w.channel, w.message
-                                             FROM cenbot.guilds g LEFT JOIN cenbot.welcome w ON g.id=w.guild_id
-                                             WHERE g.id=$1
+                                             SELECT welcome_channel, welcome_message, welcome_enabled
+                                             FROM cenbot.guilds
+                                             WHERE guild_id=$1
                                              """, member.guild.id)
         except PostgresError as e:
             log.exception(e)
             return
 
-        if record and record['welcome_enabled'] and record['channel']:
-            channel = self.bot.get_channel(record['channel'])
+        if record and record['welcome_enabled'] and record['welcome_channel']:
+            channel = self.bot.get_channel(record['welcome_channel'])
             if channel:
-                await channel.send(record['message'].replace('<new_member>', member.mention))
+                await channel.send(record['welcome_message'].replace('<new_member>', member.mention))
 
 
 async def setup(bot: CENBot) -> None:
