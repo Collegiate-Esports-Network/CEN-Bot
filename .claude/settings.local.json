@@ -5,7 +5,8 @@
       "mcp__claude_ai_Supabase__list_tables",
       "WebFetch(domain:discordpy.readthedocs.io)",
       "WebFetch(domain:raw.githubusercontent.com)",
-      "WebFetch(domain:github.com)"
+      "WebFetch(domain:github.com)",
+      "mcp__supabase__list_tables"
     ]
   }
 }
