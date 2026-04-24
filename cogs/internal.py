@@ -183,14 +183,19 @@ class Internal(commands.Cog):
     async def update_presence(self) -> None:
         """Updates the bot's presence every minute with the weather."""
         cities = ["New York", "Columbus", "Chicago", "Denver", "Los Angeles"]
-        weather = None
         async with python_weather.Client(unit=python_weather.IMPERIAL) as client:
+            # Rotate through a list of cities based on the current minute to ensure we get a variety of weather updates
             city = cities[discord.utils.utcnow().minute % 5]
+
+            # Retrieve weather data
+            weather = None
             try:
                 weather = await client.get(city)
             except python_weather.errors.RequestError as e:
                 log.exception(e)
                 return
+
+            # Only update presence if we successfully retrieved weather data
             if weather:
                 await self.bot.change_presence(activity=discord.CustomActivity(name=f"{city}: {weather.kind.name.capitalize() if not 'SUNNY' else 'Clear'}, {weather.feels_like}°F"))
                 log.debug("Bot status updated")
