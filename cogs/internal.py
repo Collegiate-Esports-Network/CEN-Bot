@@ -16,6 +16,7 @@ from logging import getLogger
 import discord
 from discord import app_commands
 from discord.ext import commands, tasks
+import aiohttp
 from asyncpg.exceptions import PostgresError
 import python_weather
 
@@ -23,6 +24,8 @@ import python_weather
 from start import CENBot
 
 log = getLogger('CENBot.internal')
+
+_PACKAGE_ERRORS = (PostgresError, python_weather.errors.RequestError, aiohttp.ClientError)
 
 
 class Internal(commands.Cog):
@@ -81,21 +84,27 @@ class Internal(commands.Cog):
                 await interaction.response.send_message(msg, ephemeral=True)
             return
 
+        cmd_name = interaction.command.name if interaction.command else "unknown"
+
         if isinstance(error, app_commands.CommandInvokeError):
             if error.original and isinstance(error.original, discord.HTTPException):
                 # Swallow 408 Request Timeout errors, which can occur when a command takes too long to respond
                 if error.original.status == 408 and "request timeout" in error.original.text.lower():
-                    log.warning(f"Swallowed `408: Request Timeout` error in '/{interaction.command}', sent by {interaction.user} ({interaction.user.id})")
+                    log.warning(f"Swallowed `408: Request Timeout` error in '/{cmd_name}', sent by {interaction.user} ({interaction.user.id})")
                     return
 
-        # Parse command name for logging, default to "unknown" if not available
-        cmd_name = interaction.command.name if interaction.command else "unknown"
-        log.error(f"Unhandled app command error in '/{cmd_name}'", exc_info=error)
+            if error.original and isinstance(error.original, _PACKAGE_ERRORS):
+                log.error(f"Package error in '/{cmd_name}'", exc_info=error.original)
+                msg = "An unexpected error occurred."
+                if interaction.response.is_done():
+                    await interaction.followup.send(msg, ephemeral=True)
+                else:
+                    await interaction.response.send_message(msg, ephemeral=True)
+                return
 
-        # Alert the team with the error details
+        log.error(f"Unhandled app command error in '/{cmd_name}'", exc_info=error)
         await self._alert_team(f"Unhandled app command error in `/{cmd_name}`", error)
 
-        # Send a generic error message to the user
         msg = "An unexpected error occurred."
         if interaction.response.is_done():
             await interaction.followup.send(msg, ephemeral=True)
@@ -120,6 +129,11 @@ class Internal(commands.Cog):
             await ctx.reply(f"Invalid input: {error}")
             return
 
+        if isinstance(error, commands.CommandInvokeError) and isinstance(error.original, _PACKAGE_ERRORS):
+            log.error(f"Package error in '!!{ctx.command}'", exc_info=error.original)
+            await ctx.reply("An unexpected error occurred.")
+            return
+
         log.error(f"Unhandled command error in '!!{ctx.command}'", exc_info=error)
         await self._alert_team(f"Unhandled command error in `!!{ctx.command}`", error)
         await ctx.reply("An unexpected error occurred.")
@@ -132,6 +146,9 @@ class Internal(commands.Cog):
         :type event_method: str
         """
         error = sys.exc_info()[1]
+        if error and isinstance(error, _PACKAGE_ERRORS):
+            log.exception(f"Package error in '{event_method}'")
+            return
         log.exception(f"Unhandled exception in '{event_method}'")
         if error:
             await self._alert_team(f"Unhandled exception in `{event_method}`", error)

@@ -52,9 +52,9 @@ class WelcomeChannelSelect(discord.ui.ChannelSelect):
         try:
             async with self.bot.db_pool.acquire() as conn:
                 await conn.execute("""
-                                   INSERT INTO cenbot.welcome (guild_id, channel)
+                                   INSERT INTO cenbot.guilds (id, welcome_channel)
                                    VALUES ($1, $2)
-                                   ON CONFLICT (guild_id) DO UPDATE SET channel=EXCLUDED.channel
+                                   ON CONFLICT (id) DO UPDATE SET welcome_channel=EXCLUDED.welcome_channel
                                    """, interaction.guild.id, new_channel_id)
         except PostgresError as e:
             log.exception(e)
@@ -105,9 +105,9 @@ class WelcomeMessageModal(discord.ui.Modal, title="Welcome Message"):
         try:
             async with self.bot.db_pool.acquire() as conn:
                 await conn.execute("""
-                                   INSERT INTO cenbot.welcome (guild_id, message)
+                                   INSERT INTO cenbot.guilds (id, welcome_message)
                                    VALUES ($1, $2)
-                                   ON CONFLICT (guild_id) DO UPDATE SET message=EXCLUDED.message
+                                   ON CONFLICT (id) DO UPDATE SET welcome_message=EXCLUDED.welcome_message
                                    """, interaction.guild.id, new_message)
         except PostgresError as e:
             log.exception(e)
@@ -235,7 +235,7 @@ class Welcome(commands.GroupCog, name='welcome'):
                 record = await conn.fetchrow("""
                                              SELECT welcome_channel, welcome_message
                                              FROM cenbot.guilds
-                                             WHERE guild_id=$1
+                                             WHERE id=$1
                                              """, interaction.guild.id)
         except PostgresError as e:
             log.exception(e)
@@ -293,7 +293,7 @@ class Welcome(commands.GroupCog, name='welcome'):
                 record = await conn.fetchrow("""
                                              SELECT welcome_channel, welcome_message, welcome_enabled
                                              FROM cenbot.guilds
-                                             WHERE guild_id=$1
+                                             WHERE id=$1
                                              """, member.guild.id)
         except PostgresError as e:
             log.exception(e)
