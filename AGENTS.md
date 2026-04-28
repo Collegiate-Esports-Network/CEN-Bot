@@ -1,9 +1,10 @@
 # CEN-Bot
 This repo contains all files necessary to run the Collegiate Esports Network's custom Discord bot.
 
-## Project Structure
+## File Structure
 ```
 cogs/               - modules loaded at runtime
+lavalink/           - lavalink server config and plugins
 utils/              - helper functions
 logging.yaml        - logging configuration
 start.py            - entry point for custom bot
@@ -13,26 +14,38 @@ start.py            - entry point for custom bot
 ```
 
 ## Architecture
-- Python: `v3.14`
+- Language: `Python v3.14`
 - Discord API library: `discord.py[voice]`
   - `[voice]` includes extra packages required for interacting with voice channels.
-- Database driver: `asyncpg`
-  - Parameterized queries use `$1`, `$2`, etc.
-  
+- Database: `Supabase`
+  - Driver: `asyncpg`; Paramaterize queries using `$1`, `$2`, etc.
+- Audio server: `Lavalink v4`
+  - Middleware: `Wavelink v3`
+
 ## Conventions
 > **Always re-read a file immediately before writing to it**
 - See `.agents/skills/conventions` for shared Python and SQL conventions.
 - See `.agents/skills/docstrings` for Sphinx docstring requirements.
 
-## Starting the Bot
+## CEN-Bot Control
+**Start Bot:**
 ```bash
 python start.py --env dev   # development environment
 python start.py --env prod  # production environment
 ```
 
-## Build Docs
+**Stop Bot:**
+- Exit the process
+
+## Lavalink Control
+**Start Container:**
 ```bash
-sphinx-build -b html docs docs/_build/html
+docker compose -f 'compose.yaml' up -d --build 'lavalink'
+```
+
+**Stop Container:**
+```bash
+docker compose -f 'compose.yaml' down
 ```
 
 ## Database

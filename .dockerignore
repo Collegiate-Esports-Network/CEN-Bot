@@ -1,12 +1,40 @@
-# Folders
-__pycache__
-.venv
-.vscode
-logs/
-
-# Files
-.env.*
+# Git
+.git/
 .gitignore
-FUNDING.yaml
+
+# GitHub
+.github/
+FUNDING.yml
+
+# Docker
+compose.yml
+
+# Agentic coding
+.agents/
+.claude/
+.codex
+.mcp.json
+**/AGENTS.md
+
+# Docs
+docs/
 LICENSE
 README.md
+
+# Environment files
+.env.*
+
+# Lavalink
+lavalink/
+
+# Logs
+logs/
+*.log
+*.log.*
+
+# Python artifacts
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd

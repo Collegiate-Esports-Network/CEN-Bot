@@ -20,6 +20,9 @@ from asyncpg.exceptions import PostgresError
 from discord.ext.commands import Bot, ExtensionError, ExtensionNotFound
 from dotenv import load_dotenv
 
+# Ensure log directory exists before loading config
+os.makedirs('logs', exist_ok=True)
+
 # Configure logging
 with open('logging.yaml', 'r') as f:
     logging.config.dictConfig(yaml.safe_load(f.read()))

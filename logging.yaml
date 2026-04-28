@@ -8,7 +8,7 @@ handlers:
   bot: 
     class: logging.handlers.TimedRotatingFileHandler
     formatter: default
-    filename: LOG.log
+    filename: logs/CEN.log
     when: W6
     backupCount: 3
     encoding: UTF-8
