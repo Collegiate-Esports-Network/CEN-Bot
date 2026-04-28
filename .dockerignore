@@ -7,7 +7,9 @@
 FUNDING.yml
 
 # Docker
-compose.yml
+compose.yaml
+compose.override.yaml
+compose.prod.yaml
 
 # Agentic coding
 .agents/
@@ -17,7 +19,6 @@ compose.yml
 **/AGENTS.md
 
 # Docs
-docs/
 LICENSE
 README.md
 

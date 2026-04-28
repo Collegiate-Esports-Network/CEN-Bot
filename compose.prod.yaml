@@ -1,0 +1,5 @@
+services:
+  bot:
+    env_file:
+      - .env.local
+      - .env.prod

@@ -27,25 +27,21 @@ start.py            - entry point for custom bot
 - See `.agents/skills/conventions` for shared Python and SQL conventions.
 - See `.agents/skills/docstrings` for Sphinx docstring requirements.
 
-## CEN-Bot Control
-**Start Bot:**
+## Containers
+- `compose.yaml`: base config (no env files); always used.
+- `compose.override.yaml`: dev env files + source bind mount; merged automatically when no `-f` flag is given.
+- `compose.prod.yaml`: prod env files; must be merged explicitly with `-f`.
+
+**Dev** (auto-merges override):
 ```bash
-python start.py --env dev   # development environment
-python start.py --env prod  # production environment
+docker compose up -d [lavalink] [bot]    # start (omit service names to start all)
+docker compose stop [lavalink] [bot]     # stop
 ```
 
-**Stop Bot:**
-- Exit the process
-
-## Lavalink Control
-**Start Container:**
+**Prod**:
 ```bash
-docker compose -f 'compose.yaml' up -d --build 'lavalink'
-```
-
-**Stop Container:**
-```bash
-docker compose -f 'compose.yaml' down
+docker compose -f compose.yaml -f compose.prod.yaml up -d [lavalink] [bot]
+docker compose -f compose.yaml -f compose.prod.yaml stop [lavalink] [bot]
 ```
 
 ## Database

@@ -1,0 +1,8 @@
+services:
+  bot:
+    env_file:
+      - .env.local
+      - .env.dev
+    volumes:
+      - .:/app
+      - ./logs:/app/logs

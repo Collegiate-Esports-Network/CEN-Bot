@@ -8,23 +8,21 @@ services:
     volumes:
       - ./lavalink/application.yaml:/opt/Lavalink/application.yml
       - ./lavalink/plugins/:/opt/Lavalink/plugins/
+      - ./logs:/opt/Lavalink/logs
     networks:
       - lavalink
     ports:
       - "2333:2333"
-  cen-bot:
+  bot:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: cen-bot
+    container_name: bot
     restart: unless-stopped
     volumes:
-      - ./cen-bot:/app
       - ./logs:/app/logs
     networks:
       - lavalink
-    ports:
-      - "8080:8080"
     depends_on:
       - lavalink
 networks:
