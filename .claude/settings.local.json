@@ -6,7 +6,8 @@
       "WebFetch(domain:discordpy.readthedocs.io)",
       "WebFetch(domain:raw.githubusercontent.com)",
       "WebFetch(domain:github.com)",
-      "mcp__supabase__list_tables"
+      "mcp__supabase__list_tables",
+      "WebFetch(domain:wavelink.readthedocs.io)"
     ]
   }
 }

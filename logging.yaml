@@ -13,6 +13,14 @@ handlers:
     backupCount: 3
     encoding: UTF-8
     level: DEBUG
+  bot_info: 
+    class: logging.handlers.TimedRotatingFileHandler
+    formatter: default
+    filename: logs/bot_info.log
+    when: W6
+    backupCount: 3
+    encoding: UTF-8
+    level: INFO
   bot_console:
     class: logging.StreamHandler
     formatter: default
@@ -20,11 +28,11 @@ handlers:
     stream: ext://sys.stdout
 loggers:
   discord:
-    handlers: [bot, bot_console]
+    handlers: [bot, bot_info, bot_console]
     level: DEBUG
     propogate: false
   CENBot: 
-    handlers: [bot, bot_console]
+    handlers: [bot, bot_info, bot_console]
     level: DEBUG
     propogate: false
   CENBot.admin:

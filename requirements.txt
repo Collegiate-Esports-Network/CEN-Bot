@@ -30,7 +30,7 @@ pyflakes==3.4.0
 Pygments==2.20.0
 PyNaCl==1.6.2
 python-dotenv==1.2.2
-python-weather==2.2.0
+python-weather==2.2.1
 pytz==2026.1.post1
 PyYAML==6.0.3
 qrcode==8.2

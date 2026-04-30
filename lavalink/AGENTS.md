@@ -12,15 +12,16 @@ application.yml     - lavalink instance config
   - Youtube Plugin: `v1.18.0`
 
 ## Dependencies
-- Always ensure this Lavalink instance remains compatible with Wavelink v3
+- Always ensure this Lavalink instance remains compatible with `Wavelink v3.5`
 
 ## Lavalink Control
 **Start Container:**
 ```bash
-docker compose -f 'compose.yaml' up -d --build 'lavalink'
+docker compose up -d lavalink  # Dev
+docker compose -f compose.yaml -f compose.prod.yaml up -d lavalink  # Prod
 ```
 
 **Stop Container:**
 ```bash
-docker compose -f 'compose.yaml' down
+docker compose stop lavalink
 ```

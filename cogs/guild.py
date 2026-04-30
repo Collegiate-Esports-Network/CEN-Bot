@@ -3,7 +3,7 @@
 __author__ = "Justin Panchula"
 __copyright__ = "Copyright CEN"
 __credits__ = ["Justin Panchula", "Claude"]
-__version__ = "1.0.0"
+__version__ = "0.2.0"
 __status__ = "Development"
 
 # Standard library

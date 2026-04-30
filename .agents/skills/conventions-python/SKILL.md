@@ -1,6 +1,6 @@
 ---
-name: conventions
-description: Use when writing, reviewing, or refactoring Python files in CEN-Bot that need repo-specific conventions for imports, module metadata, inline comments, and SQL query style.
+name: conventions-python
+description: Use when writing, reviewing, or refactoring python files in CEN-Bot that need repo-specific conventions for imports, module metadata, inline comments, and code style.
 ---
 
 # Conventions
@@ -35,10 +35,15 @@ from start import CENBot
 > **Only include groups that are needed; omit empty ones**
 
 ## Inline Comments
-- Comment every logical block with a short label.
-- Avoid restating what the code says.
+- Groups of functions must be commented with `# --- Label ---` before the group.
+- Every logical block within a function must have a comment describing what it does.
+- Avoid restating what the code says; omit comments that are redundant with the code itself.
 - Use `# TODO:` for planned work and `# FIXME:` for known issues.
 
-## Database Queries
-- Always use explicit column lists in `SELECT`; never use `SELECT *`
-- Correlated subqueries (e.g. `COUNT(*)`) are acceptable for counting related data in single-round-trip fetches.
+## Versioning
+- All files use semantic versioning: `MAJOR.MINOR.PATCH`.
+  - `Major`: Increments for breaking changes that are not backward-compatible. 
+    - `0` denotes a developmental version where large changes are expected.
+  - `Minor`: Increments for new, backward-compatible functionality.
+  - `Patch`: Increments for backward-compatible bug fixes.
+- All files should denote their status: `developmental` or `production`.

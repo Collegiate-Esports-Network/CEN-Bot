@@ -41,7 +41,7 @@ docker compose stop [lavalink] [bot]     # stop
 **Prod**:
 ```bash
 docker compose -f compose.yaml -f compose.prod.yaml up -d [lavalink] [bot]
-docker compose -f compose.yaml -f compose.prod.yaml stop [lavalink] [bot]
+docker compose stop [lavalink] [bot]
 ```
 
 ## Database
