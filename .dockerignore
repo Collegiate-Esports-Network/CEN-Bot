@@ -33,6 +33,9 @@ logs/
 *.log
 *.log.*
 
+# Data files
+cogs/data/
+
 # Python artifacts
 .venv/
 __pycache__/

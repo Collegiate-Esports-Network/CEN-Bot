@@ -12,12 +12,12 @@ __pycache__/
 # Lavalink
 plugins/
 
-# Data files
-cogs/data/*.json
-
 # Logs
 logs/
 *.log*
+
+# Data files
+cogs/data
 
 # SSL certificates
 *.crt
