@@ -3,7 +3,7 @@
 __author__ = ["Justin Panchula"]
 __copyright__ = "Copyright CEN"
 __credits__ = ["Justin Panchula", "Claude"]
-__version__ = "0.6.0"
+__version__ = "0.7.0"
 __status__ = "Development"
 
 # Standard library
@@ -134,88 +134,6 @@ class AddTrackModal(discord.ui.Modal, title='Add Track'):
 
         _, msg = await self.cog._queue_or_play(self.guild_id, track)
         await interaction.followup.send(msg, ephemeral=True)
-
-
-class SearchSelect(discord.ui.Select):
-    """Select menu listing up to 5 YouTube search results.
-
-    On selection, queues the chosen track and replaces the picker with a confirmation.
-    """
-
-    def __init__(
-        self,
-        cog: 'Radio',
-        tracks: list[wavelink.Playable],
-        original_interaction: discord.Interaction,
-    ) -> None:
-        """Initialise with search results and the originating interaction.
-
-        :param cog: the Radio cog instance
-        :type cog: Radio
-        :param tracks: up to 5 candidate tracks from the YouTube search
-        :type tracks: list[wavelink.Playable]
-        :param original_interaction: the interaction that triggered /radio search
-        :type original_interaction: discord.Interaction
-        """
-        options = [
-            discord.SelectOption(
-                label=track.title[:100],
-                description=f"{track.author or 'Unknown'} • {format_duration(track.length // 1000) if track.length else 'Live'}"[:100],
-                value=str(i),
-            )
-            for i, track in enumerate(tracks[:5])
-        ]
-        super().__init__(placeholder='Choose a track…', min_values=1, max_values=1, options=options)
-        self.cog = cog
-        self.tracks = tracks[:5]
-        self.original_interaction = original_interaction
-
-    async def callback(self, interaction: discord.Interaction) -> None:
-        """Queue the selected track and dismiss the search picker.
-
-        :param interaction: the discord interaction triggered by the select
-        :type interaction: discord.Interaction
-        """
-        if not interaction.user.voice or not interaction.user.voice.channel:
-            await interaction.response.send_message("You must be in a voice channel to queue tracks.", ephemeral=True)
-            return
-
-        await interaction.response.defer()
-
-        track = self.tracks[int(self.values[0])]
-        track.extras.requester = self.original_interaction.user.id
-        guild_id = interaction.guild_id
-        state = self.cog._get_state(guild_id)
-        player = state.player
-
-        if not player or not player.connected:
-            await interaction.edit_original_response(content="The bot is no longer connected. Use `/radio play` to start a new session.", view=None)
-            return
-
-        _, msg = await self.cog._queue_or_play(guild_id, track)
-        await interaction.edit_original_response(content=msg, view=None)
-
-
-class SearchView(discord.ui.View):
-    """Ephemeral view wrapping a SearchSelect for YouTube search results."""
-
-    def __init__(
-        self,
-        cog: 'Radio',
-        tracks: list[wavelink.Playable],
-        original_interaction: discord.Interaction,
-    ) -> None:
-        """Initialise with search results to display in the select.
-
-        :param cog: the Radio cog instance
-        :type cog: Radio
-        :param tracks: up to 5 candidate tracks
-        :type tracks: list[wavelink.Playable]
-        :param original_interaction: the interaction that triggered /radio search
-        :type original_interaction: discord.Interaction
-        """
-        super().__init__(timeout=60)
-        self.add_item(SearchSelect(cog, tracks, original_interaction))
 
 
 class RadioControlsView(discord.ui.View):
@@ -395,81 +313,6 @@ class RadioControlsView(discord.ui.View):
         state.repeat = not state.repeat
         button.style = discord.ButtonStyle.success if state.repeat else discord.ButtonStyle.secondary
         await interaction.response.edit_message(embed=self.cog._controls_embed(self.guild_id), view=self)
-
-
-class QueuePaginatorView(discord.ui.View):
-    """Paginated view for browsing the full track queue."""
-
-    PAGE_SIZE = 10
-
-    def __init__(self, tracks: list[wavelink.Playable], guild_name: str) -> None:
-        """Initialise with the full queue snapshot.
-
-        :param tracks: all tracks currently in the queue
-        :type tracks: list[wavelink.Playable]
-        :param guild_name: the guild's display name, used in the embed title
-        :type guild_name: str
-        """
-        super().__init__(timeout=120)
-        self.tracks = tracks
-        self.guild_name = guild_name
-        self.page = 0
-        self.max_page = max(0, (len(tracks) - 1) // self.PAGE_SIZE)
-        self._update_buttons()
-
-    def _update_buttons(self) -> None:
-        self.prev_page.disabled = self.page == 0
-        self.next_page.disabled = self.page == self.max_page
-
-    def build_embed(self) -> discord.Embed:
-        """Build the embed for the current page.
-
-        :returns: a discord embed listing the current page of queued tracks
-        :rtype: discord.Embed
-        """
-        start = self.page * self.PAGE_SIZE
-        page_tracks = self.tracks[start:start + self.PAGE_SIZE]
-
-        lines = []
-        for i, track in enumerate(page_tracks, start + 1):
-            requester = getattr(track.extras, 'requester', None)
-            requester_text = f"<@{requester}>" if requester else "Unknown"
-            duration = format_duration(track.length // 1000) if track.length else 'Live'
-            lines.append(f"{i}. **{track.title}** [{duration}] — {requester_text}")
-
-        embed = discord.Embed(
-            title=f"Queue — {self.guild_name}",
-            description='\n'.join(lines) or "Empty",
-            color=BRAND_COLOR,
-        )
-        embed.set_footer(text=f"Page {self.page + 1}/{self.max_page + 1} • {len(self.tracks)} track(s) total")
-        return embed
-
-    @discord.ui.button(label='◀', style=discord.ButtonStyle.secondary)
-    async def prev_page(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
-        """Go to the previous page.
-
-        :param interaction: the discord interaction
-        :type interaction: discord.Interaction
-        :param button: the triggered button
-        :type button: discord.ui.Button
-        """
-        self.page -= 1
-        self._update_buttons()
-        await interaction.response.edit_message(embed=self.build_embed(), view=self)
-
-    @discord.ui.button(label='▶', style=discord.ButtonStyle.secondary)
-    async def next_page(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
-        """Go to the next page.
-
-        :param interaction: the discord interaction
-        :type interaction: discord.Interaction
-        :param button: the triggered button
-        :type button: discord.ui.Button
-        """
-        self.page += 1
-        self._update_buttons()
-        await interaction.response.edit_message(embed=self.build_embed(), view=self)
 
 
 @app_commands.guild_only()
@@ -1152,211 +995,6 @@ class Radio(commands.GroupCog, name="radio"):
         if first_connect:
             await self._send_controls(voice_channel, guild_id)
 
-    @app_commands.command(name='search', description="Search YouTube and pick a track from results")
-    @app_commands.describe(query="Search terms")
-    async def search(self, interaction: discord.Interaction, query: str) -> None:
-        """Search YouTube and present up to 5 results as a selection menu.
-
-        :param interaction: the discord interaction
-        :type interaction: discord.Interaction
-        :param query: YouTube search keywords
-        :type query: str
-        """
-        if not await self._voice_check(interaction):
-            return
-
-        await interaction.response.defer(ephemeral=True)
-
-        if not await self._ensure_node():
-            await interaction.followup.send(self._node_unavailable_message(), ephemeral=True)
-            return
-
-        guild_id = interaction.guild_id
-        voice_channel = interaction.user.voice.channel
-        state = self._get_state(guild_id)
-        first_connect = state.player is None or not state.player.connected
-
-        player = await self._ensure_player(guild_id, voice_channel)
-        if not player:
-            await interaction.followup.send("Could not connect to the voice channel.", ephemeral=True)
-            return
-
-        try:
-            results = await wavelink.Playable.search(query, source=wavelink.TrackSource.YouTube)
-        except Exception as e:
-            log.warning(f"Search failed for query {query!r}: {e}")
-            await interaction.followup.send("Search failed. Please try again.", ephemeral=True)
-            return
-
-        if not results:
-            await interaction.followup.send("No results found.", ephemeral=True)
-            return
-
-        tracks = list(results)[:5]
-
-        if first_connect:
-            await self._send_controls(voice_channel, guild_id)
-
-        await interaction.followup.send(
-            "Select a track to queue:",
-            view=SearchView(self, tracks, interaction),
-            ephemeral=True,
-        )
-
-    @app_commands.command(name='pause', description="Pause playback")
-    async def pause(self, interaction: discord.Interaction) -> None:
-        """Pause the currently playing track.
-
-        :param interaction: the discord interaction
-        :type interaction: discord.Interaction
-        """
-        if not await self._voice_check(interaction):
-            return
-
-        state = self._get_state(interaction.guild_id)
-        player = state.player
-
-        if not player or not player.playing:
-            await interaction.response.send_message("Nothing is currently playing.", ephemeral=True)
-            return
-
-        await interaction.response.defer(ephemeral=True)
-        await player.pause(True)
-        await self._sync_voice_channel_status(interaction.guild_id)
-        await self._update_controls(interaction.guild_id)
-        await interaction.followup.send("Paused.", ephemeral=True)
-
-    @app_commands.command(name='resume', description="Resume paused playback")
-    async def resume(self, interaction: discord.Interaction) -> None:
-        """Resume a paused track.
-
-        :param interaction: the discord interaction
-        :type interaction: discord.Interaction
-        """
-        if not await self._voice_check(interaction):
-            return
-
-        state = self._get_state(interaction.guild_id)
-        player = state.player
-
-        if not player or not player.paused:
-            await interaction.response.send_message("Playback is not paused.", ephemeral=True)
-            return
-
-        await interaction.response.defer(ephemeral=True)
-        await player.pause(False)
-        await self._sync_voice_channel_status(interaction.guild_id)
-        await self._update_controls(interaction.guild_id)
-        await interaction.followup.send("Resumed.", ephemeral=True)
-
-    @app_commands.command(name='skip', description="Skip the current track")
-    async def skip(self, interaction: discord.Interaction) -> None:
-        """Skip the current track and advance the queue.
-
-        :param interaction: the discord interaction
-        :type interaction: discord.Interaction
-        """
-        if not await self._voice_check(interaction):
-            return
-
-        state = self._get_state(interaction.guild_id)
-        player = state.player
-
-        if not player or not (player.playing or player.paused):
-            await interaction.response.send_message("Nothing is currently playing.", ephemeral=True)
-            return
-
-        await interaction.response.defer(ephemeral=True)
-
-        try:
-            await player.skip(force=True)
-        except Exception as e:
-            log.warning(f"Skip failed in guild {interaction.guild_id}: {e}")
-            await interaction.followup.send("Failed to skip the track.", ephemeral=True)
-            return
-
-        await interaction.followup.send("Skipped.", ephemeral=True)
-
-    @app_commands.command(name='stop', description="Stop playback and disconnect")
-    async def stop(self, interaction: discord.Interaction) -> None:
-        """Stop playback, clear the queue, and disconnect from the voice channel.
-
-        :param interaction: the discord interaction
-        :type interaction: discord.Interaction
-        """
-        if not await self._voice_check(interaction):
-            return
-
-        state = self._get_state(interaction.guild_id)
-        player = state.player
-
-        if not player or not player.connected:
-            await interaction.response.send_message("The bot is not in a voice channel.", ephemeral=True)
-            return
-
-        await interaction.response.defer(ephemeral=True)
-        await self._stop_player(interaction.guild_id)
-        await interaction.followup.send("Stopped and disconnected.", ephemeral=True)
-
-    @app_commands.command(name='volume', description="Set the playback volume (0-100)")
-    @app_commands.describe(level="Volume level from 0 to 100")
-    async def volume(self, interaction: discord.Interaction, level: app_commands.Range[int, 0, 100]) -> None:
-        """Set the playback volume.
-
-        :param interaction: the discord interaction
-        :type interaction: discord.Interaction
-        :param level: the desired volume (0-100)
-        :type level: int
-        """
-        if not await self._voice_check(interaction):
-            return
-
-        await interaction.response.defer(ephemeral=True)
-
-        if not await self._set_volume(interaction.guild_id, level):
-            await interaction.followup.send("Failed to update volume.", ephemeral=True)
-            return
-
-        await interaction.followup.send(f"Volume set to {level}/100.", ephemeral=True)
-
-    @app_commands.command(name='remove', description="Remove a track from the queue by position")
-    @app_commands.describe(position="1-based position in the queue")
-    async def remove(self, interaction: discord.Interaction, position: app_commands.Range[int, 1]) -> None:
-        """Remove a queued track by its 1-based position.
-
-        :param interaction: the discord interaction
-        :type interaction: discord.Interaction
-        :param position: the 1-based queue position to remove
-        :type position: int
-        """
-        if not await self._voice_check(interaction):
-            return
-
-        await interaction.response.defer(ephemeral=True)
-
-        state = self._get_state(interaction.guild_id)
-        player = state.player
-
-        if not player or not player.queue:
-            await interaction.followup.send("The queue is empty.", ephemeral=True)
-            return
-
-        idx = position - 1
-        if idx >= len(player.queue):
-            await interaction.followup.send(
-                f"Position {position} is out of range. The queue has {len(player.queue)} track(s).",
-                ephemeral=True,
-            )
-            return
-
-        removed = player.queue[idx]
-        del player.queue[idx]
-        await self._update_controls(interaction.guild_id)
-        await interaction.followup.send(
-            f"Removed **{removed.title}** from position {position}.",
-            ephemeral=True,
-        )
-
     @app_commands.command(name='controls', description="Resend the radio controls panel in this channel")
     async def controls(self, interaction: discord.Interaction) -> None:
         """Re-summon the radio controls panel in the current text channel.
@@ -1412,34 +1050,15 @@ class Radio(commands.GroupCog, name="radio"):
         title_link = f"[{current.title}]({current.uri})" if current.uri else current.title
         status = '⏸ Paused' if player and player.paused else '▶ Playing'
 
+        channel_mention = player.channel.mention if player and player.channel else "a voice channel"
+
         embed = discord.Embed(title="Now Playing", color=BRAND_COLOR)
-        embed.description = f"{status} — {title_link}\nRequested by {requester_text}\n{progress}"
+        embed.description = f"{status} — {title_link}\nRequested by {requester_text}\n{progress}\n\nPlaying in {channel_mention}"
         if current.artwork:
             embed.set_thumbnail(url=current.artwork)
         embed.set_footer(text=f"🔊 Volume: {state.volume}/100")
 
         await interaction.response.send_message(embed=embed, ephemeral=True)
-
-    @app_commands.command(name='queue', description="Show the track queue")
-    async def queue(self, interaction: discord.Interaction) -> None:
-        """Display the full track queue with pagination.
-
-        Available to all guild members regardless of voice channel state.
-
-        :param interaction: the discord interaction
-        :type interaction: discord.Interaction
-        """
-        state = self._get_state(interaction.guild_id)
-        player = state.player
-
-        if not player or not player.queue:
-            await interaction.response.send_message("The queue is empty.", ephemeral=True)
-            return
-
-        tracks = list(player.queue)
-        view = QueuePaginatorView(tracks, interaction.guild.name)
-        await interaction.response.send_message(embed=view.build_embed(), view=view, ephemeral=True)
-
 
 async def setup(bot: CENBot) -> None:
     await bot.add_cog(Radio(bot))

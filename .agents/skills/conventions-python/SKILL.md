@@ -35,7 +35,7 @@ from start import CENBot
 > **Only include groups that are needed; omit empty ones**
 
 ## Inline Comments
-- Groups of functions must be commented with `# --- Label ---` before the group.
+- Groups of functions must be commented with `### Label ###` before the group.
 - Every logical block within a function must have a comment describing what it does.
 - Avoid restating what the code says; omit comments that are redundant with the code itself.
 - Use `# TODO:` for planned work and `# FIXME:` for known issues.
@@ -43,7 +43,7 @@ from start import CENBot
 ## Versioning
 - All files use semantic versioning: `MAJOR.MINOR.PATCH`.
   - `Major`: Increments for breaking changes that are not backward-compatible. 
-    - `0` denotes a developmental version where large changes are expected.
   - `Minor`: Increments for new, backward-compatible functionality.
   - `Patch`: Increments for backward-compatible bug fixes.
 - All files should denote their status: `developmental` or `production`.
+  - `0.x.x` versioning indicates a developmental version where large changes are expected.

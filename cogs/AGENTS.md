@@ -15,10 +15,14 @@ A cog is a collection of commands, listeners, and optional states to help group 
 - moderation.py
 - radio.py
 - twitch.py
+- twitter.py
 - utility.py
 - welcome.py
 - xp.py
 - youtube.py
 
 ## radio.py
-Requires Lavalink to be running (`docker compose up -d`) before the cog can connect or play audio. Wavelink will raise on connect if the node is unreachable.
+- Requires Lavalink to be running (`docker compose up -d lavalink`) before the cog can connect or play audio.
+- `Wavelink v3.5` is the API package for Lavalink.
+- Volume must always be between 0 and 100.
+- Common functions should be reused as much as possible.

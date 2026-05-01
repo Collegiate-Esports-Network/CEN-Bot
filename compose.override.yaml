@@ -3,6 +3,8 @@ services:
     env_file:
       - .env.local
       - .env.dev
+    environment:
+      - NODE_ENV=dev
     volumes:
       - .:/app
       - ./logs:/app/logs

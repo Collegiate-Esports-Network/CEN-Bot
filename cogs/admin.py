@@ -42,7 +42,7 @@ class Admin(commands.Cog, name='admin'):
     @commands.is_owner()
     @commands.dm_only()
     @commands.command(
-        name='sync_commands',
+        name='sync-commands',
         description="Forces the bot to sync commands."
     )
     async def sync_commands(self, ctx: commands.Context) -> None:
@@ -58,7 +58,7 @@ class Admin(commands.Cog, name='admin'):
     @commands.is_owner()
     @commands.dm_only()
     @commands.command(
-        name='sync_guilds',
+        name='sync-guilds',
         description="Reconciles the bot's current guilds with cenbot.guilds."
     )
     async def sync_guilds(self, ctx: commands.Context) -> None:
