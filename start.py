@@ -24,7 +24,7 @@ from dotenv import load_dotenv
 os.makedirs('logs', exist_ok=True)
 
 # Configure logging
-with open('logging.yaml', 'r') as f:
+with open('logging.yml', 'r') as f:
     logging.config.dictConfig(yaml.safe_load(f.read()))
 log = logging.getLogger('CENBot')
 
@@ -96,7 +96,7 @@ def start(args: argparse.Namespace):
     """Load environment variables and run the bot.
 
     Loads ``.env.local`` first (shared API keys), then the environment-specific
-    file (``.env.dev`` or ``.env.prod``) selected by ``args.env``. Exits with
+    file (``.env.development`` or ``.env.production``) selected by ``args.env``. Exits with
     code 1 if the environment is invalid or the bot token is missing.
 
     :param args: parsed CLI arguments; expects ``args.env`` to be ``'dev'`` or ``'prod'``
@@ -107,10 +107,10 @@ def start(args: argparse.Namespace):
 
     if args.env == "prod":
         log.info("Loading production environment variables...")
-        load_dotenv('.env.prod')
+        load_dotenv('.env.production')
     elif args.env == "dev":
         log.info("Loading development environment variables...")
-        load_dotenv('.env.dev')
+        load_dotenv('.env.development')
     else:
         log.error("Invalid environment specified, exiting...")
         exit(1)

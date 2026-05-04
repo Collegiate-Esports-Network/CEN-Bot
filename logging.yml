@@ -50,6 +50,9 @@ loggers:
   CENBot.moderation:
     level: DEBUG
     propogate: true
+  CENBot.profiles:
+    level: DEBUG
+    propogate: true
   CENBot.radio:
     level: DEBUG
     propogate: true

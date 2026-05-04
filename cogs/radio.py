@@ -312,6 +312,13 @@ class RadioControlsView(discord.ui.View):
         state = self.cog._get_state(self.guild_id)
         state.repeat = not state.repeat
         button.style = discord.ButtonStyle.success if state.repeat else discord.ButtonStyle.secondary
+
+        # Sync Wavelink queue mode so looping is handled natively, avoiding a race
+        # condition between the manual on_wavelink_track_end handler and AutoPlayMode.partial.
+        player = state.player
+        if player:
+            player.queue.mode = wavelink.QueueMode.loop if state.repeat else wavelink.QueueMode.normal
+
         await interaction.response.edit_message(embed=self.cog._controls_embed(self.guild_id), view=self)
 
 
@@ -869,11 +876,6 @@ class Radio(commands.GroupCog, name="radio"):
 
         guild_id = player.guild.id
         log.info(f"Track ended in guild {guild_id}: reason={payload.reason!r}")
-
-        state = self._get_state(guild_id)
-        if state.repeat and payload.reason == wavelink.TrackEndReason.finished:
-            await self._start_track(guild_id, payload.track)
-            return
 
         await self._sync_voice_channel_status(guild_id)
         await self._update_controls(guild_id)
