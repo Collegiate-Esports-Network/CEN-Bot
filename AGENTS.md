@@ -25,7 +25,7 @@ start.py            - entry point for custom bot
 ## Conventions
 > **Always re-read a file immediately before writing to it.**
 
-- See `.agents/skills/conventions` for shared Python and SQL conventions.
+- See `.agents/skills/conventions-python` for Python file requirements.
 - See `.agents/skills/docstrings` for Sphinx docstring requirements.
 
 ## Containers
