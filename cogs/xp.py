@@ -3,7 +3,7 @@
 __author__ = "Justin Panchula"
 __copyright__ = "Copyright CEN"
 __credits__ = "Justin Panchula"
-__version__ = "3"
+__version__ = "2.0.0"
 __status__ = "Production"
 
 # Standard library
@@ -18,6 +18,7 @@ from asyncpg.exceptions import PostgresError
 
 # Internal
 from start import CENBot
+from utils.embeds import requester_footer
 
 log = getLogger('CENBot.xp')
 
@@ -122,6 +123,7 @@ class XP(commands.GroupCog, name='xp'):
         text += "```"
         embed.add_field(name="", value=text, inline=False)
 
+        requester_footer(embed, interaction)
         await interaction.response.send_message(embed=embed, ephemeral=False)
 
 

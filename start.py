@@ -2,8 +2,8 @@
 
 __author__ = "Justin Panchula"
 __copyright__ = "Copyright CEN"
-__credits__ = "Justin Panchula"
-__version__ = "1.0.0"
+__credits__ = ["Justin Panchula", "Claude"]
+__version__ = "1.1.0"
 __status__ = "Production"
 
 # Standard library
@@ -12,16 +12,23 @@ import logging
 import logging.config
 import os
 
+# Third-party
 import asyncpg
 import discord
-# Third-party
 import yaml
 from asyncpg.exceptions import PostgresError
 from discord.ext.commands import Bot, ExtensionError, ExtensionNotFound
 from dotenv import load_dotenv
+from supabase import acreate_client, AsyncClient
+
+# Internal
+from utils.realtime import RealtimeManager
+
+# Ensure log directory exists before loading config
+os.makedirs('logs', exist_ok=True)
 
 # Configure logging
-with open('logging.yaml', 'r') as f:
+with open('logging.yml', 'r') as f:
     logging.config.dictConfig(yaml.safe_load(f.read()))
 log = logging.getLogger('CENBot')
 
@@ -43,13 +50,17 @@ class CENBot(Bot):
             description="Hello! I'm the CEN Bot, a customized bot built and maintained by Collegiate Esports Network LLC.",
             command_prefix="!!"
         )
-        self.version = "1.1.0"
+        self.version = __version__
+        self.supabase: AsyncClient | None = None
+        self.realtime: RealtimeManager | None = None
 
     async def setup_hook(self) -> None:
         """Create the DB connection pool, load all cogs, and sync slash commands.
 
         Runs once before the bot connects to the gateway. Exits with code 1 if
-        the database connection cannot be established.
+        the database connection cannot be established. The Supabase realtime
+        client is initialised best-effort: failure logs but does not abort
+        startup, since most cogs do not depend on it.
         """
         log.info("Connecting...")
 
@@ -69,6 +80,20 @@ class CENBot(Bot):
         else:
             log.info("Supabase connection established")
 
+        # Initialise the async Supabase client + realtime manager (used by profile cog)
+        self.web_base_url: str = os.getenv('WEB_BASE_URL', 'https://collegiateesportsnetwork.org').rstrip('/')
+        supabase_url = os.getenv('SUPABASE_URL')
+        supabase_key = os.getenv('SUPABASE_SECRET_KEY')
+        if supabase_url and supabase_key:
+            try:
+                self.supabase = await acreate_client(supabase_url, supabase_key)
+                self.realtime = RealtimeManager(self.supabase)
+            except Exception as e:
+                log.exception(e)
+                log.warning("Supabase realtime client unavailable; profile cog will degrade")
+        else:
+            log.warning("SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY not set; realtime disabled")
+
         # Load extensions from cogs folder
         for file in os.listdir('./cogs'):
             if file.endswith('.py'):
@@ -84,6 +109,17 @@ class CENBot(Bot):
         # Force command sync
         await self.tree.sync()
 
+    async def close(self) -> None:
+        """Tear down realtime watchers and the DB pool before closing the gateway."""
+        # Stop active realtime channels first; they hold open websockets
+        if self.realtime is not None:
+            try:
+                await self.realtime.close()
+            except Exception as e:
+                log.exception(e)
+
+        await super().close()
+
     async def on_ready(self) -> None:
         """Log a confirmation message once the bot has connected and is ready."""
         log.info(f"{self.user.display_name} has logged in")
@@ -93,7 +129,7 @@ def start(args: argparse.Namespace):
     """Load environment variables and run the bot.
 
     Loads ``.env.local`` first (shared API keys), then the environment-specific
-    file (``.env.dev`` or ``.env.prod``) selected by ``args.env``. Exits with
+    file (``.env.development`` or ``.env.production``) selected by ``args.env``. Exits with
     code 1 if the environment is invalid or the bot token is missing.
 
     :param args: parsed CLI arguments; expects ``args.env`` to be ``'dev'`` or ``'prod'``
@@ -104,10 +140,10 @@ def start(args: argparse.Namespace):
 
     if args.env == "prod":
         log.info("Loading production environment variables...")
-        load_dotenv('.env.prod')
+        load_dotenv('.env.production')
     elif args.env == "dev":
         log.info("Loading development environment variables...")
-        load_dotenv('.env.dev')
+        load_dotenv('.env.development')
     else:
         log.error("Invalid environment specified, exiting...")
         exit(1)

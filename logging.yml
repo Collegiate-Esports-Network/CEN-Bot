@@ -8,11 +8,19 @@ handlers:
   bot: 
     class: logging.handlers.TimedRotatingFileHandler
     formatter: default
-    filename: LOG.log
+    filename: logs/bot.log
     when: W6
     backupCount: 3
     encoding: UTF-8
     level: DEBUG
+  bot_info: 
+    class: logging.handlers.TimedRotatingFileHandler
+    formatter: default
+    filename: logs/bot_info.log
+    when: W6
+    backupCount: 3
+    encoding: UTF-8
+    level: INFO
   bot_console:
     class: logging.StreamHandler
     formatter: default
@@ -20,11 +28,11 @@ handlers:
     stream: ext://sys.stdout
 loggers:
   discord:
-    handlers: [bot, bot_console]
+    handlers: [bot, bot_info, bot_console]
     level: DEBUG
     propogate: false
   CENBot: 
-    handlers: [bot, bot_console]
+    handlers: [bot, bot_info, bot_console]
     level: DEBUG
     propogate: false
   CENBot.admin:
@@ -33,10 +41,16 @@ loggers:
   CENBot.easter:
     level: DEBUG
     propogate: true
+  CENBot.guild:
+    level: DEBUG
+    propogate: true
   CENBot.internal:
     level: DEBUG
     propogate: true
   CENBot.moderation:
+    level: DEBUG
+    propogate: true
+  CENBot.profiles:
     level: DEBUG
     propogate: true
   CENBot.radio:

@@ -1,13 +1,10 @@
 ---
 name: docstrings
-description: Sphinx docstring conventions for CEN-Bot. Use this skill whenever writing or reviewing docstrings on any class, method, or function in CEN-Bot.
+description: Use when adding or reviewing docstrings in CEN-Bot so classes, methods, functions, task loops, and Discord callbacks follow the repo's Sphinx-style documentation rules.
 ---
 
 # Docstrings
-
-## Standard Format
 All classes, methods, and functions require a Sphinx-style docstring:
-
 ```python
 def example(self, interaction: discord.Interaction, value: int) -> None:
     """Short imperative description.
@@ -23,16 +20,14 @@ def example(self, interaction: discord.Interaction, value: int) -> None:
     """
 ```
 
-## Per-Context Rules
-
-### Classes
+## Classes
 Describes what the class represents or does:
 ```python
 class TwitchAlertChannelSelect(discord.ui.ChannelSelect):
     """Saves the chosen text channel as the guild's Twitch live alert channel."""
 ```
 
-### `__init__`
+## `__init__`
 Document non-trivial initialisers; skip if it only sets `self.bot`:
 ```python
 def __init__(self, bot: CENBot, current_channel_id: int | None) -> None:
@@ -45,17 +40,7 @@ def __init__(self, bot: CENBot, current_channel_id: int | None) -> None:
     """
 ```
 
-### `cog_load` / `cog_unload`
-One-liner only; describe what is started or stopped:
-```python
-def cog_load(self) -> None:
-    """Start the Twitch polling task loop."""
-
-def cog_unload(self) -> None:
-    """Stop the Twitch polling task loop."""
-```
-
-### Task Loops
+## Task Loops
 Must describe poll interval, what is checked, and firing conditions:
 ```python
 @tasks.loop(minutes=3)
@@ -68,7 +53,7 @@ async def check_twitch(self) -> None:
     """
 ```
 
-### UI Callbacks
+## UI Callbacks
 Always document; note what is persisted and what feedback is given:
 ```python
 async def callback(self, interaction: discord.Interaction) -> None:

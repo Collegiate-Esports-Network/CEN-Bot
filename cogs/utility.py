@@ -3,33 +3,101 @@
 __author__ = "Justin Panchula"
 __copyright__ = "Copyright CEN"
 __credits__ = "Justin Panchula"
-__version__ = "1.0.0"
+__version__ = "1.3.0"
 __status__ = "Production"
 
 # Standard library
-import sys
 import asyncio
-import random
 import io
+import random
+import sys
 from datetime import datetime
-from zoneinfo import ZoneInfo
-from typing import Literal
 from logging import getLogger
+from zoneinfo import ZoneInfo
 
 # Third-party
-import python_weather
 import discord
-from discord.ext import commands
 from discord import app_commands
+from discord.ext import commands
+import python_weather
 import qrcode
-from qrcode.image.styledpil import StyledPilImage
 from PIL import Image, ImageDraw
-
+from qrcode.image.styledpil import StyledPilImage
 
 # Internal
 from start import CENBot
+from utils.embeds import requester_footer, BRAND_COLOR
 
 log = getLogger('CENBot.utility')
+
+UTC_TIMESTAMP_STYLES = {
+    "Default": "",
+    "Short Time": "t",
+    "Long Time": "T",
+    "Short Date": "d",
+    "Long Date": "D",
+    "Short Date/Time": "f",
+    "Long Date/Time": "F",
+    "Relative Time": "R",
+}
+UTC_TIMESTAMP_TIMEZONES = (
+    "America/New_York",
+    "America/Chicago",
+    "America/Denver",
+    "America/Los_Angeles",
+    "UTC",
+)
+
+
+class UTCModal(discord.ui.Modal, title='Create UTC Timestamp'):
+    """Modal for building a Discord timestamp from a local datetime."""
+
+    date = discord.ui.TextInput(
+        label='Date',
+        placeholder='YYYY-MM-DD',
+        min_length=10,
+        max_length=10,
+    )
+    time = discord.ui.TextInput(
+        label='Time (24-hour)',
+        placeholder='HH:MM',
+        min_length=5,
+        max_length=5,
+    )
+
+    def __init__(self, style: app_commands.Choice[str], timezone: app_commands.Choice[str]) -> None:
+        """Initialise the modal with the chosen style, timezone, and current UTC date/time.
+
+        :param style: the chosen timestamp style
+        :type style: app_commands.Choice[str]
+        :param timezone: the chosen timezone
+        :type timezone: app_commands.Choice[str]
+        """
+        super().__init__()
+        self._style = style
+        self._timezone = timezone
+        current_time = discord.utils.utcnow().replace(second=0, microsecond=0)
+        self.date.default = current_time.strftime("%Y-%m-%d")
+        self.time.default = current_time.strftime("%H:%M")
+
+    async def on_submit(self, interaction: discord.Interaction) -> None:
+        """Validate modal input and return a Discord timestamp snippet.
+
+        :param interaction: the Discord interaction
+        :type interaction: discord.Interaction
+        """
+        try:
+            naive_time = datetime.strptime(f"{self.date.value.strip()} {self.time.value.strip()}", "%Y-%m-%d %H:%M")
+            user_time = naive_time.replace(tzinfo=ZoneInfo(self._timezone.value))
+        except ValueError as e:
+            await interaction.response.send_message(str(e), ephemeral=True)
+            return
+
+        suffix = f":{self._style.value}" if self._style.value else ""
+        await interaction.response.send_message(
+            f"{self._style.name}: ``<t:{int(user_time.timestamp())}{suffix}>``",
+            ephemeral=True,
+        )
 
 
 @app_commands.guild_only()
@@ -60,14 +128,14 @@ class Utility(commands.Cog):
         :param interaction: the Discord interaction
         :type interaction: discord.Interaction
         """
-        embed = discord.Embed(title='Bot Info', description="Here is the most up-to-date information on the bot.", color=0x2374A5)
+        embed = discord.Embed(title='Bot Info', description="Here is the most up-to-date information on the bot.", color=BRAND_COLOR)
         embed.set_author(name=self.bot.user.name, icon_url=self.bot.user.avatar.url)
         embed.add_field(name="Bot Version:", value=self.bot.version)
         embed.add_field(name="Python Version:", value=f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}")
         embed.add_field(name="Discord.py Version:", value=discord.__version__)
         embed.add_field(name="Written By:", value="[Justin Panchula](https://github.com/JustinPanchula)", inline=False)
         embed.add_field(name="Server Information:", value=f"This bot is in {len(self.bot.guilds)} servers watching over {len(set(self.bot.get_all_members()))-len(self.bot.guilds)} members.", inline=False)
-
+        requester_footer(embed, interaction)
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
     @app_commands.command(
@@ -80,18 +148,21 @@ class Utility(commands.Cog):
         :param interaction: the Discord interaction
         :type interaction: discord.Interaction
         """
-        embed = discord.Embed(title="Available Commands", color=0x2374A5)
+        embed = discord.Embed(title="Available Commands", color=BRAND_COLOR)
 
         for cmd in sorted(self.bot.tree.get_commands(), key=lambda c: c.name):
-            if isinstance(cmd, app_commands.Group):
+            if isinstance(cmd, app_commands.ContextMenu):
+                continue
+            elif isinstance(cmd, app_commands.Group):
                 lines = [
                     f"`/{cmd.name} {sub.name}` — {sub.description}"
                     for sub in sorted(cmd.commands, key=lambda c: c.name)
                 ]
-                embed.add_field(name=f"/{cmd.name}", value='\n'.join(lines), inline=False)
+                embed.add_field(name=f"{cmd.name}", value='\n'.join(lines), inline=False)
             else:
                 embed.add_field(name=f"/{cmd.name}", value=cmd.description or "No description.", inline=False)
 
+        requester_footer(embed, interaction)
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
     @app_commands.command(
@@ -118,41 +189,31 @@ class Utility(commands.Cog):
         side = "Heads" if result else "Tails"
         await msg.edit(content=f"{interaction.user.mention} **{side}!** {frames[result]}")
 
-    @app_commands.command(name='utc')
-    async def utc(self, interaction: discord.Interaction, style: Literal["Relative", "Fixed"],
-                        year: int, month: int, day: int, hour: int, minute: int,
-                        time_zone: Literal["America/New_York", "America/Chicago", "America/Denver", "America/Los_Angeles", "UTC"]) -> None:
-        """Convert a local time to a discord timestamp
+    @app_commands.command(name='utc', description="Convert a local time to a Discord timestamp.")
+    @app_commands.choices(
+        style=[app_commands.Choice(name=label, value=code) for label, code in UTC_TIMESTAMP_STYLES.items()],
+        timezone=[app_commands.Choice(name=tz, value=tz) for tz in UTC_TIMESTAMP_TIMEZONES],
+    )
+    async def utc(
+        self,
+        interaction: discord.Interaction,
+        style: app_commands.Choice[str] = None,
+        timezone: app_commands.Choice[str] = None,
+    ) -> None:
+        """Open a modal to convert a local time to a Discord timestamp.
 
         :param interaction: the Discord interaction
         :type interaction: discord.Interaction
-        :param style: the style of the timestamp
-        :type style: Literal["Relative", "Fixed"]
-        :param year: the year of the timestamp
-        :type year: int
-        :param month: the month of the timestamp
-        :type month: int
-        :param day: the day of the timestamp
-        :type day: int
-        :param hour: the hour of the timestamp
-        :type hour: int
-        :param minute: the minute of the timestamp
-        :type minute: int
-        :param time_zone: the timezone of the timestamp
-        :type time_zone: Literal["America/New_York", "America/Chicago", "America/Denver", "America/Los_Angeles", "UTC"]
+        :param style: the timestamp display style
+        :type style: app_commands.Choice[str]
+        :param timezone: the local timezone to convert from
+        :type timezone: app_commands.Choice[str]
         """
-        try:
-            user_time = datetime(year, month, day, hour, minute, tzinfo=ZoneInfo(time_zone))
-        except ValueError as e:
-            await interaction.response.send_message(f"{e}", ephemeral=True)
-            return
-
-        if style == "Relative":
-            await interaction.response.send_message(f"Relative datetime: ``<t:{int(user_time.timestamp())}:R>``", ephemeral=True)
-        elif style == "Fixed":
-            await interaction.response.send_message(f"Fixed datetime: ``<t:{int(user_time.timestamp())}:F>``", ephemeral=True)
-        else:
-            await interaction.response.send_message("Invalid timestamp format specified.", ephemeral=True)
+        if style is None:
+            style = app_commands.Choice(name="Long Date/Time", value="F")
+        if timezone is None:
+            timezone = app_commands.Choice(name="UTC", value="UTC")
+        await interaction.response.send_modal(UTCModal(style, timezone))
 
     @app_commands.command(
         name='weather',
@@ -183,6 +244,7 @@ class Utility(commands.Cog):
             embed.add_field(name=f"{weather.daily_forecasts[2].date}",
                             value=f"{weather.daily_forecasts[2].lowest_temperature}°F - {weather.daily_forecasts[2].highest_temperature}°F | {weather.daily_forecasts[2].hourly_forecasts[4].kind}",
                             inline=False)
+            requester_footer(embed, interaction)
             await interaction.response.send_message(embed=embed, ephemeral=True)
         else:
             await interaction.response.send_message(f"Could not retrieve weather for ``{city}``.", ephemeral=True)

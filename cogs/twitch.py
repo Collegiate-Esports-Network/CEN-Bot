@@ -395,61 +395,6 @@ class Twitch(commands.GroupCog, name="twitch"):
         else:
             await interaction.followup.send("All subscriptions removed.")
 
-    @app_commands.checks.has_role("CENBot Admin")
-    @app_commands.command()
-    async def list(self, interaction: discord.Interaction) -> None:
-        """Shows Twitch configuration and current subscriptions.
-
-        :param interaction: the discord interaction
-        :type interaction: discord.Interaction
-        """
-        try:
-            async with self.bot.db_pool.acquire() as conn:
-                guild_record = await conn.fetchrow("""
-                                                   SELECT twitch_enabled, twitch_alert_channel, twitch_alert_role
-                                                   FROM cenbot.guilds
-                                                   WHERE id=$1
-                                                   """, interaction.guild.id)
-                subscriptions = await conn.fetch("""
-                                                 SELECT tc.channel_id, tc.channel_login, tc.channel_name, tc.is_live
-                                                 FROM cenbot.twitch_channels tc
-                                                 JOIN cenbot.twitch_subscriptions ts ON tc.channel_id = ts.channel_id
-                                                 WHERE ts.guild_id=$1
-                                                 """, interaction.guild.id)
-        except PostgresError as e:
-            log.exception(e)
-            await interaction.response.send_message("There was an error fetching your subscriptions, please try again.", ephemeral=True)
-            return
-
-        enabled = guild_record['twitch_enabled'] if guild_record else False
-        channel_id = guild_record['twitch_alert_channel'] if guild_record else None
-        role_id = guild_record['twitch_alert_role'] if guild_record else None
-
-        embed = discord.Embed(title="Twitch Configuration", color=discord.Color.purple())
-        embed.add_field(name="Status", value="Enabled" if enabled else "Disabled", inline=True)
-
-        if channel_id:
-            channel = self.bot.get_channel(channel_id)
-            embed.add_field(name="Alert Channel", value=channel.mention if channel else f"<#{channel_id}>", inline=True)
-        else:
-            embed.add_field(name="Alert Channel", value="Not configured", inline=True)
-
-        if role_id:
-            embed.add_field(name="Alert Role", value=f"<@&{role_id}>", inline=True)
-        else:
-            embed.add_field(name="Alert Role", value="Not set", inline=True)
-
-        if subscriptions:
-            subs_text = "\n".join(
-                f"• {row['channel_name'] or row['channel_login']} (`{row['channel_login']}`)" + (" 🔴 Live" if row['is_live'] else "")
-                for row in subscriptions
-            )
-        else:
-            subs_text = "None"
-        embed.add_field(name=f"Subscriptions ({len(subscriptions)})", value=subs_text, inline=False)
-
-        await interaction.response.send_message(embed=embed, ephemeral=True)
-
     @tasks.loop(minutes=3)
     async def check_twitch(self) -> None:
         """Poll subscribed Twitch channels for live status changes.

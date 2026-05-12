@@ -18,6 +18,7 @@ from asyncpg.exceptions import PostgresError
 
 # Internal
 from start import CENBot
+from utils.embeds import timestamp_footer, BRAND_COLOR
 
 log = getLogger('CENBot.moderation')
 
@@ -308,7 +309,7 @@ class Moderation(commands.GroupCog, name="moderation"):
         self.bot.tree.add_command(self.ctx_report_message)
         self.bot.tree.add_command(self.ctx_report_user)
 
-    def cog_unload(self) -> None:
+    async def cog_unload(self) -> None:
         """Deregister context menus to avoid duplicate entries on reload."""
         self.bot.tree.remove_command(self.ctx_report_message.name, type=self.ctx_report_message.type)
         self.bot.tree.remove_command(self.ctx_report_user.name, type=self.ctx_report_user.type)
@@ -370,18 +371,6 @@ class Moderation(commands.GroupCog, name="moderation"):
         except discord.Forbidden:
             log.warning(f"Missing permissions to send to report channel {config.report_channel} in guild {guild_id}")
 
-    @staticmethod
-    def _footer(embed: discord.Embed) -> discord.Embed:
-        """Stamp an embed with the current UTC time.
-
-        :param embed: the embed to stamp
-        :type embed: discord.Embed
-        :returns: the same embed, mutated
-        :rtype: discord.Embed
-        """
-        embed.set_footer(text=discord.utils.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC'))
-        return embed
-
     # ------------------------------------------------------------------
     # Commands
     # ------------------------------------------------------------------
@@ -397,7 +386,7 @@ class Moderation(commands.GroupCog, name="moderation"):
         config = self._get_config(interaction.guild.id)
         view = ModerationConfigView(self, interaction.guild.id, config)
 
-        embed = discord.Embed(title="Moderation Configuration", color=0x2374A5)
+        embed = discord.Embed(title="Moderation Configuration", color=BRAND_COLOR)
         embed.add_field(
             name="Log Channel",
             value=f"<#{config.log_channel}>" if config.log_channel else "Not set",
@@ -451,35 +440,6 @@ class Moderation(commands.GroupCog, name="moderation"):
                 f"New-member message timeout set to **{seconds}s**.", ephemeral=True
             )
 
-    @app_commands.checks.has_role("CENBot Admin")
-    @app_commands.command(name="status", description="Show the current moderation configuration")
-    async def status(self, interaction: discord.Interaction) -> None:
-        """Display the current moderation settings for this guild.
-
-        :param interaction: the discord interaction
-        :type interaction: discord.Interaction
-        """
-        config = self._get_config(interaction.guild.id)
-
-        lines = [
-            f"**Level:** {config.level} — {LEVEL_NAMES[config.level]}",
-            f"**Log channel:** {'<#' + str(config.log_channel) + '>' if config.log_channel else 'Not set'}",
-            f"**Report channel:** {'<#' + str(config.report_channel) + '>' if config.report_channel else 'Not set'}",
-            f"**New-member timeout:** {config.new_member_timeout}s" if config.new_member_timeout else "**New-member timeout:** Disabled",
-        ]
-
-        embed = discord.Embed(title="Moderation Status", description='\n'.join(lines), color=0x2374A5)
-
-        level_details = [
-            "**0 — Off:** No logging, reports, or protection.",
-            "**1 — Reports:** Context-menu reports + new-member timeout.",
-            "**2 — Messages:** Level 1 + message edits and deletes.",
-            "**3 — Members:** Level 2 + voice state, member join/leave, and nickname changes.",
-            "**4 — Server:** Level 3 + bans, unbans, and role create/delete.",
-        ]
-        embed.add_field(name="Level Descriptions", value='\n'.join(level_details), inline=False)
-        await interaction.response.send_message(embed=embed, ephemeral=True)
-
     # ------------------------------------------------------------------
     # Context menus (level 1+)
     # ------------------------------------------------------------------
@@ -506,7 +466,7 @@ class Moderation(commands.GroupCog, name="moderation"):
         if msg.content:
             embed.add_field(name="Content", value=msg.content[:1024], inline=False)
         embed.add_field(name="Link", value=f"[Jump to message]({msg.jump_url})", inline=False)
-        self._footer(embed)
+        timestamp_footer(embed)
 
         await self._send_report(interaction.guild.id, embed)
         await interaction.followup.send("Message reported.", ephemeral=True)
@@ -531,7 +491,7 @@ class Moderation(commands.GroupCog, name="moderation"):
         embed.add_field(name="Reported by", value=interaction.user.mention, inline=True)
         embed.add_field(name="Reported user", value=f"{member.mention} (`{member}`)", inline=True)
         embed.add_field(name="Channel", value=interaction.channel.mention, inline=True)
-        self._footer(embed)
+        timestamp_footer(embed)
 
         await self._send_report(interaction.guild.id, embed)
         await interaction.followup.send("User reported.", ephemeral=True)
@@ -593,7 +553,7 @@ class Moderation(commands.GroupCog, name="moderation"):
         embed.add_field(name="Link", value=f"[Jump]({after.jump_url})", inline=True)
         embed.add_field(name="Before", value=before.content[:1024] or "*empty*", inline=False)
         embed.add_field(name="After", value=after.content[:1024] or "*empty*", inline=False)
-        self._footer(embed)
+        timestamp_footer(embed)
 
         await self._send_log(before.guild.id, embed)
 
@@ -616,7 +576,7 @@ class Moderation(commands.GroupCog, name="moderation"):
         embed.add_field(name="Author", value=msg.author.mention, inline=True)
         embed.add_field(name="Channel", value=msg.channel.mention, inline=True)
         embed.add_field(name="Content", value=msg.content[:1024] or "*no text content*", inline=False)
-        self._footer(embed)
+        timestamp_footer(embed)
 
         await self._send_log(msg.guild.id, embed)
 
@@ -652,7 +612,7 @@ class Moderation(commands.GroupCog, name="moderation"):
 
         embed = discord.Embed(title="Voice State", description=description, colour=colour)
         embed.set_author(name=member.display_name, icon_url=member.display_avatar)
-        self._footer(embed)
+        timestamp_footer(embed)
 
         await self._send_log(member.guild.id, embed)
 
@@ -675,7 +635,7 @@ class Moderation(commands.GroupCog, name="moderation"):
             value=discord.utils.format_dt(member.created_at, 'R'),
             inline=True,
         )
-        self._footer(embed)
+        timestamp_footer(embed)
 
         await self._send_log(member.guild.id, embed)
 
@@ -696,7 +656,7 @@ class Moderation(commands.GroupCog, name="moderation"):
         roles = [r.mention for r in member.roles if r != member.guild.default_role]
         if roles:
             embed.add_field(name="Roles at Departure", value=' '.join(roles), inline=False)
-        self._footer(embed)
+        timestamp_footer(embed)
 
         await self._send_log(member.guild.id, embed)
 
@@ -721,7 +681,7 @@ class Moderation(commands.GroupCog, name="moderation"):
         embed.add_field(name="User", value=after.mention, inline=False)
         embed.add_field(name="Before", value=before.nick or "*none*", inline=True)
         embed.add_field(name="After", value=after.nick or "*none*", inline=True)
-        self._footer(embed)
+        timestamp_footer(embed)
 
         await self._send_log(before.guild.id, embed)
 
@@ -741,7 +701,7 @@ class Moderation(commands.GroupCog, name="moderation"):
         embed = discord.Embed(title="Member Banned", colour=discord.Colour.dark_red())
         embed.set_author(name=user.display_name, icon_url=user.display_avatar)
         embed.add_field(name="User", value=f"{user.mention} (`{user}`)", inline=False)
-        self._footer(embed)
+        timestamp_footer(embed)
 
         await self._send_log(guild.id, embed)
 
@@ -761,7 +721,7 @@ class Moderation(commands.GroupCog, name="moderation"):
         embed = discord.Embed(title="Member Unbanned", colour=discord.Colour.green())
         embed.set_author(name=user.display_name, icon_url=user.display_avatar)
         embed.add_field(name="User", value=f"{user.mention} (`{user}`)", inline=False)
-        self._footer(embed)
+        timestamp_footer(embed)
 
         await self._send_log(guild.id, embed)
 
@@ -778,7 +738,7 @@ class Moderation(commands.GroupCog, name="moderation"):
 
         embed = discord.Embed(title="Role Created", colour=role.colour)
         embed.add_field(name="Role", value=f"{role.mention} (`{role.name}`)", inline=False)
-        self._footer(embed)
+        timestamp_footer(embed)
 
         await self._send_log(role.guild.id, embed)
 
@@ -795,7 +755,7 @@ class Moderation(commands.GroupCog, name="moderation"):
 
         embed = discord.Embed(title="Role Deleted", colour=discord.Colour.dark_grey())
         embed.add_field(name="Role", value=f"`{role.name}`", inline=False)
-        self._footer(embed)
+        timestamp_footer(embed)
 
         await self._send_log(role.guild.id, embed)
 

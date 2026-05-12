@@ -1,188 +1,331 @@
-"""Audio playback from YouTube via yt-dlp and PyAV"""
+"""Audio playback from YouTube URLs via Lavalink and Wavelink."""
 
-__author__ = "Justin Panchula"
+__author__ = ["Justin Panchula"]
 __copyright__ = "Copyright CEN"
-__credits__ = "Justin Panchula"
-__version__ = "1.0.0"
-__status__ = "Production"
+__credits__ = ["Justin Panchula", "Claude"]
+__version__ = "0.7.0"
+__status__ = "Development"
 
 # Standard library
 import asyncio
-import threading
-import time
-from collections import deque
-from dataclasses import dataclass, field
+import contextlib
+import os
+from dataclasses import dataclass
 from logging import getLogger
+from urllib.parse import urlparse
 
 # Third-party
-import av
-import yt_dlp
 import discord
-from discord.ext import commands
+import wavelink
 from discord import app_commands
+from discord.ext import commands, tasks
 
 # Internal
 from start import CENBot
+from utils import BRAND_COLOR, format_duration
 
 log = getLogger('CENBot.radio')
-
-YDL_OPTIONS = {
-    'format': 'bestaudio/best',
-    'noplaylist': True,
-    'quiet': True,
-    'no_warnings': True,
-}
-
-
-class PyAVSource(discord.AudioSource):
-    """AudioSource that decodes audio in-process via PyAV (libav* libraries).
-
-    Decoding runs in a background daemon thread and feeds a byte buffer.
-    ``read()`` pulls 20ms PCM frames (48 kHz, stereo, signed 16-bit) from
-    that buffer, which is what discord.py's voice pipeline expects.
-    """
-
-    # 48000 Hz * 2 channels * 2 bytes/sample * 0.02 s/frame
-    FRAME_SIZE = 3840
-    # Maximum bytes to buffer ahead (~5 seconds)
-    MAX_BUFFER = FRAME_SIZE * 250
-
-    def __init__(self, url: str) -> None:
-        """Start the background decode thread for the given audio URL.
-
-        :param url: direct audio stream URL obtained from yt-dlp
-        :type url: str
-        """
-        self._buffer = bytearray()
-        self._lock = threading.Lock()
-        self._stop = threading.Event()
-        self._done = False
-        self._error: Exception | None = None
-
-        self._thread = threading.Thread(
-            target=self._decode_worker,
-            args=(url,),
-            daemon=True,
-            name="PyAVDecoder",
-        )
-        self._thread.start()
-
-    def _decode_worker(self, url: str) -> None:
-        """Opens the stream, decodes and resamples audio, fills the buffer.
-
-        :param url: direct audio stream URL from yt-dlp
-        :type url: str
-        """
-        container = None
-        try:
-            container = av.open(url, options={
-                'reconnect': '1',
-                'reconnect_streamed': '1',
-                'reconnect_delay_max': '5',
-            })
-            resampler = av.AudioResampler(format='s16', layout='stereo', rate=48000)
-
-            for frame in container.decode(audio=0):
-                if self._stop.is_set():
-                    break
-                for rf in resampler.resample(frame):
-                    data = bytes(rf.planes[0])
-                    with self._lock:
-                        self._buffer.extend(data)
-
-                # Throttle: don't decode further ahead than MAX_BUFFER
-                while not self._stop.is_set():
-                    with self._lock:
-                        buffered = len(self._buffer)
-                    if buffered < self.MAX_BUFFER:
-                        break
-                    time.sleep(0.05)
-
-            # Flush resampler
-            if not self._stop.is_set():
-                for rf in resampler.resample(None):
-                    with self._lock:
-                        self._buffer.extend(bytes(rf.planes[0]))
-
-        except Exception as e:
-            self._error = e
-            log.error(f"PyAVSource decode error: {e}")
-        finally:
-            if container:
-                container.close()
-            self._done = True
-
-    def read(self) -> bytes:
-        """Return the next 20ms PCM frame, or b'' at end of stream.
-
-        Blocks up to 500ms for the buffer to fill if the decoder is still
-        running (handles startup latency and momentary network hiccups).
-
-        :returns: 3840 bytes of PCM, or b'' on EOF
-        :rtype: bytes
-        """
-        for _ in range(50):
-            with self._lock:
-                if len(self._buffer) >= self.FRAME_SIZE:
-                    break
-                if self._done:
-                    break
-            time.sleep(0.01)
-
-        with self._lock:
-            if len(self._buffer) < self.FRAME_SIZE:
-                return b''
-            chunk = bytes(self._buffer[:self.FRAME_SIZE])
-            del self._buffer[:self.FRAME_SIZE]
-            return chunk
-
-    def cleanup(self) -> None:
-        """Signal the decode thread to stop and release resources.
-
-        Called automatically by discord.py when the source is no longer needed.
-        """
-        self._stop.set()
-
-    @property
-    def is_opus(self) -> bool:
-        return False
-
-
-@dataclass
-class Track:
-    """Metadata for a single queued audio track.
-
-    :param title: the video title from yt-dlp
-    :param url: the direct audio stream URL
-    :param webpage_url: the original YouTube page URL (for display)
-    :param duration: track length in seconds
-    :param requester: the guild member who requested the track
-    """
-
-    title: str
-    url: str
-    webpage_url: str
-    duration: int
-    requester: discord.Member
 
 
 @dataclass
 class GuildState:
     """Per-guild radio playback state.
 
-    :param queue: ordered queue of upcoming tracks
-    :param current: the track currently playing, or ``None``
-    :param vc: the active voice client, or ``None`` when disconnected
+    :param player: the active Wavelink player, or ``None`` when disconnected
+    :param controls_message: the pinned controls panel message, or ``None``
+    :param controls_channel: the channel the controls panel was last sent to
+    :param volume: the desired volume (0-100); applied on connect and synced on every volume change
+    :param repeat: whether the current track should loop on natural end
     """
 
-    queue: deque = field(default_factory=deque)
-    current: Track | None = None
-    vc: discord.VoiceClient | None = None
+    player: wavelink.Player | None = None
+    controls_message: discord.Message | None = None
+    controls_channel: discord.abc.Messageable | None = None
+    volume: int = 50
+    repeat: bool = False
+
+
+class VolumeModal(discord.ui.Modal, title='Set Volume'):
+    """Modal for adjusting playback volume (0-100)."""
+
+    volume_input = discord.ui.TextInput(
+        label='Volume (0-100)',
+        placeholder='50 is default, 100 is max volume',
+        min_length=1,
+        max_length=3,
+    )
+
+    def __init__(self, cog: 'Radio', guild_id: int) -> None:
+        """Initialise with a back-reference to the cog and guild.
+
+        :param cog: the Radio cog instance
+        :type cog: Radio
+        :param guild_id: the guild's ID
+        :type guild_id: int
+        """
+        super().__init__()
+        self.cog = cog
+        self.guild_id = guild_id
+
+    async def on_submit(self, interaction: discord.Interaction) -> None:
+        """Apply the submitted volume value to the active player.
+
+        :param interaction: the discord interaction
+        :type interaction: discord.Interaction
+        """
+        try:
+            vol = int(self.volume_input.value)
+        except ValueError:
+            await interaction.response.send_message("Volume must be a whole number between 0 and 100.", ephemeral=True)
+            return
+        if not 0 <= vol <= 100:
+            await interaction.response.send_message("Volume must be between 0 and 100.", ephemeral=True)
+            return
+
+        await interaction.response.defer()
+        await self.cog._set_volume(self.guild_id, vol)
+
+
+class AddTrackModal(discord.ui.Modal, title='Add Track'):
+    """Modal for queuing a track by URL or search query from the controls panel."""
+
+    query_input = discord.ui.TextInput(
+        label='URL or search terms',
+        placeholder='https://youtu.be/… or lofi hip hop',
+        min_length=1,
+        max_length=200,
+    )
+
+    def __init__(self, cog: 'Radio', guild_id: int) -> None:
+        """Initialise with a back-reference to the cog and guild.
+
+        :param cog: the Radio cog instance
+        :type cog: Radio
+        :param guild_id: the guild's ID
+        :type guild_id: int
+        """
+        super().__init__()
+        self.cog = cog
+        self.guild_id = guild_id
+
+    async def on_submit(self, interaction: discord.Interaction) -> None:
+        """Resolve the query and queue or play the first result.
+
+        :param interaction: the discord interaction
+        :type interaction: discord.Interaction
+        """
+        await interaction.response.defer(ephemeral=True)
+
+        query = self.query_input.value.strip()
+        results = await self.cog._resolve_query(query)
+        if not results:
+            await interaction.followup.send("No results found for that query.", ephemeral=True)
+            return
+
+        state = self.cog._get_state(self.guild_id)
+        player = state.player
+
+        if not player or not player.connected:
+            await interaction.followup.send("The bot is no longer connected. Use `/radio play` to start a new session.", ephemeral=True)
+            return
+
+        track = results[0]
+        track.extras.requester = interaction.user.id
+
+        _, msg = await self.cog._queue_or_play(self.guild_id, track)
+        await interaction.followup.send(msg, ephemeral=True)
+
+
+class RadioControlsView(discord.ui.View):
+    """Persistent voice-channel controls panel for the Radio cog."""
+
+    def __init__(self, cog: 'Radio', guild_id: int) -> None:
+        """Initialise the controls view for a guild.
+
+        :param cog: the Radio cog instance
+        :type cog: Radio
+        :param guild_id: the guild's ID
+        :type guild_id: int
+        """
+        super().__init__(timeout=None)
+        self.cog = cog
+        self.guild_id = guild_id
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        """Allow interaction only from users currently in the bot's voice channel.
+
+        :param interaction: the incoming interaction
+        :type interaction: discord.Interaction
+        :returns: True if the user may use these controls
+        :rtype: bool
+        """
+        state = self.cog._get_state(self.guild_id)
+        player = state.player
+
+        if not player or not player.connected or not player.channel:
+            await interaction.response.send_message("The bot is not in a voice channel.", ephemeral=True)
+            return False
+
+        if not interaction.user.voice or interaction.user.voice.channel != player.channel:
+            await interaction.response.send_message("You must be in the same voice channel to use these controls.", ephemeral=True)
+            return False
+
+        return True
+
+    @discord.ui.button(emoji='⏮', style=discord.ButtonStyle.secondary, row=0)
+    async def previous(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+        """Replay the previously played track.
+
+        :param interaction: the discord interaction
+        :type interaction: discord.Interaction
+        :param button: the triggered button
+        :type button: discord.ui.Button
+        """
+        state = self.cog._get_state(self.guild_id)
+        player = state.player
+
+        if not player:
+            await interaction.response.send_message("The bot is not in a voice channel.", ephemeral=True)
+            return
+
+        history = player.queue.history
+        if not history or len(history) < 1:
+            await interaction.response.send_message("No previous track.", ephemeral=True)
+            return
+
+        prev_track = history[-1]
+        await interaction.response.defer()
+
+        try:
+            await player.play(prev_track, paused=False)
+        except Exception as e:
+            log.error(f"Previous track failed in guild {self.guild_id}: {e}")
+
+        await self.cog._update_controls(self.guild_id)
+
+    @discord.ui.button(emoji='⏯', style=discord.ButtonStyle.primary, row=0)
+    async def pause_resume(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+        """Toggle between paused and playing.
+
+        :param interaction: the discord interaction
+        :type interaction: discord.Interaction
+        :param button: the triggered button
+        :type button: discord.ui.Button
+        """
+        await interaction.response.defer()
+
+        state = self.cog._get_state(self.guild_id)
+        player = state.player
+
+        if player and player.paused:
+            await player.pause(False)
+        elif player and player.playing:
+            await player.pause(True)
+
+        await self.cog._sync_voice_channel_status(self.guild_id)
+        await self.cog._update_controls(self.guild_id)
+
+    @discord.ui.button(emoji='⏭', style=discord.ButtonStyle.secondary, row=0)
+    async def skip(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+        """Skip the current track and advance the queue.
+
+        :param interaction: the discord interaction
+        :type interaction: discord.Interaction
+        :param button: the triggered button
+        :type button: discord.ui.Button
+        """
+        state = self.cog._get_state(self.guild_id)
+        player = state.player
+
+        if not player or not (player.playing or player.paused):
+            await interaction.response.send_message("Nothing is playing.", ephemeral=True)
+            return
+
+        await interaction.response.defer()
+        await player.skip(force=True)
+
+    @discord.ui.button(emoji='➕', label='Add', style=discord.ButtonStyle.success, row=0)
+    async def add_track(self, interaction: discord.Interaction, _button: discord.ui.Button) -> None:
+        """Open the add-track modal to queue a URL or search query.
+
+        :param interaction: the discord interaction
+        :type interaction: discord.Interaction
+        """
+        await interaction.response.send_modal(AddTrackModal(self.cog, self.guild_id))
+
+    @discord.ui.button(emoji='⏹', style=discord.ButtonStyle.danger, row=0)
+    async def stop_playback(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+        """Stop playback, clear the queue, and disconnect the bot.
+
+        :param interaction: the discord interaction
+        :type interaction: discord.Interaction
+        :param button: the triggered button
+        :type button: discord.ui.Button
+        """
+        if not self.cog._get_state(self.guild_id).player:
+            await interaction.response.send_message("The bot is not in a voice channel.", ephemeral=True)
+            return
+
+        await interaction.response.defer()
+        await self.cog._stop_player(self.guild_id)
+
+    @discord.ui.button(emoji='🔉', style=discord.ButtonStyle.secondary, row=1)
+    async def volume_down(self, interaction: discord.Interaction, _button: discord.ui.Button) -> None:
+        """Decrease volume by 10.
+
+        :param interaction: the discord interaction
+        :type interaction: discord.Interaction
+        """
+        new_vol = max(0, self.cog._get_state(self.guild_id).volume - 10)
+        await interaction.response.defer()
+        await self.cog._set_volume(self.guild_id, new_vol)
+
+    @discord.ui.button(emoji='🔊', label='Volume', style=discord.ButtonStyle.secondary, row=1)
+    async def volume_modal(self, interaction: discord.Interaction, _button: discord.ui.Button) -> None:
+        """Open the volume input modal.
+
+        :param interaction: the discord interaction
+        :type interaction: discord.Interaction
+        """
+        await interaction.response.send_modal(VolumeModal(self.cog, self.guild_id))
+
+    @discord.ui.button(emoji='🔊', style=discord.ButtonStyle.secondary, row=1)
+    async def volume_up(self, interaction: discord.Interaction, _button: discord.ui.Button) -> None:
+        """Increase volume by 10.
+
+        :param interaction: the discord interaction
+        :type interaction: discord.Interaction
+        """
+        new_vol = min(100, self.cog._get_state(self.guild_id).volume + 10)
+        await interaction.response.defer()
+        await self.cog._set_volume(self.guild_id, new_vol)
+
+    @discord.ui.button(emoji='🔁', style=discord.ButtonStyle.secondary, row=1)
+    async def repeat(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+        """Toggle repeat mode for the current track.
+
+        :param interaction: the discord interaction
+        :type interaction: discord.Interaction
+        :param button: the triggered button
+        :type button: discord.ui.Button
+        """
+        state = self.cog._get_state(self.guild_id)
+        state.repeat = not state.repeat
+        button.style = discord.ButtonStyle.success if state.repeat else discord.ButtonStyle.secondary
+
+        # Sync Wavelink queue mode so looping is handled natively, avoiding a race
+        # condition between the manual on_wavelink_track_end handler and AutoPlayMode.partial.
+        player = state.player
+        if player:
+            player.queue.mode = wavelink.QueueMode.loop if state.repeat else wavelink.QueueMode.normal
+
+        await interaction.response.edit_message(embed=self.cog._controls_embed(self.guild_id), view=self)
 
 
 @app_commands.guild_only()
 class Radio(commands.GroupCog, name="radio"):
-    """Audio playback from YouTube."""
+    """Audio playback from YouTube via Lavalink."""
+
     def __init__(self, bot: CENBot) -> None:
         """Initialise the cog and prepare an empty per-guild state registry.
 
@@ -191,10 +334,30 @@ class Radio(commands.GroupCog, name="radio"):
         """
         self.bot = bot
         self._states: dict[int, GuildState] = {}
+        self._node_ready = asyncio.Event()
+        self._node_status_message = "Lavalink is not connected."
         super().__init__()
 
+    async def cog_load(self) -> None:
+        """Connect to Lavalink if configured and start the controls ticker."""
+        await self._ensure_node()
+        self._controls_ticker.start()
+
+    async def cog_unload(self) -> None:
+        """Disconnect players owned by this cog and stop the controls ticker."""
+        self._controls_ticker.stop()
+
+        for state in self._states.values():
+            player = state.player
+            if player and player.connected:
+                with contextlib.suppress(Exception):
+                    await self._set_voice_channel_status(player.guild.id, player.channel, None)
+                    await player.disconnect()
+
+    ### State helpers ###
+
     def _get_state(self, guild_id: int) -> GuildState:
-        """Returns the GuildState for a guild, creating one if needed.
+        """Return the GuildState for a guild, creating one if needed.
 
         :param guild_id: the guild's ID
         :type guild_id: int
@@ -205,230 +368,699 @@ class Radio(commands.GroupCog, name="radio"):
             self._states[guild_id] = GuildState()
         return self._states[guild_id]
 
-    async def _extract(self, url: str) -> dict | None:
-        """Extracts stream info from a URL via yt-dlp (runs in thread executor).
+    ### Node helpers ###
 
-        :param url: the YouTube video URL
-        :type url: str
-        :returns: yt-dlp info dict, or None on failure
-        :rtype: dict | None
+    async def _wait_for_node(self, node: wavelink.Node, timeout: float = 10.0) -> bool:
+        """Poll until the node is CONNECTED or the timeout expires.
+
+        :param node: the node to wait on
+        :type node: wavelink.Node
+        :param timeout: maximum seconds to wait
+        :type timeout: float
+        :returns: True if the node became CONNECTED within the timeout
+        :rtype: bool
         """
-        loop = asyncio.get_event_loop()
-        with yt_dlp.YoutubeDL(YDL_OPTIONS) as ydl:
-            try:
-                data = await loop.run_in_executor(None, lambda: ydl.extract_info(url, download=False))
-            except yt_dlp.utils.DownloadError as e:
-                log.warning(f"yt-dlp extraction failed: {e}")
-                return None
-        if 'entries' in data:
-            data = data['entries'][0]
-        return data
+        loop = asyncio.get_running_loop()
+        deadline = loop.time() + timeout
+        while node.status != wavelink.NodeStatus.CONNECTED:
+            if loop.time() >= deadline:
+                return False
+            await asyncio.sleep(0.1)
+        return True
 
-    def _play_next(self, guild_id: int, error: Exception | None) -> None:
-        """Called by discord.py after a track ends. Schedules the next track.
+    async def _ensure_node(self) -> bool:
+        """Ensure a Lavalink node is connected and ready for playback.
+
+        :returns: True if a node is available for playback
+        :rtype: bool
+        """
+        try:
+            node = wavelink.Pool.get_node()
+            if node.status == wavelink.NodeStatus.CONNECTED:
+                self._node_ready.set()
+                self._node_status_message = "Lavalink is connected."
+                return True
+            if not await self._wait_for_node(node):
+                log.warning("Lavalink node did not become ready within timeout")
+                self._node_ready.clear()
+                self._node_status_message = "Radio is still waiting for Lavalink to finish connecting."
+                return False
+            self._node_ready.set()
+            self._node_status_message = "Lavalink is connected."
+            return True
+        except Exception:
+            pass
+
+        if not (os.getenv("LAVALINK_URI") and os.getenv("LAVALINK_PASSWORD")):
+            log.warning("Lavalink is not configured. Set LAVALINK_URI and LAVALINK_PASSWORD to enable /radio.")
+            self._node_ready.clear()
+            self._node_status_message = "Radio is unavailable because Lavalink is not configured."
+            return False
+
+        try:
+            node = wavelink.Node(
+                identifier=os.getenv("LAVALINK_IDENTIFIER"),
+                uri=os.getenv("LAVALINK_URI"),
+                password=os.getenv("LAVALINK_PASSWORD"),
+            )
+            await wavelink.Pool.connect(nodes=[node], client=self.bot)
+        except Exception as e:
+            log.warning(f"Lavalink connection failed: {e}")
+            self._node_ready.clear()
+            self._node_status_message = "Radio is unavailable because Lavalink could not be reached."
+            return False
+
+        if not await self._wait_for_node(node):
+            log.warning("Lavalink node did not become ready within timeout")
+            self._node_ready.clear()
+            self._node_status_message = "Radio is still waiting for Lavalink to finish connecting."
+            return False
+
+        self._node_ready.set()
+        self._node_status_message = "Lavalink is connected."
+        return True
+
+    def _node_unavailable_message(self) -> str:
+        """Return a user-facing message for the current Lavalink state.
+
+        :returns: a concise playback-unavailable message
+        :rtype: str
+        """
+        return self._node_status_message
+
+    ### Player helpers ###
+
+    async def _resolve_query(self, query: str) -> list[wavelink.Playable] | None:
+        """Fetch tracks from Lavalink for a URL or a YouTube search query.
+
+        Uses ``urllib.parse`` to detect URLs; bare strings are searched on YouTube.
+
+        :param query: a YouTube URL or search keywords
+        :type query: str
+        :returns: a list of Playable results, or None on failure/no results
+        :rtype: list[wavelink.Playable] | None
+        """
+        parsed = urlparse(query)
+        is_url = parsed.scheme in ('http', 'https') and bool(parsed.netloc)
+
+        try:
+            if is_url:
+                results = await wavelink.Playable.search(query)
+            else:
+                results = await wavelink.Playable.search(query, source=wavelink.TrackSource.YouTube)
+        except Exception as e:
+            log.warning(f"Track search failed for query {query!r}: {e}")
+            return None
+
+        if not results:
+            return None
+        if isinstance(results, wavelink.Playlist):
+            return list(results.tracks)
+        return list(results)
+
+    async def _ensure_player(self, guild_id: int, channel: discord.VoiceChannel) -> wavelink.Player | None:
+        """Return a connected player for the given guild and voice channel.
 
         :param guild_id: the guild's ID
         :type guild_id: int
-        :param error: any error from the previous track, or None
-        :type error: Exception | None
+        :param channel: the channel to join or move into
+        :type channel: discord.VoiceChannel
+        :returns: a connected Wavelink player, or None on failure
+        :rtype: wavelink.Player | None
         """
-        if error:
-            log.error(f"Playback error in guild {guild_id}: {error}")
         state = self._get_state(guild_id)
-        if state.queue:
-            next_track = state.queue.popleft()
-            asyncio.run_coroutine_threadsafe(self._start_track(guild_id, next_track), self.bot.loop)
-        else:
-            state.current = None
+        player = state.player
 
-    async def _start_track(self, guild_id: int, track: Track) -> None:
-        """Begins playback of a Track on the guild's voice client.
+        if player and player.connected:
+            if player.channel != channel:
+                old_channel = player.channel
+                await player.move_to(channel)
+                await self._set_voice_channel_status(guild_id, old_channel, None)
+                await self._sync_voice_channel_status(guild_id)
+            return player
+
+        guild = self.bot.get_guild(guild_id)
+        if guild and guild.voice_client:
+            with contextlib.suppress(Exception):
+                await guild.voice_client.disconnect(force=True)
+
+        try:
+            player = await channel.connect(cls=wavelink.Player, self_deaf=True)
+        except Exception as e:
+            log.warning(f"Voice connection failed in guild {guild_id}: {e}")
+            return None
+
+        player.autoplay = wavelink.AutoPlayMode.partial
+        player.inactive_timeout = 300
+        state.player = player
+
+        try:
+            await player.set_volume(state.volume)
+        except Exception as e:
+            log.warning(f"Initial volume set failed in guild {guild_id}: {e}")
+
+        log.info(f"Connected to voice channel '{channel.name}' in guild {guild_id}")
+        return player
+
+    async def _start_track(self, guild_id: int, track: wavelink.Playable) -> bool:
+        """Begin playback of a track on the guild's player.
 
         :param guild_id: the guild's ID
         :type guild_id: int
         :param track: the track to play
-        :type track: Track
+        :type track: wavelink.Playable
+        :returns: True if playback started successfully
+        :rtype: bool
         """
         state = self._get_state(guild_id)
-        if not state.vc or not state.vc.is_connected():
-            return
-        state.current = track
-        source = discord.PCMVolumeTransformer(PyAVSource(track.url))
-        state.vc.play(source, after=lambda e: self._play_next(guild_id, e))
+        player = state.player
 
-    @staticmethod
-    def _fmt_duration(seconds: int) -> str:
-        """Format a duration in seconds as ``H:MM:SS`` or ``M:SS``.
+        if not player or not player.connected:
+            return False
 
-        :param seconds: the total duration in seconds
-        :type seconds: int
-        :returns: human-readable duration string
-        :rtype: str
+        try:
+            await player.play(track, volume=state.volume, paused=False)
+        except wavelink.LavalinkException as e:
+            log.warning(f"Failed to start track in guild {guild_id}: {e}")
+            return False
+
+        return True
+
+    async def _queue_or_play(self, guild_id: int, track: wavelink.Playable) -> tuple[bool, str]:
+        """Queue a track or start playback if the player is idle.
+
+        :param guild_id: the guild's ID
+        :type guild_id: int
+        :param track: the track to queue or begin playing
+        :type track: wavelink.Playable
+        :returns: (success, user-facing message)
+        :rtype: tuple[bool, str]
         """
-        m, s = divmod(seconds, 60)
-        h, m = divmod(m, 60)
-        if h:
-            return f"{h}:{m:02}:{s:02}"
-        return f"{m}:{s:02}"
+        state = self._get_state(guild_id)
+        player = state.player
+        duration = format_duration(track.length // 1000) if track.length else 'Live'
 
-    @app_commands.command(name='play', description="Play audio from a YouTube URL")
-    @app_commands.describe(url="YouTube video URL")
-    async def play(self, interaction: discord.Interaction, url: str) -> None:
-        """Play audio from a YouTube URL, or queue it if something is already playing.
+        if player.playing or player.paused or player.queue:
+            player.queue.put(track)
+            pos = len(player.queue)
+            await self._update_controls(guild_id)
+            return True, f"Added to queue (position {pos}): **{track.title}** [{duration}]"
 
-        :param interaction: the discord interaction
+        if not await self._start_track(guild_id, track):
+            return False, "Failed to start playback. Please try again."
+        return True, f"Now playing: **{track.title}** [{duration}]"
+
+    async def _stop_player(self, guild_id: int) -> None:
+        """Clear the queue, disconnect the player, and refresh the controls panel.
+
+        :param guild_id: the guild's ID
+        :type guild_id: int
+        """
+        state = self._get_state(guild_id)
+        player = state.player
+        if not player:
+            return
+        old_channel = player.channel
+        player.queue.clear()
+        await self._set_voice_channel_status(guild_id, old_channel, None)
+        try:
+            await player.disconnect()
+        except Exception as e:
+            log.warning(f"Disconnect failed in guild {guild_id}: {e}")
+        state.player = None
+        state.repeat = False
+        await self._update_controls(guild_id)
+
+    async def _set_volume(self, guild_id: int, volume: int) -> bool:
+        """Apply a volume change to the guild state and active player.
+
+        Always persists the volume in guild state and refreshes the controls panel.
+        Returns False (and logs a warning) only when a connected player rejects the change.
+
+        :param guild_id: the guild's ID
+        :type guild_id: int
+        :param volume: the desired volume (0-100)
+        :type volume: int
+        :returns: True unless a connected player failed to apply the change
+        :rtype: bool
+        """
+        state = self._get_state(guild_id)
+        state.volume = volume
+        player = state.player
+        if player and player.connected:
+            try:
+                await player.set_volume(volume)
+            except Exception as e:
+                log.warning(f"Volume set failed in guild {guild_id}: {e}")
+                await self._update_controls(guild_id)
+                return False
+        await self._update_controls(guild_id)
+        return True
+
+    ### Voice checks ###
+
+    async def _voice_check(self, interaction: discord.Interaction) -> bool:
+        """Verify voice presence and send an ephemeral error if the check fails.
+
+        Verifies (1) the user is in a voice channel and (2) if the bot is already
+        connected, the user is in the same channel.
+
+        :param interaction: the discord interaction to validate
         :type interaction: discord.Interaction
-        :param url: the YouTube video URL
-        :type url: str
+        :returns: True if the user may issue mutating commands
+        :rtype: bool
         """
         if not interaction.user.voice or not interaction.user.voice.channel:
             await interaction.response.send_message("You must be in a voice channel.", ephemeral=True)
+            return False
+
+        state = self._get_state(interaction.guild_id)
+        player = state.player
+        if player and player.connected and interaction.user.voice.channel != player.channel:
+            await interaction.response.send_message(
+                "You must be in the bot's voice channel to use this command.", ephemeral=True
+            )
+            return False
+
+        return True
+
+    ### Voice channel status ###
+
+    async def _set_voice_channel_status(
+        self,
+        guild_id: int,
+        channel: discord.VoiceChannel | discord.StageChannel | None,
+        status: str | None,
+    ) -> None:
+        """Apply a voice channel status update to a specific channel.
+
+        :param guild_id: the guild's ID
+        :type guild_id: int
+        :param channel: the voice or stage channel to update
+        :type channel: discord.VoiceChannel | discord.StageChannel | None
+        :param status: the status text to set, or None to clear it
+        :type status: str | None
+        """
+        if channel is None:
+            return
+        try:
+            await channel.edit(status=status)
+        except discord.Forbidden as e:
+            log.warning(f"Voice channel status update forbidden in guild {guild_id}: {e}")
+        except discord.HTTPException as e:
+            log.warning(f"Voice channel status update failed in guild {guild_id}: {e}")
+
+    async def _sync_voice_channel_status(self, guild_id: int) -> None:
+        """Update the connected voice channel status from the current guild state.
+
+        :param guild_id: the guild's ID
+        :type guild_id: int
+        """
+        state = self._get_state(guild_id)
+        player = state.player
+        current = player.current if player else None
+
+        if current and player and player.connected:
+            if player.paused:
+                status: str | None = f"⏸ {current.title}"
+            elif player.playing:
+                status = f"▶ {current.title}"
+            else:
+                status = None
+        else:
+            status = None
+
+        channel = player.channel if player and player.channel else None
+        await self._set_voice_channel_status(guild_id, channel, status)
+
+    ### Controls embed + panel ###
+
+    def _controls_embed(self, guild_id: int) -> discord.Embed:
+        """Build the radio controls embed showing track, progress, queue, and volume.
+
+        :param guild_id: the guild's ID
+        :type guild_id: int
+        :returns: the controls embed
+        :rtype: discord.Embed
+        """
+        state = self._get_state(guild_id)
+        player = state.player
+        current = player.current if player else None
+        embed = discord.Embed(title="🎵 Radio Controls", color=BRAND_COLOR)
+
+        if current:
+            if current.artwork:
+                embed.set_thumbnail(url=current.artwork)
+
+            duration_seconds = current.length // 1000 if current.length else 0
+            elapsed_seconds = player.position // 1000 if player else 0
+            elapsed_seconds = max(0, min(duration_seconds, elapsed_seconds)) if duration_seconds else elapsed_seconds
+
+            if duration_seconds:
+                bar_len = 15
+                filled = round(bar_len * elapsed_seconds / duration_seconds)
+                bar = '▓' * filled + '░' * (bar_len - filled)
+                progress = f"`{bar}` {format_duration(elapsed_seconds)} / {format_duration(duration_seconds)}"
+            else:
+                progress = "🔴 Live stream"
+
+            requester = getattr(current.extras, 'requester', None)
+            requester_text = f"<@{requester}>" if requester else "Unknown requester"
+            title_link = f"[{current.title}]({current.uri})" if current.uri else current.title
+            status = '⏸ Paused' if player and player.paused else '▶ Playing'
+
+            embed.add_field(
+                name=f"{status}",
+                value=f"{title_link}\nRequested by {requester_text}\n{progress}",
+                inline=False,
+            )
+        else:
+            embed.add_field(
+                name="Nothing playing",
+                value="Use `/radio play <url or search>` to queue a track.",
+                inline=False,
+            )
+
+        if player and player.queue:
+            lines = []
+            for i, track in enumerate(player.queue, 1):
+                if i > 5:
+                    break
+                req = getattr(track.extras, 'requester', None)
+                req_text = f"<@{req}>" if req else "Unknown"
+                duration = format_duration(track.length // 1000) if track.length else 'Live'
+                lines.append(f"{i}. **{track.title}** [{duration}] — {req_text}")
+            overflow = f"\n*…and {len(player.queue) - 5} more*" if len(player.queue) > 5 else ""
+            embed.add_field(
+                name=f"Up Next — {len(player.queue)} track(s)",
+                value='\n'.join(lines) + overflow,
+                inline=False,
+            )
+
+        repeat_indicator = " • 🔁 Repeat" if state.repeat else ""
+        embed.set_footer(text=f"🔊 Volume: {state.volume}/100{repeat_indicator}")
+        return embed
+
+    async def _update_controls(self, guild_id: int) -> None:
+        """Edit the pinned controls message with a refreshed embed.
+
+        :param guild_id: the guild's ID
+        :type guild_id: int
+        """
+        state = self._get_state(guild_id)
+        if not state.controls_message:
+            return
+        try:
+            await state.controls_message.edit(embed=self._controls_embed(guild_id))
+        except discord.NotFound:
+            state.controls_message = None
+        except discord.HTTPException as e:
+            log.warning(f"Controls update failed for guild {guild_id}: {e}")
+
+    async def _send_controls(self, channel: discord.abc.Messageable, guild_id: int) -> None:
+        """Send a new controls panel to the given channel, deleting any previous one.
+
+        :param channel: the channel to send the panel to
+        :type channel: discord.abc.Messageable
+        :param guild_id: the guild's ID
+        :type guild_id: int
+        """
+        state = self._get_state(guild_id)
+
+        if state.controls_message:
+            with contextlib.suppress(discord.NotFound):
+                await state.controls_message.delete()
+            state.controls_message = None
+
+        state.controls_channel = channel
+        msg = await channel.send(embed=self._controls_embed(guild_id), view=RadioControlsView(self, guild_id))
+        state.controls_message = msg
+
+    ### Background task ###
+
+    @tasks.loop(seconds=5)
+    async def _controls_ticker(self) -> None:
+        """Refresh all active controls panels every 5 seconds while audio is playing."""
+        for guild_id, state in list(self._states.items()):
+            player = state.player
+            if state.controls_message and player and player.playing:
+                await self._update_controls(guild_id)
+
+    @_controls_ticker.before_loop
+    async def _before_ticker(self) -> None:
+        """Wait for the bot to be ready before starting the ticker."""
+        await self.bot.wait_until_ready()
+
+    ### Wavelink events ###
+
+    @commands.Cog.listener()
+    async def on_wavelink_node_ready(self, payload: wavelink.NodeReadyEventPayload) -> None:
+        """Log when the Lavalink node is ready and clear stale player state.
+
+        :param payload: the Wavelink node-ready payload
+        :type payload: wavelink.NodeReadyEventPayload
+        """
+        log.info(f"Lavalink node {payload.node.identifier!r} connected (resumed={payload.resumed})")
+        self._node_ready.set()
+        self._node_status_message = "Lavalink is connected."
+        if not payload.resumed:
+            for state in self._states.values():
+                state.player = None
+
+    @commands.Cog.listener()
+    async def on_wavelink_node_disconnected(self, payload: wavelink.NodeDisconnectedEventPayload) -> None:
+        """Track node disconnects so commands can report a precise failure reason.
+
+        :param payload: the Wavelink node-disconnected payload
+        :type payload: wavelink.NodeDisconnectedEventPayload
+        """
+        log.warning(f"Lavalink node {payload.node.identifier!r} disconnected")
+        self._node_ready.clear()
+        self._node_status_message = "Radio is temporarily unavailable because the Lavalink node disconnected."
+
+    @commands.Cog.listener()
+    async def on_wavelink_track_start(self, payload: wavelink.TrackStartEventPayload) -> None:
+        """Refresh UI state when a track starts.
+
+        :param payload: the Wavelink track-start payload
+        :type payload: wavelink.TrackStartEventPayload
+        """
+        player = payload.player
+        if not player or not player.guild:
             return
 
-        await interaction.response.defer()
+        # Wavelink inherits player.paused when auto-advancing the queue; always reset it
+        # so that tracks started via autoplay or skip-while-paused actually play.
+        if player.paused:
+            with contextlib.suppress(Exception):
+                await player.pause(False)
 
-        state = self._get_state(interaction.guild.id)
-        voice_channel = interaction.user.voice.channel
+        state = self._get_state(player.guild.id)
+        state.player = player
+        log.info(f"Track started in guild {player.guild.id}: {(payload.original or payload.track).title!r}")
+        await self._sync_voice_channel_status(player.guild.id)
+        await self._update_controls(player.guild.id)
 
-        if state.vc and state.vc.is_connected():
-            if state.vc.channel != voice_channel:
-                await state.vc.move_to(voice_channel)
-        else:
+    @commands.Cog.listener()
+    async def on_wavelink_track_end(self, payload: wavelink.TrackEndEventPayload) -> None:
+        """Refresh UI state when a track ends.
+
+        Queue advancement is handled automatically by ``AutoPlayMode.partial``.
+
+        :param payload: the Wavelink track-end payload
+        :type payload: wavelink.TrackEndEventPayload
+        """
+        player = payload.player
+        if not player or not player.guild:
+            return
+
+        guild_id = player.guild.id
+        log.info(f"Track ended in guild {guild_id}: reason={payload.reason!r}")
+
+        await self._sync_voice_channel_status(guild_id)
+        await self._update_controls(guild_id)
+
+    @commands.Cog.listener()
+    async def on_wavelink_track_exception(self, payload: wavelink.TrackExceptionEventPayload) -> None:
+        """Log track exceptions and notify the controls channel.
+
+        :param payload: the Wavelink track-exception payload
+        :type payload: wavelink.TrackExceptionEventPayload
+        """
+        player = payload.player
+        if not player or not player.guild:
+            return
+
+        log.error(f"Playback exception in guild {player.guild.id}: {payload.exception}")
+        state = self._get_state(player.guild.id)
+        if state.controls_channel:
             try:
-                state.vc = await voice_channel.connect()
-            except discord.ClientException as e:
-                await interaction.followup.send(f"Could not connect to voice channel: {e}", ephemeral=True)
-                return
+                await state.controls_channel.send("A track failed to play and was skipped.", delete_after=10)
+            except discord.HTTPException:
+                pass
 
-        data = await self._extract(url)
-        if not data:
-            await interaction.followup.send("Could not retrieve audio from that URL.", ephemeral=True)
+    @commands.Cog.listener()
+    async def on_wavelink_track_stuck(self, payload: wavelink.TrackStuckEventPayload) -> None:
+        """Log stuck tracks and force-skip them.
+
+        :param payload: the Wavelink track-stuck payload
+        :type payload: wavelink.TrackStuckEventPayload
+        """
+        player = payload.player
+        if not player or not player.guild:
             return
 
-        track = Track(
-            title=data.get('title', 'Unknown'),
-            url=data['url'],
-            webpage_url=data.get('webpage_url', url),
-            duration=data.get('duration', 0),
-            requester=interaction.user,
-        )
+        log.warning(f"Track stuck in guild {player.guild.id}: threshold={payload.threshold}ms — force-skipping")
+        try:
+            await player.skip(force=True)
+        except Exception as e:
+            log.error(f"Failed to skip stuck track in guild {player.guild.id}: {e}")
 
-        if state.vc.is_playing() or state.vc.is_paused():
-            state.queue.append(track)
-            await interaction.followup.send(
-                f"Added to queue (position {len(state.queue)}): **{track.title}** [{self._fmt_duration(track.duration)}]"
-            )
-        else:
-            await self._start_track(interaction.guild.id, track)
-            await interaction.followup.send(
-                f"Now playing: **{track.title}** [{self._fmt_duration(track.duration)}] — requested by {interaction.user.mention}"
-            )
+    @commands.Cog.listener()
+    async def on_wavelink_inactive_player(self, player: wavelink.Player) -> None:
+        """Disconnect and clean up state when the player has been idle too long.
 
-    @app_commands.command(name='stop', description="Stop playback and disconnect from voice")
-    async def stop(self, interaction: discord.Interaction) -> None:
-        """Stop playback, clear the queue, and disconnect.
+        :param player: the idle Wavelink player
+        :type player: wavelink.Player
+        """
+        if not player.guild:
+            return
+
+        guild_id = player.guild.id
+        log.info(f"Inactive player in guild {guild_id} — disconnecting")
+        state = self._get_state(guild_id)
+
+        with contextlib.suppress(Exception):
+            await self._set_voice_channel_status(guild_id, player.channel, None)
+
+        try:
+            await player.disconnect()
+        except Exception as e:
+            log.warning(f"Disconnect on inactive player failed in guild {guild_id}: {e}")
+
+        state.player = None
+        await self._update_controls(guild_id)
+
+        if state.controls_channel:
+            try:
+                await state.controls_channel.send("Disconnected due to inactivity.", delete_after=15)
+            except discord.HTTPException:
+                pass
+
+    ### Slash commands ###
+
+    @app_commands.command(name='play', description="Play a YouTube URL or search query")
+    @app_commands.describe(query="YouTube URL or search terms")
+    async def play(self, interaction: discord.Interaction, query: str) -> None:
+        """Queue a YouTube URL or search result and start playback if idle.
+
+        Connects to the user's voice channel if the bot is not already there,
+        and sends the controls panel on first connect.
+
+        :param interaction: the discord interaction
+        :type interaction: discord.Interaction
+        :param query: a YouTube URL or search keywords
+        :type query: str
+        """
+        if not await self._voice_check(interaction):
+            return
+
+        await interaction.response.defer(ephemeral=True)
+
+        if not await self._ensure_node():
+            await interaction.followup.send(self._node_unavailable_message(), ephemeral=True)
+            return
+
+        guild_id = interaction.guild_id
+        voice_channel = interaction.user.voice.channel
+        state = self._get_state(guild_id)
+        first_connect = state.player is None or not state.player.connected
+
+        player = await self._ensure_player(guild_id, voice_channel)
+        if not player:
+            await interaction.followup.send("Could not connect to the voice channel.", ephemeral=True)
+            return
+
+        results = await self._resolve_query(query)
+        if not results:
+            await interaction.followup.send("No results found for that query.", ephemeral=True)
+            return
+
+        track = results[0]
+        track.extras.requester = interaction.user.id
+
+        ok, msg = await self._queue_or_play(guild_id, track)
+        await interaction.followup.send(msg, ephemeral=True)
+        if not ok:
+            return
+
+        if first_connect:
+            await self._send_controls(voice_channel, guild_id)
+
+    @app_commands.command(name='controls', description="Resend the radio controls panel in this channel")
+    async def controls(self, interaction: discord.Interaction) -> None:
+        """Re-summon the radio controls panel in the current text channel.
 
         :param interaction: the discord interaction
         :type interaction: discord.Interaction
         """
-        state = self._get_state(interaction.guild.id)
-        if not state.vc or not state.vc.is_connected():
-            await interaction.response.send_message("Not currently in a voice channel.", ephemeral=True)
+        if not await self._voice_check(interaction):
             return
-        state.queue.clear()
-        state.current = None
-        await state.vc.disconnect()
-        state.vc = None
-        await interaction.response.send_message("Stopped and disconnected.")
 
-    @app_commands.command(name='pause', description="Pause the current track")
-    async def pause(self, interaction: discord.Interaction) -> None:
-        """Pause the currently playing track.
+        state = self._get_state(interaction.guild_id)
+        player = state.player
+
+        if not player or not player.connected:
+            await interaction.response.send_message("The bot is not currently in a voice channel.", ephemeral=True)
+            return
+
+        await interaction.response.defer(ephemeral=True)
+        await self._send_controls(interaction.channel, interaction.guild_id)
+        await interaction.followup.send("Controls panel sent.", ephemeral=True)
+
+    @app_commands.command(name='nowplaying', description="Show the currently playing track")
+    async def nowplaying(self, interaction: discord.Interaction) -> None:
+        """Display the currently playing track with a progress bar.
+
+        Available to all guild members regardless of voice channel state.
 
         :param interaction: the discord interaction
         :type interaction: discord.Interaction
         """
-        state = self._get_state(interaction.guild.id)
-        if not state.vc or not state.vc.is_playing():
+        state = self._get_state(interaction.guild_id)
+        player = state.player
+        current = player.current if player else None
+
+        if not current:
             await interaction.response.send_message("Nothing is currently playing.", ephemeral=True)
             return
-        state.vc.pause()
-        await interaction.response.send_message("Paused.")
 
-    @app_commands.command(name='resume', description="Resume the paused track")
-    async def resume(self, interaction: discord.Interaction) -> None:
-        """Resume a paused track.
+        duration_seconds = current.length // 1000 if current.length else 0
+        elapsed_seconds = player.position // 1000 if player else 0
+        elapsed_seconds = max(0, min(duration_seconds, elapsed_seconds)) if duration_seconds else elapsed_seconds
 
-        :param interaction: the discord interaction
-        :type interaction: discord.Interaction
-        """
-        state = self._get_state(interaction.guild.id)
-        if not state.vc or not state.vc.is_paused():
-            await interaction.response.send_message("Nothing is paused.", ephemeral=True)
-            return
-        state.vc.resume()
-        await interaction.response.send_message("Resumed.")
+        if duration_seconds:
+            bar_len = 15
+            filled = round(bar_len * elapsed_seconds / duration_seconds)
+            bar = '▓' * filled + '░' * (bar_len - filled)
+            progress = f"`{bar}` {format_duration(elapsed_seconds)} / {format_duration(duration_seconds)}"
+        else:
+            progress = "🔴 Live stream"
 
-    @app_commands.command(name='skip', description="Skip the current track")
-    async def skip(self, interaction: discord.Interaction) -> None:
-        """Skip the currently playing track and advance the queue.
+        requester = getattr(current.extras, 'requester', None)
+        requester_text = f"<@{requester}>" if requester else "Unknown"
+        title_link = f"[{current.title}]({current.uri})" if current.uri else current.title
+        status = '⏸ Paused' if player and player.paused else '▶ Playing'
 
-        :param interaction: the discord interaction
-        :type interaction: discord.Interaction
-        """
-        state = self._get_state(interaction.guild.id)
-        if not state.vc or not (state.vc.is_playing() or state.vc.is_paused()):
-            await interaction.response.send_message("Nothing is playing.", ephemeral=True)
-            return
-        state.vc.stop()
-        await interaction.response.send_message("Skipped.")
+        channel_mention = player.channel.mention if player and player.channel else "a voice channel"
 
-    @app_commands.command(name='nowplaying', description="Show the current track")
-    async def nowplaying(self, interaction: discord.Interaction) -> None:
-        """Display the currently playing track.
+        embed = discord.Embed(title="Now Playing", color=BRAND_COLOR)
+        embed.description = f"{status} — {title_link}\nRequested by {requester_text}\n{progress}\n\nPlaying in {channel_mention}"
+        if current.artwork:
+            embed.set_thumbnail(url=current.artwork)
+        embed.set_footer(text=f"🔊 Volume: {state.volume}/100")
 
-        :param interaction: the discord interaction
-        :type interaction: discord.Interaction
-        """
-        state = self._get_state(interaction.guild.id)
-        if not state.current:
-            await interaction.response.send_message("Nothing is playing.", ephemeral=True)
-            return
-        t = state.current
-        embed = discord.Embed(title="Now Playing", color=0x2374A5)
-        embed.add_field(
-            name=t.title,
-            value=f"[YouTube]({t.webpage_url}) • {self._fmt_duration(t.duration)} • {t.requester.mention}",
-            inline=False,
-        )
-        await interaction.response.send_message(embed=embed)
-
-    @app_commands.command(name='queue', description="Show the current queue")
-    async def queue(self, interaction: discord.Interaction) -> None:
-        """Display the current track queue.
-
-        :param interaction: the discord interaction
-        :type interaction: discord.Interaction
-        """
-        state = self._get_state(interaction.guild.id)
-        if not state.current and not state.queue:
-            await interaction.response.send_message("The queue is empty.", ephemeral=True)
-            return
-        embed = discord.Embed(title="Queue", color=0x2374A5)
-        if state.current:
-            t = state.current
-            embed.add_field(
-                name="Now Playing",
-                value=f"**{t.title}** [{self._fmt_duration(t.duration)}] — {t.requester.mention}",
-                inline=False,
-            )
-        for i, t in enumerate(state.queue, start=1):
-            embed.add_field(
-                name=f"{i}. {t.title}",
-                value=f"[{self._fmt_duration(t.duration)}] — {t.requester.mention}",
-                inline=False,
-            )
-        await interaction.response.send_message(embed=embed)
+        await interaction.response.send_message(embed=embed, ephemeral=True)
 
 
 async def setup(bot: CENBot) -> None:

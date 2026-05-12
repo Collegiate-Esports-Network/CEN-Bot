@@ -430,69 +430,6 @@ class YouTube(commands.GroupCog, name="youtube"):
         else:
             await interaction.followup.send("All subscriptions removed.")
 
-    @app_commands.checks.has_role("CENBot Admin")
-    @app_commands.command()
-    async def list(self, interaction: discord.Interaction) -> None:
-        """Shows YouTube configuration and current subscriptions.
-
-        :param interaction: the discord interaction
-        :type interaction: discord.Interaction
-        """
-        try:
-            async with self.bot.db_pool.acquire() as conn:
-                guild_record = await conn.fetchrow("""
-                                                   SELECT youtube_enabled, youtube_upload_alert_channel,
-                                                          youtube_live_alert_channel, youtube_alert_role
-                                                   FROM cenbot.guilds
-                                                   WHERE id=$1
-                                                   """, interaction.guild.id)
-                subscriptions = await conn.fetch("""
-                                                 SELECT yc.channel_id, yc.channel_name
-                                                 FROM cenbot.youtube_channels yc
-                                                 JOIN cenbot.youtube_subscriptions ys ON yc.channel_id = ys.channel_id
-                                                 WHERE ys.guild_id=$1
-                                                 """, interaction.guild.id)
-        except PostgresError as e:
-            log.exception(e)
-            await interaction.response.send_message("There was an error fetching your subscriptions, please try again.", ephemeral=True)
-            return
-
-        enabled = guild_record['youtube_enabled'] if guild_record else False
-        upload_channel_id = guild_record['youtube_upload_alert_channel'] if guild_record else None
-        live_channel_id = guild_record['youtube_live_alert_channel'] if guild_record else None
-        alert_role_id = guild_record['youtube_alert_role'] if guild_record else None
-
-        embed = discord.Embed(title="YouTube Configuration", color=discord.Color.red())
-        embed.add_field(name="Status", value="Enabled" if enabled else "Disabled", inline=True)
-
-        if upload_channel_id:
-            channel = self.bot.get_channel(upload_channel_id)
-            embed.add_field(name="Upload Channel", value=channel.mention if channel else f"<#{upload_channel_id}>", inline=True)
-        else:
-            embed.add_field(name="Upload Channel", value="Not configured", inline=True)
-
-        if live_channel_id:
-            channel = self.bot.get_channel(live_channel_id)
-            embed.add_field(name="Live Channel", value=channel.mention if channel else f"<#{live_channel_id}>", inline=True)
-        else:
-            embed.add_field(name="Live Channel", value="Not configured", inline=True)
-
-        if alert_role_id:
-            embed.add_field(name="Alert Role", value=f"<@&{alert_role_id}>", inline=True)
-        else:
-            embed.add_field(name="Alert Role", value="Not set", inline=True)
-
-        if subscriptions:
-            subs_text = "\n".join(
-                f"• {row['channel_name'] or row['channel_id']} (`{row['channel_id']}`)"
-                for row in subscriptions
-            )
-        else:
-            subs_text = "None"
-        embed.add_field(name=f"Subscriptions ({len(subscriptions)})", value=subs_text, inline=False)
-
-        await interaction.response.send_message(embed=embed, ephemeral=True)
-
     @tasks.loop(minutes=10)
     async def check_youtube(self):
         """Poll subscribed YouTube channels for new uploads or live streams.
