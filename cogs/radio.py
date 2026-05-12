@@ -40,7 +40,7 @@ class GuildState:
 
     player: wavelink.Player | None = None
     controls_message: discord.Message | None = None
-    controls_channel: discord.abc.MessageableChannel | None = None
+    controls_channel: discord.abc.Messageable | None = None
     volume: int = 50
     repeat: bool = False
 
@@ -1061,6 +1061,7 @@ class Radio(commands.GroupCog, name="radio"):
         embed.set_footer(text=f"🔊 Volume: {state.volume}/100")
 
         await interaction.response.send_message(embed=embed, ephemeral=True)
+
 
 async def setup(bot: CENBot) -> None:
     await bot.add_cog(Radio(bot))

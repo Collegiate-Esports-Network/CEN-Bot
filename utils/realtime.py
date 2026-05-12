@@ -89,19 +89,16 @@ class RegistrationWatcher:
 
         # Extract the row payload (shape varies slightly across realtime versions)
         new_row = (
-            payload.get("data", {}).get("record")
-            or payload.get("record")
-            or payload.get("new")
-            or {}
+            payload.get("data", {}).get("record") or payload.get("record") or payload.get("new") or {}
         )
         log.debug(f"realtime: new_row={new_row!r}")
 
         # Confirm completion + identity match before firing
         if not new_row.get("completed"):
-            log.debug(f"realtime: completed not set, ignoring")
+            log.debug("realtime: completed not set, ignoring")
             return
         if int(new_row.get("discord_id", 0)) != self.discord_id:
-            log.debug(f"realtime: discord_id mismatch, ignoring")
+            log.debug("realtime: discord_id mismatch, ignoring")
             return
 
         self._fired.set()
