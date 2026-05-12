@@ -333,5 +333,5 @@ class Profile(commands.GroupCog, name='profile'):
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
 
-async def setup(bot: CENBot) -> None:
-    await bot.add_cog(Profile(bot))
+# async def setup(bot: CENBot) -> None:
+#     await bot.add_cog(Profile(bot))

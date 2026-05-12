@@ -16,7 +16,7 @@ davey==0.1.5
 discord.py==2.7.1
 docutils==0.22.4
 frozenlist==1.8.0
-idna==3.13
+idna==3.14
 imagesize==2.0.0
 Jinja2==3.1.6
 MarkupSafe==3.0.3
@@ -34,7 +34,7 @@ python-weather==2.2.1
 pytz==2026.2
 PyYAML==6.0.3
 qrcode==8.2
-requests==2.33.1
+requests==2.34.0
 roman-numerals==4.1.0
 snowballstemmer==3.0.1
 soupsieve==2.8.3

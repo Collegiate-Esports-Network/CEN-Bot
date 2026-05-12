@@ -1063,5 +1063,5 @@ class Radio(commands.GroupCog, name="radio"):
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
 
-async def setup(bot: CENBot) -> None:
-    await bot.add_cog(Radio(bot))
+# async def setup(bot: CENBot) -> None:
+#     await bot.add_cog(Radio(bot))
