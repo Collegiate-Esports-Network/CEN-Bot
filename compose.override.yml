@@ -1,10 +1,20 @@
 services:
+  lavalink:
+    container_name: lavalink-dev
+
   bot:
+    container_name: bot-dev
     env_file:
       - .env.local
-      - .env.dev
+      - .env.development
     environment:
       - NODE_ENV=dev
     volumes:
-      - .:/app
+      - ./utils:/app/utils
+      - ./cogs:/app/cogs
       - ./logs:/app/logs
+      - ./logging.yml:/app/logging.yml
+
+networks:
+  lavalink:
+    name: lavalink-dev

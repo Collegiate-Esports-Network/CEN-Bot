@@ -22,6 +22,15 @@ A cog is a collection of commands, listeners, and optional states to help group 
 - xp.py
 - youtube.py
 
+## `profile.py`
+- `/register` initiates a Discord OAuth handoff to CEN-Web.
+  - Inserts a row into `public.pending_registrations` keyed by a CSRF state token.
+  - Subscribes to Supabase realtime UPDATE events on that row via `bot.realtime`
+    (the `RealtimeManager` from `utils.realtime`); the OAuth callback flips
+    `completed = true` once `auth.users` and `profiles` are provisioned.
+  - DMs a confirmation message on completion; degrades to ephemeral fallback
+    when the user has DMs closed.
+
 ## radio.py
 > **Watch for race conditions; always default to useing wavelink's built-in functions instead of desinging your own.**
 

@@ -151,12 +151,14 @@ class Utility(commands.Cog):
         embed = discord.Embed(title="Available Commands", color=BRAND_COLOR)
 
         for cmd in sorted(self.bot.tree.get_commands(), key=lambda c: c.name):
-            if isinstance(cmd, app_commands.Group):
+            if isinstance(cmd, app_commands.ContextMenu):
+                continue
+            elif isinstance(cmd, app_commands.Group):
                 lines = [
                     f"`/{cmd.name} {sub.name}` — {sub.description}"
                     for sub in sorted(cmd.commands, key=lambda c: c.name)
                 ]
-                embed.add_field(name=f"/{cmd.name}", value='\n'.join(lines), inline=False)
+                embed.add_field(name=f"{cmd.name}", value='\n'.join(lines), inline=False)
             else:
                 embed.add_field(name=f"/{cmd.name}", value=cmd.description or "No description.", inline=False)
 

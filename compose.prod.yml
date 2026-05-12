@@ -2,4 +2,6 @@ services:
   bot:
     env_file:
       - .env.local
-      - .env.prod
+      - .env.production
+    environment:
+      - NODE_ENV=prod

@@ -1,7 +1,7 @@
 services:
   lavalink:
-    image: ghcr.io/lavalink-devs/lavalink:4-alpine
     container_name: lavalink
+    image: ghcr.io/lavalink-devs/lavalink:4-alpine
     restart: unless-stopped
     environment:
       - _JAVA_OPTIONS=-Xmx6G
@@ -11,11 +11,12 @@ services:
       - ./logs:/opt/Lavalink/logs
     networks:
       - lavalink
+
   bot:
+    container_name: bot
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: bot
     restart: unless-stopped
     volumes:
       - ./logs:/app/logs
@@ -23,6 +24,7 @@ services:
       - lavalink
     depends_on:
       - lavalink
+
 networks:
   lavalink:
     name: lavalink

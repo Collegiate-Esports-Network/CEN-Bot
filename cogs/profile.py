@@ -1,13 +1,15 @@
-"""Player profile commands."""
+"""Player profile and registration commands."""
 
 __author__ = "Justin Panchula"
 __copyright__ = "Copyright CEN"
 __credits__ = ["Justin Panchula", "Claude"]
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 __status__ = "Development"
 
 # Standard library
+import secrets
 from logging import getLogger
+from urllib.parse import urlencode
 
 # Third-party
 import discord
@@ -21,13 +23,141 @@ from utils.embeds import requester_footer, BRAND_COLOR
 
 log = getLogger('CENBot.profiles')
 
+# Window the bot will tell users their link is good for; must match
+# `pending_registrations.expires_at` default in the migration.
+LINK_TTL_MINUTES = 10
+
 
 @app_commands.guild_only()
 class Profile(commands.GroupCog, name='profile'):
-    """Commands for viewing CEN player profiles and linked game accounts."""
+    """Commands for CEN player profiles, linked game accounts, and registration."""
+
     def __init__(self, bot: CENBot) -> None:
         self.bot = bot
         super().__init__()
+
+    ### Registration ###
+
+    @app_commands.command(name='register', description="Link your Discord account to CEN.")
+    async def profile_register(self, interaction: discord.Interaction) -> None:
+        """Initiate the bot-driven OAuth flow.
+
+        Validates that the invoker is not already linked, persists a
+        ``pending_registrations`` row keyed by a fresh CSRF state token, DMs
+        the OAuth login URL, and subscribes via realtime so the bot can DM a
+        confirmation when the web callback flips ``completed``.
+
+        :param interaction: the discord interaction that triggered the command
+        :type interaction: discord.Interaction
+        """
+        # Defer ephemerally; downstream DB + DM work may exceed the 3s ack window
+        await interaction.response.defer(ephemeral=True)
+
+        discord_id = interaction.user.id
+        username = str(interaction.user)
+
+        ### Short-circuit: already registered ###
+        try:
+            async with self.bot.db_pool.acquire() as conn:
+                existing = await conn.fetchval(
+                    "SELECT user_id FROM public.profiles WHERE discord_id = $1",
+                    discord_id,
+                )
+        except PostgresError as e:
+            log.exception(e)
+            await interaction.followup.send(
+                "There was an error checking your registration, please try again.",
+                ephemeral=True,
+            )
+            return
+
+        if existing is not None:
+            await interaction.followup.send(
+                "You're already linked to a CEN profile. "
+                "Visit https://collegiateesportsnetwork.org/account to manage it.",
+                ephemeral=True,
+            )
+            return
+
+        ### Persist a pending registration keyed by a fresh CSRF state token ###
+        state = secrets.token_urlsafe(32)
+        try:
+            async with self.bot.db_pool.acquire() as conn:
+                await conn.execute(
+                    """
+                    INSERT INTO public.pending_registrations (state, discord_id, username)
+                    VALUES ($1, $2, $3)
+                    """,
+                    state, discord_id, username,
+                )
+        except PostgresError as e:
+            log.exception(e)
+            await interaction.followup.send(
+                "There was an error starting registration, please try again.",
+                ephemeral=True,
+            )
+            return
+
+        ### Subscribe to the realtime completion event before sending the URL ###
+        try:
+            await self.bot.realtime.watch(discord_id, self._notify_complete)
+        except Exception as e:
+            # Subscription failure is non-fatal — web flow still succeeds, the user
+            # just won't get a DM confirmation. Keep the command flow moving.
+            log.exception(e)
+
+        ### Build the OAuth URL and DM (or fall back to ephemeral) ###
+        params = urlencode({"source": "bot", "state": state})
+        url = f"{self.bot.web_base_url}/api/v1/auth/discord/login?{params}"
+
+        try:
+            await interaction.user.send(
+                "Click the link below to link your Discord account to CEN. "
+                f"This link expires in **{LINK_TTL_MINUTES} minutes**.\n\n{url}"
+            )
+        except discord.Forbidden:
+            # User has DMs closed for non-friends; deliver the link ephemerally instead
+            await interaction.followup.send(
+                "I can't DM you, so here's your registration link "
+                f"(only you can see this, expires in **{LINK_TTL_MINUTES} minutes**):\n{url}",
+                ephemeral=True,
+            )
+            return
+
+        await interaction.followup.send(
+            "Check your DMs for a registration link.",
+            ephemeral=True,
+        )
+        log.info(f"registration: handoff started for discord_id={discord_id}")
+
+    async def _notify_complete(self, discord_id: int) -> None:
+        """Realtime completion handler: DM the user a confirmation message.
+
+        Looked up via the bot's user cache; falls back to a fetch when the user
+        isn't cached. Failures are logged but never raised — registration
+        already succeeded on the web side.
+
+        :param discord_id: Discord snowflake of the user who finished registering
+        :type discord_id: int
+        """
+        user = self.bot.get_user(discord_id)
+        if user is None:
+            try:
+                user = await self.bot.fetch_user(discord_id)
+            except discord.HTTPException as e:
+                log.exception(e)
+                return
+
+        try:
+            await user.send("You're registered! Welcome to the CEN.")
+        except discord.Forbidden:
+            log.warning(f"registration: cannot DM completion to discord_id={discord_id} (DMs closed)")
+        except discord.HTTPException as e:
+            log.exception(e)
+
+        log.info(f"registration: handoff complete for discord_id={discord_id}")
+
+    ### Profile ###
 
     @app_commands.command(name='view', description="View your CEN profile and game stats.")
     async def profile_view(self, interaction: discord.Interaction, member: discord.Member | None = None) -> None:
@@ -74,7 +204,7 @@ class Profile(commands.GroupCog, name='profile'):
             if record is None:
                 await interaction.response.send_message(
                     "You don't have a CEN profile linked to your Discord account. "
-                    "You can create one at https://collegiateesportsnetwork.org/account",
+                    "You can create one with `/profile register`.",
                     ephemeral=True,
                 )
                 return

@@ -3,14 +3,14 @@ This repo contains all files necessary to run the Collegiate Esports Network's c
 
 ## File Structure
 ```
-cogs/               - modules loaded at runtime
-lavalink/           - lavalink server config and plugins
-utils/              - helper functions
-logging.yml         - logging configuration
-start.py            - entry point for custom bot
-.env.dev            - development environment variables
-.env.prod           - production environment variables
-.env.local          - shared environment variables
+cogs/                   - modules loaded at runtime
+lavalink/               - lavalink server config and plugins
+utils/                  - helper functions
+logging.yml             - logging configuration
+start.py                - entry point for custom bot
+.env.developement       - development environment variables
+.env.production         - production environment variables
+.env.local              - shared environment variables
 ```
 
 ## Architecture
@@ -64,3 +64,6 @@ npx supabase status  # Status of the instance
 npx supabase migration new <description>   # Create a new migration file
 npx supabase migration up                  # Apply pending migrations to local DB
 ```
+
+## Parent
+For cross-project context and project-wide rules, see `../AGENTS.md`.
